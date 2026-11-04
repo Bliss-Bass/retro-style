@@ -1,0 +1,60 @@
+From cbede7731228fec0c496f53ccdd8c30d22028344 Mon Sep 17 00:00:00 2001
+From: Jon West <electrikjesus@gmail.com>
+Date: Wed, 4 Nov 2026 11:51:14 -0500
+Subject: [PATCH 6/8] Taskbar: Keep the system bar tray touchable without app
+ icons
+
+With no app icons showing, the taskbar window only takes touches over
+the nav buttons, so taps on the tray fell through to the app behind it.
+Add the tray's bounds to that region too.
+
+Change-Id: I4a3b82f34d4c7bf1cb9e68c99a485e3c8ef882e8
+---
+ .../launcher3/taskbar/NavbarButtonsViewController.java | 10 ++++++++++
+ 1 file changed, 10 insertions(+)
+
+diff --git a/quickstep/src/com/android/launcher3/taskbar/NavbarButtonsViewController.java b/quickstep/src/com/android/launcher3/taskbar/NavbarButtonsViewController.java
+index 7e823a4de66..0e7dacc50ee 100644
+--- a/quickstep/src/com/android/launcher3/taskbar/NavbarButtonsViewController.java
++++ b/quickstep/src/com/android/launcher3/taskbar/NavbarButtonsViewController.java
+@@ -185,6 +185,8 @@ public class NavbarButtonsViewController implements TaskbarControllers.LoggableT
+ 
+     private final ArrayList<StatePropertyHolder> mPropertyHolders = new ArrayList<>();
+     private final ArrayList<ImageView> mAllButtons = new ArrayList<>();
++    // The tablet system bar tray, which takes touches like the nav buttons.
++    @Nullable private View mSystemTray;
+     private int mState;
+ 
+     private final TaskbarActivityContext mContext;
+@@ -536,6 +538,7 @@ public class NavbarButtonsViewController implements TaskbarControllers.LoggableT
+             }
+             TaskbarSystemTrayView tray = new TaskbarSystemTrayView(mContext, navButtonController);
+             tray.setId(R.id.retro_system_tray);
++            mSystemTray = tray;
+             mNavButtonsView.addView(tray, new FrameLayout.LayoutParams(
+                     ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.MATCH_PARENT,
+                     Gravity.END | Gravity.CENTER_VERTICAL));
+@@ -735,6 +738,12 @@ public class NavbarButtonsViewController implements TaskbarControllers.LoggableT
+                 outRegion.op(mTempRect, Op.UNION);
+             }
+         }
++        // Without app icons the taskbar only takes touches here, so the tray must be included.
++        if (mSystemTray != null && mSystemTray.getVisibility() == View.VISIBLE
++                && mSystemTray.getAlpha() > 0) {
++            parent.getDescendantRectRelativeToSelf(mSystemTray, mTempRect);
++            outRegion.op(mTempRect, Op.UNION);
++        }
+     }
+ 
+     /**
+@@ -1169,6 +1178,7 @@ public class NavbarButtonsViewController implements TaskbarControllers.LoggableT
+         mEndContextualContainer.removeAllViews();
+         mStartContextualContainer.removeAllViews();
+         mAllButtons.clear();
++        mSystemTray = null;
+     }
+ 
+     /**
+-- 
+2.43.0
+

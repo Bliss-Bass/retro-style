@@ -1,0 +1,120 @@
+From 34ce5d940086c5aed1248152a48796d02d377fb3 Mon Sep 17 00:00:00 2001
+From: Jon West <electrikjesus@gmail.com>
+Date: Wed, 4 Nov 2026 11:33:49 -0500
+Subject: [PATCH 4/8] Taskbar: Keep a notifications bell in the system bar tray
+
+The notifications group disappeared when there were none, leaving no
+tray target for the notification panel. Show a bell when it's empty
+(the count bubble or icons replace it), and on KitKat, where the groups
+have no capsules, divide notifications from the status icons.
+
+Change-Id: Iedac77de76fd99d8402fb0691ace9dcc6b054554
+---
+ .../drawable/ic_retro_tray_notifications.xml  | 19 ++++++++++++
+ .../taskbar/TaskbarSystemTrayView.kt          | 31 ++++++++++++++-----
+ 2 files changed, 42 insertions(+), 8 deletions(-)
+ create mode 100644 quickstep/res/drawable/ic_retro_tray_notifications.xml
+
+diff --git a/quickstep/res/drawable/ic_retro_tray_notifications.xml b/quickstep/res/drawable/ic_retro_tray_notifications.xml
+new file mode 100644
+index 00000000000..bc37ab156d7
+--- /dev/null
++++ b/quickstep/res/drawable/ic_retro_tray_notifications.xml
+@@ -0,0 +1,19 @@
++<?xml version="1.0" encoding="utf-8"?>
++<!--
++     Copyright (C) 2026 Navotpala Tech (Bliss Co-Labs Inc.)
++
++     SPDX-License-Identifier: AGPL-3.0-only OR LicenseRef-Navotpala-Commercial
++     Part of retro-style (vendor/retro-style). Licensed under the GNU Affero General Public
++     License v3.0, or under a commercial license from Navotpala Tech (info@navotpala.tech).
++     See LICENSE and LICENSE_COMMERCIAL in vendor/retro-style.
++     Icon path data from Material Design Icons (Google), Apache License 2.0.
++-->
++<vector xmlns:android="http://schemas.android.com/apk/res/android"
++    android:width="24dp"
++    android:height="24dp"
++    android:viewportWidth="24"
++    android:viewportHeight="24">
++    <path
++        android:fillColor="#FFFFFFFF"
++        android:pathData="M12,22c1.1,0 2,-0.9 2,-2h-4c0,1.1 0.89,2 2,2zM18,16v-5c0,-3.07 -1.64,-5.64 -4.5,-6.32V4c0,-0.83 -0.67,-1.5 -1.5,-1.5s-1.5,0.67 -1.5,1.5v0.68C7.63,5.36 6,7.92 6,11v5l-2,2v1h16v-1l-2,-2zM16,17H8v-6c0,-2.48 1.51,-4.5 4,-4.5s4,2.02 4,4.5v6z" />
++</vector>
+diff --git a/quickstep/src/com/android/launcher3/taskbar/TaskbarSystemTrayView.kt b/quickstep/src/com/android/launcher3/taskbar/TaskbarSystemTrayView.kt
+index 1cc1a78aebf..55f4521895d 100644
+--- a/quickstep/src/com/android/launcher3/taskbar/TaskbarSystemTrayView.kt
++++ b/quickstep/src/com/android/launcher3/taskbar/TaskbarSystemTrayView.kt
+@@ -44,9 +44,10 @@ import java.util.function.Consumer
+ /**
+  * The tablet system bar tray: notification icons, network and battery, volume and the clock.
+  *
+- * Tapping the notifications opens the notification panel and tapping the status icons or the clock
+- * opens Quick Settings, both on this taskbar's display. Material style draws Googlebook-like
+- * capsules in the dynamic colors; KitKat style draws flat white icons and a thin Holo-blue clock.
++ * Tapping the notifications (a bell when there are none) opens the notification panel and tapping
++ * the status icons or the clock opens Quick Settings, both on this taskbar's display. Material
++ * style draws Googlebook-like capsules in the dynamic colors; KitKat style draws flat white icons
++ * and a thin Holo-blue clock.
+  */
+ class TaskbarSystemTrayView(
+     context: Context,
+@@ -56,6 +57,7 @@ class TaskbarSystemTrayView(
+     private val kitKat = RetroSystemBar.isKitKat
+     private val iconSize = dp(if (kitKat) 20f else 18f)
+     private val contentColor: Int
++    private val notificationBell = ImageView(context)
+     private val notificationIcons = LinearLayout(context)
+     private val notificationCount = TextView(context)
+     private val systemIcons = LinearLayout(context)
+@@ -124,12 +126,15 @@ class TaskbarSystemTrayView(
+         notificationCount.setTextColor(contentColor)
+         notificationCount.setTextSize(TypedValue.COMPLEX_UNIT_SP, 12f)
+         notificationCount.gravity = Gravity.CENTER
+-        val notifications = group(notificationIcons, notificationCount)
++        notificationBell.setImageResource(R.drawable.ic_retro_tray_notifications)
++        styleIcon(notificationBell)
++        // Always shown (a bell when empty) so the notification panel has its own target.
++        val notifications = group(notificationBell, notificationIcons, notificationCount)
+         notifications.contentDescription = context.getString(R.string.taskbar_button_notifications)
+         notifications.setOnClickListener {
+             navButtonController.onButtonClick(BUTTON_NOTIFICATIONS, it)
+         }
+-        notifications.visibility = GONE
++        showNotifications(emptyList(), 0)
+ 
+         networkIcon.visibility = GONE
+         batteryIcon.setImageResource(R.drawable.ic_retro_tray_battery)
+@@ -162,6 +167,15 @@ class TaskbarSystemTrayView(
+         clock.setOnClickListener { navButtonController.onButtonClick(BUTTON_QUICK_SETTINGS, it) }
+ 
+         addView(notifications)
++        if (kitKat) {
++            // KitKat groups have no capsule, so a rule keeps notifications and status apart.
++            val divider = View(context)
++            divider.setBackgroundColor(contentColor and 0x60FFFFFF)
++            val params = LayoutParams(dp(1f), dp(24f))
++            params.marginStart = dp(4f)
++            divider.layoutParams = params
++            addView(divider)
++        }
+         addView(status)
+         if (!kitKat) {
+             // KitKat has volume buttons with the nav buttons; Material keeps it in the tray.
+@@ -217,10 +231,11 @@ class TaskbarSystemTrayView(
+     }
+ 
+     private fun showNotifications(icons: List<Drawable>, count: Int) {
+-        val notifications = notificationIcons.parent as View
+-        notifications.visibility = if (count > 0) VISIBLE else GONE
+         notificationIcons.removeAllViews()
+-        if (kitKat) {
++        notificationBell.visibility = if (count > 0) GONE else VISIBLE
++        if (count == 0) {
++            notificationCount.visibility = GONE
++        } else if (kitKat) {
+             // KitKat lists the icons themselves.
+             icons.forEach { icon ->
+                 val view = ImageView(context)
+-- 
+2.43.0
+

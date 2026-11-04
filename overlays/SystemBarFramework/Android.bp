@@ -1,0 +1,17 @@
+// Copyright (C) 2026 Navotpala Tech (Bliss Co-Labs Inc.)
+// SPDX-License-Identifier: AGPL-3.0-only OR LicenseRef-Navotpala-Commercial
+
+package {
+    default_applicable_licenses: ["vendor_retro-style_license"],
+}
+
+// Status bar height 0 (framework-res): hides the top status bar when the tablet system bar shows the status icons in its tray. Enabled by the RetroStyle app.
+runtime_resource_overlay {
+    name: "RetroStyleSystemBarFramework",
+    resource_dirs: ["res"],
+    manifest: "AndroidManifest.xml",
+    // Installed to /product/overlay. Overlays on /product may replace resources of targets
+    // that declare no <overlayable>, which is the case for framework-res, SystemUI, Settings
+    // and Launcher3.
+    product_specific: true,
+}

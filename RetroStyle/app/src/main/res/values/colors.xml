@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Holo (Android 4.x) colors for the KitKat style. -->
+    <color name="holo_blue_light">#FF33B5E5</color>
+    <color name="holo_blue_dark">#FF0099CC</color>
+    <color name="holo_surface">#FF1B1B1B</color>
+    <color name="holo_surface_high">#FF282828</color>
+    <color name="holo_text_secondary">#FFBEBEBE</color>
+    <color name="holo_divider">#FF333333</color>
+</resources>

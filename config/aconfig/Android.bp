@@ -1,0 +1,25 @@
+// Copyright (C) 2026 Navotpala Tech (Bliss Co-Labs Inc.)
+// SPDX-License-Identifier: AGPL-3.0-only OR LicenseRef-Navotpala-Commercial
+
+package {
+    default_applicable_licenses: ["vendor_retro-style_license"],
+}
+
+// SystemUI's Dual Shade (the floating Notifications and Quick Settings panels) needs two aconfig
+// flags that are off in the bp4a release: scene_container and status_bar_for_desktop. These
+// modules set them at build time; release_config_map.textproto adds them to the bp4a release,
+// and retro_style.mk adds that map with PRODUCT_RELEASE_CONFIG_MAPS.
+//
+// Build-time values work everywhere. On-device overrides (aflags / device_config) need aconfigd
+// and a /metadata partition, which some devices (x86 images, for one) don't have.
+
+aconfig_values {
+    name: "aconfig-values-retro-style-bp4a-com.android.systemui-all",
+    package: "com.android.systemui",
+    srcs: ["*_flag_values.textproto"],
+}
+
+aconfig_value_set {
+    name: "aconfig_value_set-retro-style-bp4a",
+    values: ["aconfig-values-retro-style-bp4a-com.android.systemui-all"],
+}

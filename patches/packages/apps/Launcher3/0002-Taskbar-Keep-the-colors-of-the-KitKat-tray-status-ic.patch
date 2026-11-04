@@ -1,0 +1,42 @@
+From b52e9bcbbc302cd80f030da33ba49eda481334cb Mon Sep 17 00:00:00 2001
+From: Jon West <electrikjesus@gmail.com>
+Date: Tue, 3 Nov 2026 16:12:48 -0500
+Subject: [PATCH 2/8] Taskbar: Keep the colors of the KitKat tray status icons
+
+The KitKat style pack replaces them with AOSP Holo images whose blue fill
+shows the battery and Wi-Fi level; tinting them would hide it.
+
+Change-Id: Iaf99c20316cdc9e3df1454bc9de73b8d3e950220
+---
+ .../com/android/launcher3/taskbar/TaskbarSystemTrayView.kt | 7 ++++---
+ 1 file changed, 4 insertions(+), 3 deletions(-)
+
+diff --git a/quickstep/src/com/android/launcher3/taskbar/TaskbarSystemTrayView.kt b/quickstep/src/com/android/launcher3/taskbar/TaskbarSystemTrayView.kt
+index f7d282831a4..166a65cf46c 100644
+--- a/quickstep/src/com/android/launcher3/taskbar/TaskbarSystemTrayView.kt
++++ b/quickstep/src/com/android/launcher3/taskbar/TaskbarSystemTrayView.kt
+@@ -132,8 +132,9 @@ class TaskbarSystemTrayView(
+         batteryText.setTextColor(if (kitKat) HOLO_BLUE else contentColor)
+         batteryText.setTextSize(TypedValue.COMPLEX_UNIT_SP, if (kitKat) 18f else 12f)
+         if (kitKat) batteryText.typeface = Typeface.create("sans-serif-light", Typeface.NORMAL)
++        // The KitKat style pack swaps in AOSP Holo status icons that carry their own colors.
+         listOf(networkIcon, batteryIcon).forEach {
+-            styleIcon(it, if (kitKat) HOLO_BLUE else contentColor)
++            styleIcon(it, if (kitKat) null else contentColor)
+         }
+         val status = group(networkIcon, batteryIcon, batteryText)
+         status.contentDescription = context.getString(R.string.taskbar_button_quick_settings)
+@@ -277,8 +278,8 @@ class TaskbarSystemTrayView(
+         return group
+     }
+ 
+-    private fun styleIcon(view: ImageView, color: Int = contentColor) {
+-        view.setColorFilter(color)
++    private fun styleIcon(view: ImageView, color: Int? = contentColor) {
++        if (color != null) view.setColorFilter(color) else view.clearColorFilter()
+         val params = LayoutParams(iconSize, iconSize)
+         params.marginEnd = dp(4f)
+         view.layoutParams = params
+-- 
+2.43.0
+

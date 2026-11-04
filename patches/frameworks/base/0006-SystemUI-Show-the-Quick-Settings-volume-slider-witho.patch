@@ -1,0 +1,122 @@
+From ce334b37e474c622f86bcbf9e1e12046fcdb0096 Mon Sep 17 00:00:00 2001
+From: Jon West <electrikjesus@gmail.com>
+Date: Wed, 4 Nov 2026 10:53:37 -0500
+Subject: [PATCH 6/8] SystemUI: Show the Quick Settings volume slider without
+ tile details
+
+config_enableDesktopAudioTileDetailsView put a volume slider in the
+Dual Shade Quick Settings panel only when the tile details view flag is
+on as well. The slider doesn't need it; only its audio settings button
+does, so show the slider with the scene container and hide the button
+when tile details are off.
+---
+ .../composable/QuickSettingsShadeOverlay.kt   | 36 ++++++++++---------
+ ...ickSettingsShadeOverlayContentViewModel.kt |  5 +--
+ ...esktopAudioTileDetailsFeatureInteractor.kt |  6 ++--
+ 3 files changed, 27 insertions(+), 20 deletions(-)
+
+diff --git a/packages/SystemUI/compose/features/src/com/android/systemui/qs/ui/composable/QuickSettingsShadeOverlay.kt b/packages/SystemUI/compose/features/src/com/android/systemui/qs/ui/composable/QuickSettingsShadeOverlay.kt
+index 9e59bc4a1d9c..bcfb46970bb2 100644
+--- a/packages/SystemUI/compose/features/src/com/android/systemui/qs/ui/composable/QuickSettingsShadeOverlay.kt
++++ b/packages/SystemUI/compose/features/src/com/android/systemui/qs/ui/composable/QuickSettingsShadeOverlay.kt
+@@ -439,23 +439,27 @@ private fun ContentScope.QuickSettingsLayout(
+                             hapticsViewModelFactory =
+                                 volumeSliderViewModel.getSliderHapticsViewModelFactory(),
+                         )
+-                        IconButton(
+-                            colors =
+-                                IconButtonDefaults.iconButtonColors(
+-                                    containerColor = MaterialTheme.colorScheme.primary,
+-                                    contentColor = MaterialTheme.colorScheme.onPrimary,
+-                                ),
+-                            onClick = {
+-                                qsContainerViewModel.detailsViewModel.onVolumeSettingsButtonClicked(
+-                                    audioDetailsViewModelFactory.create()
++                        // Audio settings open as tile details, which need the detailed view.
++                        if (QsDetailedView.isEnabled) {
++                            IconButton(
++                                colors =
++                                    IconButtonDefaults.iconButtonColors(
++                                        containerColor = MaterialTheme.colorScheme.primary,
++                                        contentColor = MaterialTheme.colorScheme.onPrimary,
++                                    ),
++                                onClick = {
++                                    qsContainerViewModel.detailsViewModel
++                                        .onVolumeSettingsButtonClicked(
++                                            audioDetailsViewModelFactory.create()
++                                        )
++                                },
++                            ) {
++                                Icon(
++                                    painterResource(R.drawable.horizontal_ellipsis),
++                                    // TODO(b/378513663): Update the placeholder content description
++                                    contentDescription = "Volume settings",
+                                 )
+-                            },
+-                        ) {
+-                            Icon(
+-                                painterResource(R.drawable.horizontal_ellipsis),
+-                                // TODO(b/378513663): Update the placeholder content description
+-                                contentDescription = "Volume settings",
+-                            )
++                            }
+                         }
+                     }
+                 }
+diff --git a/packages/SystemUI/src/com/android/systemui/qs/ui/viewmodel/QuickSettingsShadeOverlayContentViewModel.kt b/packages/SystemUI/src/com/android/systemui/qs/ui/viewmodel/QuickSettingsShadeOverlayContentViewModel.kt
+index cc7415094ffd..f4e67e600254 100644
+--- a/packages/SystemUI/src/com/android/systemui/qs/ui/viewmodel/QuickSettingsShadeOverlayContentViewModel.kt
++++ b/packages/SystemUI/src/com/android/systemui/qs/ui/viewmodel/QuickSettingsShadeOverlayContentViewModel.kt
+@@ -30,12 +30,12 @@ import com.android.systemui.development.ui.viewmodel.BuildNumberViewModel
+ import com.android.systemui.keyguard.ui.transitions.BlurConfig
+ import com.android.systemui.lifecycle.ExclusiveActivatable
+ import com.android.systemui.lifecycle.Hydrator
+-import com.android.systemui.qs.flags.QsDetailedView
+ import com.android.systemui.qs.panels.domain.interactor.QSPanelAppearanceInteractor
+ import com.android.systemui.qs.panels.ui.viewmodel.toolbar.ToolbarViewModel
+ import com.android.systemui.qs.tiles.dialog.AudioDetailsViewModel
+ import com.android.systemui.res.R
+ import com.android.systemui.scene.domain.interactor.SceneInteractor
++import com.android.systemui.scene.shared.flag.SceneContainerFlag
+ import com.android.systemui.scene.shared.model.Overlays
+ import com.android.systemui.scene.shared.model.Scenes
+ import com.android.systemui.shade.ShadeDisplayAware
+@@ -139,8 +139,9 @@ constructor(
+         }
+     }
+ 
++    // The slider works without tile details; only its settings button needs them.
+     private val showVolumeSlider =
+-        QsDetailedView.isEnabled &&
++        SceneContainerFlag.isEnabled &&
+             shadeContext.resources.getBoolean(R.bool.config_enableDesktopAudioTileDetailsView)
+ 
+     val volumeSliderViewModel =
+diff --git a/packages/SystemUI/src/com/android/systemui/volume/dialog/domain/interactor/DesktopAudioTileDetailsFeatureInteractor.kt b/packages/SystemUI/src/com/android/systemui/volume/dialog/domain/interactor/DesktopAudioTileDetailsFeatureInteractor.kt
+index f83c1f65c521..5727e761224c 100644
+--- a/packages/SystemUI/src/com/android/systemui/volume/dialog/domain/interactor/DesktopAudioTileDetailsFeatureInteractor.kt
++++ b/packages/SystemUI/src/com/android/systemui/volume/dialog/domain/interactor/DesktopAudioTileDetailsFeatureInteractor.kt
+@@ -19,16 +19,18 @@ package com.android.systemui.volume.dialog.domain.interactor
+ import android.content.Context
+ import com.android.systemui.dagger.SysUISingleton
+ import com.android.systemui.dagger.qualifiers.Application
+-import com.android.systemui.qs.flags.QsDetailedView
+ import com.android.systemui.res.R
++import com.android.systemui.scene.shared.flag.SceneContainerFlag
+ import javax.inject.Inject
+ 
+ @SysUISingleton
+ class DesktopAudioTileDetailsFeatureInteractor
+ @Inject
+ constructor(@Application private val context: Context) {
++    // Matches when the Quick Settings shade shows the volume slider, which doesn't need the tile
++    // details view.
+     private val isEnabled =
+-        QsDetailedView.isEnabled &&
++        SceneContainerFlag.isEnabled &&
+             context.resources.getBoolean(R.bool.config_enableDesktopAudioTileDetailsView)
+ 
+     fun isEnabled(): Boolean {
+-- 
+2.43.0
+

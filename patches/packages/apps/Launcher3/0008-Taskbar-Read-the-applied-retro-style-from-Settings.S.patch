@@ -1,0 +1,155 @@
+From 46a070457a8a847e6fbbdcd96f0bf03488d7d4e4 Mon Sep 17 00:00:00 2001
+From: Jon West <electrikjesus@gmail.com>
+Date: Wed, 4 Nov 2026 15:54:12 -0500
+Subject: [PATCH 8/8] Taskbar: Read the applied retro style from
+ Settings.Secure
+
+The RetroStyle app runs as a system app on SELinux-enforcing builds,
+where it can't set custom persist.* properties without extra policy.
+It writes the resolved style to the secure setting retro_ui_applied
+instead (layout, style, bar_apps, bar_buttons, ... as key=value
+pairs), and the taskbar reads that once per process through
+RetroUiApplied.
+
+Change-Id: I905391bde510dfc965edbcde3055a841d1b22486
+---
+ .../launcher3/taskbar/RetroSystemBar.kt       | 36 +++++++--------
+ .../launcher3/taskbar/RetroUiApplied.kt       | 44 +++++++++++++++++++
+ 2 files changed, 59 insertions(+), 21 deletions(-)
+ create mode 100644 quickstep/src/com/android/launcher3/taskbar/RetroUiApplied.kt
+
+diff --git a/quickstep/src/com/android/launcher3/taskbar/RetroSystemBar.kt b/quickstep/src/com/android/launcher3/taskbar/RetroSystemBar.kt
+index 605cee362b8..1f911281688 100644
+--- a/quickstep/src/com/android/launcher3/taskbar/RetroSystemBar.kt
++++ b/quickstep/src/com/android/launcher3/taskbar/RetroSystemBar.kt
+@@ -10,7 +10,6 @@
+ package com.android.launcher3.taskbar
+ 
+ import android.graphics.Rect
+-import android.os.SystemProperties
+ import android.view.View
+ import android.view.ViewGroup
+ import com.android.launcher3.R
+@@ -24,30 +23,21 @@ import kotlin.math.max
+  * The tablet "system bar" taskbar layout: nav buttons at the start, optional extra buttons, and a
+  * tray (notifications, status, volume, clock) at the end.
+  *
+- * Driven by `persist.retro.ui_layout=system_bar`; `persist.retro.ui_style=kitkat` switches the tray
+- * to the KitKat look and hides the app icons. Read once per process; the RetroStyle app restarts the
+- * launcher when they change.
++ * Driven by [RetroUiApplied]: `layout=system_bar` turns it on and `style=kitkat` switches the tray
++ * to the KitKat look and hides the app icons. Read once per process; the RetroStyle app restarts
++ * the launcher when they change.
+  */
+ object RetroSystemBar {
+-    @JvmStatic
+-    val isEnabled: Boolean by lazy {
+-        SystemProperties.get("persist.retro.ui_layout") == "system_bar"
+-    }
++    @JvmStatic val isEnabled: Boolean by lazy { RetroUiApplied["layout"] == "system_bar" }
+ 
+-    @JvmStatic
+-    val isKitKat: Boolean by lazy { SystemProperties.get("persist.retro.ui_style") == "kitkat" }
++    @JvmStatic val isKitKat: Boolean by lazy { RetroUiApplied["style"] == "kitkat" }
+ 
+     /** App icons between the nav buttons and the tray (off by default for KitKat). */
+     @JvmStatic
+-    val showApps: Boolean by lazy {
+-        SystemProperties.getBoolean("persist.retro.ui_bar_apps", !isKitKat)
+-    }
++    val showApps: Boolean by lazy { RetroUiApplied["bar_apps"]?.let { it == "1" } ?: !isKitKat }
+ 
+     /** Seconds on the tray clock. */
+-    @JvmStatic
+-    val clockSeconds: Boolean by lazy {
+-        SystemProperties.getBoolean("persist.retro.ui_bar_clock_seconds", false)
+-    }
++    @JvmStatic val clockSeconds: Boolean by lazy { RetroUiApplied["clock_seconds"] == "1" }
+ 
+     private val extraButtonsByName =
+         mapOf(
+@@ -60,15 +50,19 @@ object RetroSystemBar {
+             "vol_up" to
+                 ExtraButton(BUTTON_VOLUME_UP, R.drawable.ic_retro_volume_up, R.id.retro_volume_up),
+             "screenshot" to
+-                ExtraButton(BUTTON_SCREENSHOT, R.drawable.ic_retro_screenshot, R.id.retro_screenshot),
++                ExtraButton(
++                    BUTTON_SCREENSHOT,
++                    R.drawable.ic_retro_screenshot,
++                    R.id.retro_screenshot,
++                ),
+             "power" to ExtraButton(BUTTON_POWER, R.drawable.ic_retro_power, R.id.retro_power),
+         )
+ 
+-    /** Extra nav buttons in `persist.retro.ui_bar_buttons` order; none unless chosen in Settings. */
++    /** Extra nav buttons in `bar_buttons` order (comma list); none unless chosen in Settings. */
+     @JvmStatic
+     val extraButtons: List<ExtraButton> by lazy {
+         if (!isEnabled) return@lazy emptyList()
+-        SystemProperties.get("persist.retro.ui_bar_buttons", "").split(',').mapNotNull {
++        RetroUiApplied["bar_buttons"].orEmpty().split(',').mapNotNull {
+             extraButtonsByName[it.trim()]
+         }
+     }
+@@ -79,7 +73,7 @@ object RetroSystemBar {
+     /** Where the app icons sit between the buttons and the tray: `start`, `center` or `end`. */
+     @JvmStatic
+     val appsGravity: String by lazy {
+-        when (val gravity = SystemProperties.get("persist.retro.ui_bar_apps_gravity")) {
++        when (val gravity = RetroUiApplied["bar_apps_gravity"].orEmpty()) {
+             GRAVITY_START,
+             GRAVITY_END -> gravity
+             else -> GRAVITY_CENTER
+diff --git a/quickstep/src/com/android/launcher3/taskbar/RetroUiApplied.kt b/quickstep/src/com/android/launcher3/taskbar/RetroUiApplied.kt
+new file mode 100644
+index 00000000000..d2955fa0764
+--- /dev/null
++++ b/quickstep/src/com/android/launcher3/taskbar/RetroUiApplied.kt
+@@ -0,0 +1,44 @@
++/*
++ * Copyright (C) 2026 Navotpala Tech (Bliss Co-Labs Inc.)
++ *
++ * SPDX-License-Identifier: AGPL-3.0-only OR LicenseRef-Navotpala-Commercial
++ * Part of retro-style (vendor/retro-style). Licensed under the GNU Affero General Public
++ * License v3.0, or under a commercial license from Navotpala Tech (info@navotpala.tech).
++ * See LICENSE and LICENSE_COMMERCIAL in vendor/retro-style.
++ */
++
++package com.android.launcher3.taskbar
++
++import android.app.AppGlobals
++import android.provider.Settings
++
++/**
++ * The retro style the RetroStyle app (vendor/retro-style) last applied.
++ *
++ * The app resolves the user's choices and their defaults and writes them to the secure setting
++ * `retro_ui_applied` as `key=value` pairs separated by `;`, for example
++ * `style=kitkat;layout=system_bar;bar_apps=0;bar_buttons=vol_down,power`. A secure setting needs no
++ * SELinux policy, unlike a custom system property. Read once per process: the app restarts the
++ * launcher when a value it uses changes. SystemUI has its own copy of this reader.
++ */
++object RetroUiApplied {
++    const val SETTING = "retro_ui_applied"
++
++    private val values: Map<String, String> by lazy {
++        val resolver = AppGlobals.getInitialApplication()?.contentResolver
++        parse(resolver?.let { Settings.Secure.getString(it, SETTING) })
++    }
++
++    operator fun get(key: String): String? = values[key]
++
++    fun parse(value: String?): Map<String, String> =
++        value
++            .orEmpty()
++            .split(';')
++            .mapNotNull { pair ->
++                val parts = pair.split('=', limit = 2)
++                if (parts.size == 2 && parts[0].isNotBlank()) parts[0].trim() to parts[1].trim()
++                else null
++            }
++            .toMap()
++}
+-- 
+2.43.0
+

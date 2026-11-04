@@ -1,0 +1,42 @@
+// Copyright (C) 2026 Navotpala Tech (Bliss Co-Labs Inc.)
+// SPDX-License-Identifier: AGPL-3.0-only OR LicenseRef-Navotpala-Commercial
+
+package {
+    default_applicable_licenses: ["vendor_retro-style_license"],
+}
+
+// Settings > System > UI style, and the code that applies the retro style.
+//
+// The same sources also build with Gradle (./gradlew :app:assembleRelease) for quick iteration;
+// app/hidden-api-stub is only for that Gradle build and is not part of this module.
+android_app {
+    name: "RetroStyle",
+    srcs: ["app/src/main/java/**/*.kt"],
+    resource_dirs: ["app/src/main/res"],
+    manifest: "app/src/main/AndroidManifest.xml",
+
+    // Hidden/system APIs (OverlayManager, ActivityManager.killUid, ...) and the system user.
+    platform_apis: true,
+    certificate: "platform",
+    privileged: true,
+    system_ext_specific: true,
+
+    static_libs: [
+        "androidx.core_core-ktx",
+        "androidx.appcompat_appcompat",
+        "com.google.android.material_material",
+    ],
+    required: ["privapp-permissions-org.retro.style.xml"],
+
+    optimize: {
+        enabled: false,
+    },
+}
+
+// Privileged permissions must be allowlisted for priv-apps (ro.control_privapp_permissions).
+prebuilt_etc {
+    name: "privapp-permissions-org.retro.style.xml",
+    src: "privapp-permissions-org.retro.style.xml",
+    sub_dir: "permissions",
+    system_ext_specific: true,
+}

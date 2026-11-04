@@ -1,0 +1,69 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Material You and Material 3: the system palette, which the RetroStyle app sets from the
+         style (wallpaper colors, the fixed M3 baseline, or Holo blue). -->
+    <style name="Theme.RetroStyle" parent="Theme.Material3.DynamicColors.DayNight.NoActionBar" />
+
+    <!-- KitKat: black Holo look with Holo blue accents and square corners. -->
+    <style name="Theme.RetroStyle.KitKat" parent="Theme.Material3.Dark.NoActionBar">
+        <item name="colorPrimary">@color/holo_blue_light</item>
+        <item name="colorOnPrimary">@android:color/white</item>
+        <item name="colorPrimaryContainer">@color/holo_blue_dark</item>
+        <item name="colorOnPrimaryContainer">@android:color/white</item>
+        <item name="colorSecondary">@color/holo_blue_light</item>
+        <item name="colorOnSecondary">@android:color/white</item>
+        <item name="colorSecondaryContainer">@color/holo_blue_dark</item>
+        <item name="colorOnSecondaryContainer">@android:color/white</item>
+        <item name="colorTertiary">@color/holo_blue_light</item>
+        <item name="android:colorBackground">@android:color/black</item>
+        <item name="colorSurface">@android:color/black</item>
+        <item name="colorSurfaceContainer">@color/holo_surface</item>
+        <item name="colorSurfaceContainerHigh">@color/holo_surface</item>
+        <item name="colorSurfaceContainerHighest">@color/holo_surface_high</item>
+        <item name="colorOnSurface">@android:color/white</item>
+        <item name="colorOnSurfaceVariant">@color/holo_text_secondary</item>
+        <item name="colorOutline">@color/holo_divider</item>
+        <item name="colorOutlineVariant">@color/holo_divider</item>
+        <item name="android:windowBackground">@android:color/black</item>
+        <item name="shapeAppearanceCornerExtraSmall">@style/RetroStyle.Square</item>
+        <item name="shapeAppearanceCornerSmall">@style/RetroStyle.Square</item>
+        <item name="shapeAppearanceCornerMedium">@style/RetroStyle.Square</item>
+        <item name="shapeAppearanceCornerLarge">@style/RetroStyle.Square</item>
+        <item name="shapeAppearanceCornerExtraLarge">@style/RetroStyle.Square</item>
+        <item name="textAppearanceTitleSmall">@style/RetroStyle.KitKat.SectionText</item>
+    </style>
+
+    <style name="RetroStyle.Square" parent="">
+        <item name="cornerFamily">rounded</item>
+        <item name="cornerSize">2dp</item>
+    </style>
+
+    <!-- KitKat Settings headers: small bold caps in Holo blue. -->
+    <style name="RetroStyle.KitKat.SectionText" parent="TextAppearance.Material3.TitleSmall">
+        <item name="android:textAllCaps">true</item>
+        <item name="android:textStyle">bold</item>
+        <item name="android:textSize">14sp</item>
+        <item name="android:fontFamily">sans-serif</item>
+    </style>
+
+    <style name="RetroStyle.Section" parent="">
+        <item name="android:layout_width">match_parent</item>
+        <item name="android:layout_height">wrap_content</item>
+        <item name="android:layout_marginTop">24dp</item>
+        <item name="android:layout_marginBottom">4dp</item>
+        <item name="android:textAppearance">?attr/textAppearanceTitleSmall</item>
+        <item name="android:textColor">?attr/colorPrimary</item>
+    </style>
+
+    <style name="RetroStyle.Choice" parent="">
+        <item name="android:layout_width">match_parent</item>
+        <item name="android:layout_height">wrap_content</item>
+        <item name="android:minHeight">48dp</item>
+    </style>
+
+    <style name="RetroStyle.Switch" parent="">
+        <item name="android:layout_width">match_parent</item>
+        <item name="android:layout_height">wrap_content</item>
+        <item name="android:minHeight">48dp</item>
+    </style>
+</resources>

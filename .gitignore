@@ -1,0 +1,6 @@
+# Gradle (RetroStyle/ builds with ./gradlew too)
+.gradle/
+build/
+local.properties
+*.iml
+.idea/

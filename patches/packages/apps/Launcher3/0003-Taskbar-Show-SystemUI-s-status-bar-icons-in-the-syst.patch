@@ -1,0 +1,153 @@
+From 4c88cc5f5feddc4390dc62d87dc07fe4b0fa3381 Mon Sep 17 00:00:00 2001
+From: Jon West <electrikjesus@gmail.com>
+Date: Tue, 3 Nov 2026 16:21:02 -0500
+Subject: [PATCH 3/8] Taskbar: Show SystemUI's status bar icons in the system
+ bar tray
+
+The tray now shows the status bar's own slot icons (Bluetooth, alarm, Do
+Not Disturb, location, hotspot, VPN, ...) next to its network and battery
+icons, using the icons SystemUI sends through ILauncherProxy, so nothing
+is lost when the top status bar is hidden.
+
+Needs the frameworks/base ILauncherProxy onStatusBarIconsChanged callback.
+
+Change-Id: Iba16ddfca360fc25e25a7a98af5fe5e67e404860
+---
+ .../taskbar/TaskbarSystemTrayView.kt          | 44 ++++++++++++++++++-
+ .../quickstep/TouchInteractionService.java    |  7 +++
+ 2 files changed, 50 insertions(+), 1 deletion(-)
+
+diff --git a/quickstep/src/com/android/launcher3/taskbar/TaskbarSystemTrayView.kt b/quickstep/src/com/android/launcher3/taskbar/TaskbarSystemTrayView.kt
+index 166a65cf46c..1cc1a78aebf 100644
+--- a/quickstep/src/com/android/launcher3/taskbar/TaskbarSystemTrayView.kt
++++ b/quickstep/src/com/android/launcher3/taskbar/TaskbarSystemTrayView.kt
+@@ -18,12 +18,14 @@ import android.content.res.Configuration
+ import android.graphics.Typeface
+ import android.graphics.drawable.Drawable
+ import android.graphics.drawable.GradientDrawable
++import android.graphics.drawable.Icon
+ import android.media.AudioManager
+ import android.net.ConnectivityManager
+ import android.net.Network
+ import android.net.NetworkCapabilities
+ import android.net.wifi.WifiManager
+ import android.os.BatteryManager
++import android.os.Bundle
+ import android.service.notification.StatusBarNotification
+ import android.util.TypedValue
+ import android.view.Gravity
+@@ -36,6 +38,7 @@ import com.android.launcher3.R
+ import com.android.launcher3.notification.NotificationListener
+ import com.android.launcher3.taskbar.TaskbarNavButtonController.BUTTON_NOTIFICATIONS
+ import com.android.launcher3.taskbar.TaskbarNavButtonController.BUTTON_QUICK_SETTINGS
++import com.android.systemui.shared.recents.StatusBarIconsBundle
+ import java.util.function.Consumer
+ 
+ /**
+@@ -55,6 +58,7 @@ class TaskbarSystemTrayView(
+     private val contentColor: Int
+     private val notificationIcons = LinearLayout(context)
+     private val notificationCount = TextView(context)
++    private val systemIcons = LinearLayout(context)
+     private val networkIcon = ImageView(context)
+     private val batteryIcon = ImageView(context)
+     private val batteryText = TextView(context)
+@@ -136,7 +140,9 @@ class TaskbarSystemTrayView(
+         listOf(networkIcon, batteryIcon).forEach {
+             styleIcon(it, if (kitKat) null else contentColor)
+         }
+-        val status = group(networkIcon, batteryIcon, batteryText)
++        systemIcons.orientation = HORIZONTAL
++        systemIcons.gravity = Gravity.CENTER_VERTICAL
++        val status = group(systemIcons, networkIcon, batteryIcon, batteryText)
+         status.contentDescription = context.getString(R.string.taskbar_button_quick_settings)
+         status.setOnClickListener { navButtonController.onButtonClick(BUTTON_QUICK_SETTINGS, it) }
+ 
+@@ -188,10 +194,13 @@ class TaskbarSystemTrayView(
+             networkIcon.visibility = GONE
+         }
+         NotificationListener.addTrayCallback(notificationCallback)
++        trays.add(this)
++        lastStatusBarIcons?.let { showStatusBarIcons(it) }
+     }
+ 
+     override fun onDetachedFromWindow() {
+         NotificationListener.removeTrayCallback(notificationCallback)
++        trays.remove(this)
+         context.getSystemService(ConnectivityManager::class.java)?.let {
+             try {
+                 it.unregisterNetworkCallback(networkCallback)
+@@ -234,6 +243,27 @@ class TaskbarSystemTrayView(
+         }
+     }
+ 
++    /** SystemUI's status bar slot icons (Bluetooth, alarm, Do Not Disturb, location, ...). */
++    private fun showStatusBarIcons(bundle: Bundle) {
++        val slots = bundle.getStringArray(StatusBarIconsBundle.KEY_SLOTS) ?: emptyArray()
++        val icons =
++            bundle.getParcelableArray(StatusBarIconsBundle.KEY_ICONS, Icon::class.java)
++                ?: emptyArray()
++        val descriptions =
++            bundle.getCharSequenceArray(StatusBarIconsBundle.KEY_DESCRIPTIONS) ?: emptyArray()
++        systemIcons.removeAllViews()
++        for (i in slots.indices) {
++            // The tray draws network and battery itself.
++            if (slots[i] in TRAY_DRAWN_SLOTS) continue
++            val drawable = icons.getOrNull(i)?.loadDrawable(context) ?: continue
++            val view = ImageView(context)
++            view.setImageDrawable(drawable)
++            view.contentDescription = descriptions.getOrNull(i)
++            styleIcon(view)
++            systemIcons.addView(view)
++        }
++    }
++
+     private fun showNetwork(caps: NetworkCapabilities) {
+         when {
+             caps.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) -> {
+@@ -293,5 +323,17 @@ class TaskbarSystemTrayView(
+         private const val MAX_NOTIFICATION_ICONS = 4
+         private const val WIFI_LEVELS = 5
+         private const val HOLO_BLUE = 0xFF33B5E5.toInt()
++        private val TRAY_DRAWN_SLOTS = setOf("wifi", "mobile", "ethernet", "battery")
++
++        // Main thread only.
++        private val trays = mutableSetOf<TaskbarSystemTrayView>()
++        private var lastStatusBarIcons: Bundle? = null
++
++        /** Shows SystemUI's status bar icons (from ILauncherProxy) in every tray. Main thread. */
++        @JvmStatic
++        fun dispatchStatusBarIcons(icons: Bundle) {
++            lastStatusBarIcons = icons
++            trays.forEach { it.showStatusBarIcons(icons) }
++        }
+     }
+ }
+diff --git a/quickstep/src/com/android/quickstep/TouchInteractionService.java b/quickstep/src/com/android/quickstep/TouchInteractionService.java
+index 1cebd811f9d..c13ded2da4e 100644
+--- a/quickstep/src/com/android/quickstep/TouchInteractionService.java
++++ b/quickstep/src/com/android/quickstep/TouchInteractionService.java
+@@ -93,6 +93,7 @@ import com.android.launcher3.taskbar.TaskbarManager;
+ import com.android.launcher3.taskbar.TaskbarManagerImpl;
+ import com.android.launcher3.taskbar.TaskbarManagerImplWrapper;
+ import com.android.launcher3.taskbar.TaskbarNavButtonController.TaskbarNavButtonCallbacks;
++import com.android.launcher3.taskbar.TaskbarSystemTrayView;
+ import com.android.launcher3.taskbar.bubbles.BubbleControllers;
+ import com.android.launcher3.testing.TestLogging;
+ import com.android.launcher3.testing.shared.TestProtocol;
+@@ -509,6 +510,12 @@ public class TouchInteractionService extends Service {
+             }));
+         }
+ 
++        @BinderThread
++        @Override
++        public void onStatusBarIconsChanged(Bundle icons) {
++            MAIN_EXECUTOR.execute(() -> TaskbarSystemTrayView.dispatchStatusBarIcons(icons));
++        }
++
+         private void executeForTouchInteractionService(
+                 @NonNull Consumer<TouchInteractionService> tisConsumer) {
+             TouchInteractionService tis = mTis.get();
+-- 
+2.43.0
+

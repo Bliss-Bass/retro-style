@@ -1,0 +1,167 @@
+From 340439b390b991a59f20fecb7e61f995a13e73a3 Mon Sep 17 00:00:00 2001
+From: Jon West <electrikjesus@gmail.com>
+Date: Wed, 4 Nov 2026 11:48:00 -0500
+Subject: [PATCH 5/8] Taskbar: Keep system bar apps clear of the buttons and
+ the tray
+
+In desktop mode the taskbar start-aligns its icons after space meant
+for end-side nav buttons, so on the tablet system bar they covered
+back/home/recents and the extra buttons. Lay them out between the
+start buttons and the tray instead, at the start, center (default) or
+end per persist.retro.ui_bar_apps_gravity, and add no extra buttons
+unless persist.retro.ui_bar_buttons lists them.
+
+Change-Id: Ia674ae4ebcd4185be10e13b59753b00eba6cc084
+---
+ quickstep/res/values/retro_system_bar.xml     |  2 +
+ .../taskbar/NavbarButtonsViewController.java  |  1 +
+ .../launcher3/taskbar/RetroSystemBar.kt       | 72 +++++++++++++++++--
+ .../launcher3/taskbar/TaskbarView.java        |  4 ++
+ 4 files changed, 75 insertions(+), 4 deletions(-)
+
+diff --git a/quickstep/res/values/retro_system_bar.xml b/quickstep/res/values/retro_system_bar.xml
+index 965233450a5..ff29d000b28 100644
+--- a/quickstep/res/values/retro_system_bar.xml
++++ b/quickstep/res/values/retro_system_bar.xml
+@@ -13,6 +13,8 @@
+     <item type="id" name="retro_volume_up" />
+     <item type="id" name="retro_screenshot" />
+     <item type="id" name="retro_power" />
++    <item type="id" name="retro_system_tray" />
++    <item type="id" name="retro_system_bar_apps_relayout" />
+ 
+     <!-- Nav buttons are as wide as on the 3.x/4.x tablet system bar. -->
+     <dimen name="retro_system_bar_button_width">80dp</dimen>
+diff --git a/quickstep/src/com/android/launcher3/taskbar/NavbarButtonsViewController.java b/quickstep/src/com/android/launcher3/taskbar/NavbarButtonsViewController.java
+index 85564c03eec..7e823a4de66 100644
+--- a/quickstep/src/com/android/launcher3/taskbar/NavbarButtonsViewController.java
++++ b/quickstep/src/com/android/launcher3/taskbar/NavbarButtonsViewController.java
+@@ -535,6 +535,7 @@ public class NavbarButtonsViewController implements TaskbarControllers.LoggableT
+                         flags -> (flags & FLAG_KEYGUARD_VISIBLE) == 0));
+             }
+             TaskbarSystemTrayView tray = new TaskbarSystemTrayView(mContext, navButtonController);
++            tray.setId(R.id.retro_system_tray);
+             mNavButtonsView.addView(tray, new FrameLayout.LayoutParams(
+                     ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.MATCH_PARENT,
+                     Gravity.END | Gravity.CENTER_VERTICAL));
+diff --git a/quickstep/src/com/android/launcher3/taskbar/RetroSystemBar.kt b/quickstep/src/com/android/launcher3/taskbar/RetroSystemBar.kt
+index 627040ac656..605cee362b8 100644
+--- a/quickstep/src/com/android/launcher3/taskbar/RetroSystemBar.kt
++++ b/quickstep/src/com/android/launcher3/taskbar/RetroSystemBar.kt
+@@ -9,12 +9,16 @@
+ 
+ package com.android.launcher3.taskbar
+ 
++import android.graphics.Rect
+ import android.os.SystemProperties
++import android.view.View
++import android.view.ViewGroup
+ import com.android.launcher3.R
+ import com.android.launcher3.taskbar.TaskbarNavButtonController.BUTTON_POWER
+ import com.android.launcher3.taskbar.TaskbarNavButtonController.BUTTON_SCREENSHOT
+ import com.android.launcher3.taskbar.TaskbarNavButtonController.BUTTON_VOLUME_DOWN
+ import com.android.launcher3.taskbar.TaskbarNavButtonController.BUTTON_VOLUME_UP
++import kotlin.math.max
+ 
+ /**
+  * The tablet "system bar" taskbar layout: nav buttons at the start, optional extra buttons, and a
+@@ -60,17 +64,77 @@ object RetroSystemBar {
+             "power" to ExtraButton(BUTTON_POWER, R.drawable.ic_retro_power, R.id.retro_power),
+         )
+ 
+-    /** Extra nav buttons in `persist.retro.ui_bar_buttons` order (TabletKat-style button order). */
++    /** Extra nav buttons in `persist.retro.ui_bar_buttons` order; none unless chosen in Settings. */
+     @JvmStatic
+     val extraButtons: List<ExtraButton> by lazy {
+         if (!isEnabled) return@lazy emptyList()
+-        SystemProperties.get("persist.retro.ui_bar_buttons", "vol_down,vol_up,screenshot")
+-            .split(',')
+-            .mapNotNull { extraButtonsByName[it.trim()] }
++        SystemProperties.get("persist.retro.ui_bar_buttons", "").split(',').mapNotNull {
++            extraButtonsByName[it.trim()]
++        }
+     }
+ 
+     @JvmStatic
+     fun isExtraButton(viewId: Int): Boolean = extraButtonsByName.values.any { it.id == viewId }
+ 
++    /** Where the app icons sit between the buttons and the tray: `start`, `center` or `end`. */
++    @JvmStatic
++    val appsGravity: String by lazy {
++        when (val gravity = SystemProperties.get("persist.retro.ui_bar_apps_gravity")) {
++            GRAVITY_START,
++            GRAVITY_END -> gravity
++            else -> GRAVITY_CENTER
++        }
++    }
++
++    /**
++     * The end (right edge) of [taskbarView]'s icon row, kept clear of the start buttons and the
++     * tray, which the nav buttons view lays out over the same bar.
++     */
++    @JvmStatic
++    fun iconEnd(taskbarView: View, spaceNeeded: Int, rtl: Boolean): Int {
++        val root = taskbarView.rootView as? ViewGroup ?: return taskbarView.width
++        val buttons = root.findViewById<View>(R.id.end_nav_buttons)
++        val tray = root.findViewById<View>(R.id.retro_system_tray)
++        relayoutOnChange(taskbarView, buttons)
++        relayoutOnChange(taskbarView, tray)
++
++        val origin = boundsIn(root, taskbarView) ?: return taskbarView.width
++        val gap = taskbarView.resources.getDimensionPixelSize(R.dimen.retro_system_bar_edge_margin)
++        val buttonsBounds = boundsIn(root, buttons)?.apply { offset(-origin.left, 0) }
++        val trayBounds = boundsIn(root, tray)?.apply { offset(-origin.left, 0) }
++        val leftGroup = if (rtl) trayBounds else buttonsBounds
++        val rightGroup = if (rtl) buttonsBounds else trayBounds
++        val minEnd = (leftGroup?.right ?: 0) + gap + spaceNeeded
++        val maxEnd = max(minEnd, (rightGroup?.left ?: taskbarView.width) - gap)
++        val startEnd = if (rtl) maxEnd else minEnd
++        val endEnd = if (rtl) minEnd else maxEnd
++        return when (appsGravity) {
++            GRAVITY_START -> startEnd
++            GRAVITY_END -> endEnd
++            else -> ((taskbarView.width + spaceNeeded) / 2).coerceIn(minEnd, maxEnd)
++        }
++    }
++
++    /** Layout bounds of [view] in [root], ignoring animation transforms. */
++    private fun boundsIn(root: ViewGroup, view: View?): Rect? {
++        if (view == null || view.width == 0 || !view.isAttachedToWindow) return null
++        val bounds = Rect(0, 0, view.width, view.height)
++        root.offsetDescendantRectToMyCoords(view, bounds)
++        return bounds
++    }
++
++    private fun relayoutOnChange(taskbarView: View, view: View?) {
++        if (view == null || view.getTag(R.id.retro_system_bar_apps_relayout) != null) return
++        view.setTag(R.id.retro_system_bar_apps_relayout, true)
++        view.addOnLayoutChangeListener { _, left, _, right, _, oldLeft, _, oldRight, _ ->
++            if (left != oldLeft || right != oldRight)
++                taskbarView.post { taskbarView.requestLayout() }
++        }
++    }
++
++    private const val GRAVITY_START = "start"
++    private const val GRAVITY_CENTER = "center"
++    private const val GRAVITY_END = "end"
++
+     data class ExtraButton(val type: Int, val drawable: Int, val id: Int)
+ }
+diff --git a/quickstep/src/com/android/launcher3/taskbar/TaskbarView.java b/quickstep/src/com/android/launcher3/taskbar/TaskbarView.java
+index 09ff7322bbd..fa512a76ef0 100644
+--- a/quickstep/src/com/android/launcher3/taskbar/TaskbarView.java
++++ b/quickstep/src/com/android/launcher3/taskbar/TaskbarView.java
+@@ -1115,6 +1115,10 @@ public class TaskbarView extends FrameLayout implements FolderIcon.FolderIconPar
+                 }
+             }
+         }
++        if (RetroSystemBar.isEnabled() && !mActivityContext.isPhoneMode()) {
++            // The system bar has its buttons at the start and the tray at the end.
++            iconEnd = RetroSystemBar.iconEnd(this, spaceNeeded, layoutRtl);
++        }
+ 
+         // Currently, we support only one device with display cutout and we only are concern about
+         // it when the bottom rect is present and non empty
+-- 
+2.43.0
+

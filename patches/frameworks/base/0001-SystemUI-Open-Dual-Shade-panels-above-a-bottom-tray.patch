@@ -1,0 +1,204 @@
+From a1f2e6df82bf9d1d7f9b741b44267e23ddc237f3 Mon Sep 17 00:00:00 2001
+From: Jon West <electrikjesus@gmail.com>
+Date: Tue, 3 Nov 2026 15:36:00 -0500
+Subject: [PATCH 1/8] SystemUI: Open Dual Shade panels above a bottom tray
+
+With persist.retro.panel_anchor=bottom_end the floating notification and
+quick settings panels anchor to the bottom of the screen, above a taskbar
+tray, and swiping down on them closes them. Launcher3 can toggle either
+panel on a given display, so the panel opens on the display whose tray
+was tapped.
+---
+ .../shade/ui/composable/OverlayShade.kt       |  7 ++++--
+ .../shared/recents/ISystemUiProxy.aidl        | 12 +++++++++-
+ .../systemui/LauncherProxyService.java        | 20 ++++++++++++++++
+ ...tificationsShadeOverlayActionsViewModel.kt |  7 +++++-
+ ...ickSettingsShadeOverlayActionsViewModel.kt |  5 ++++
+ .../StatusBarTouchShadeDisplayPolicy.kt       |  8 +++++++
+ .../shade/shared/model/ShadePanelAnchor.kt    | 24 +++++++++++++++++++
+ 7 files changed, 79 insertions(+), 4 deletions(-)
+ create mode 100644 packages/SystemUI/src/com/android/systemui/shade/shared/model/ShadePanelAnchor.kt
+
+diff --git a/packages/SystemUI/compose/features/src/com/android/systemui/shade/ui/composable/OverlayShade.kt b/packages/SystemUI/compose/features/src/com/android/systemui/shade/ui/composable/OverlayShade.kt
+index 8d135a111c4c..f9669b974a54 100644
+--- a/packages/SystemUI/compose/features/src/com/android/systemui/shade/ui/composable/OverlayShade.kt
++++ b/packages/SystemUI/compose/features/src/com/android/systemui/shade/ui/composable/OverlayShade.kt
+@@ -57,6 +57,7 @@ import com.android.mechanics.behavior.VerticalExpandContainerSpec
+ import com.android.mechanics.behavior.verticalExpandContainerBackground
+ import com.android.mechanics.compose.modifier.motionDriver
+ import com.android.systemui.res.R
++import com.android.systemui.shade.shared.model.ShadePanelAnchor
+ import com.android.systemui.shade.ui.ShadeColors.shadePanel
+ import com.android.systemui.shade.ui.ShadeColors.shadePanelScrimBehind
+ import com.android.systemui.shade.ui.composable.OverlayShade.Colors
+@@ -81,11 +82,13 @@ fun ContentScope.OverlayShade(
+     val isFullWidth = isFullWidthShade()
+     val panelSpec = rememberShadeExpansionMotion(isFullWidth)
+     val panelCornerRadiusPx = with(LocalDensity.current) { panelSpec.radius.toPx() }
++    val anchorBottom = !isFullWidth && ShadePanelAnchor.isBottom
+     val panelAlignment =
+         when {
+             isFullWidth -> Alignment.TopCenter
+-            alignmentOnWideScreens == Alignment.End -> Alignment.TopEnd
+-            else -> Alignment.TopStart
++            alignmentOnWideScreens == Alignment.End ->
++                if (anchorBottom) Alignment.BottomEnd else Alignment.TopEnd
++            else -> if (anchorBottom) Alignment.BottomStart else Alignment.TopStart
+         }
+ 
+     Box(modifier) {
+diff --git a/packages/SystemUI/shared/src/com/android/systemui/shared/recents/ISystemUiProxy.aidl b/packages/SystemUI/shared/src/com/android/systemui/shared/recents/ISystemUiProxy.aidl
+index 57e4814a6035..e7b2be6f3197 100644
+--- a/packages/SystemUI/shared/src/com/android/systemui/shared/recents/ISystemUiProxy.aidl
++++ b/packages/SystemUI/shared/src/com/android/systemui/shared/recents/ISystemUiProxy.aidl
+@@ -200,5 +200,15 @@ interface ISystemUiProxy {
+      */
+     oneway void onSleepEvent(in MotionEvent event) = 61;
+ 
+-    // Next id = 62
++    /**
++     * Toggles the notification panel on the given display, e.g. from a taskbar tray button.
++     */
++    oneway void toggleNotificationPanelOnDisplay(int displayId) = 62;
++
++    /**
++     * Toggles the quick settings panel on the given display, e.g. from a taskbar tray button.
++     */
++    oneway void toggleQuickSettingsPanelOnDisplay(int displayId) = 63;
++
++    // Next id = 64
+ }
+diff --git a/packages/SystemUI/src/com/android/systemui/LauncherProxyService.java b/packages/SystemUI/src/com/android/systemui/LauncherProxyService.java
+index f0b13820de46..44a190cf6cbd 100644
+--- a/packages/SystemUI/src/com/android/systemui/LauncherProxyService.java
++++ b/packages/SystemUI/src/com/android/systemui/LauncherProxyService.java
+@@ -525,6 +525,26 @@ public class LauncherProxyService implements CallbackController<LauncherProxyLis
+                     mCommandQueue.toggleQuickSettingsPanel());
+         }
+ 
++        @Override
++        public void toggleNotificationPanelOnDisplay(int displayId) {
++            verifyCallerAndClearCallingIdentityPostMain("toggleNotificationPanelOnDisplay", () -> {
++                if (ShadeWindowGoesAround.isEnabled()) {
++                    mShadeDisplayPolicy.onTrayTouched(displayId, /* quickSettings= */ false);
++                }
++                mCommandQueue.toggleNotificationsPanel();
++            });
++        }
++
++        @Override
++        public void toggleQuickSettingsPanelOnDisplay(int displayId) {
++            verifyCallerAndClearCallingIdentityPostMain("toggleQuickSettingsPanelOnDisplay", () -> {
++                if (ShadeWindowGoesAround.isEnabled()) {
++                    mShadeDisplayPolicy.onTrayTouched(displayId, /* quickSettings= */ true);
++                }
++                mCommandQueue.toggleQuickSettingsPanel();
++            });
++        }
++
+         @Override
+         public void onSleepEvent(MotionEvent event) {
+             verifyCallerAndClearCallingIdentity("onSleepEvent", () -> {
+diff --git a/packages/SystemUI/src/com/android/systemui/notifications/ui/viewmodel/NotificationsShadeOverlayActionsViewModel.kt b/packages/SystemUI/src/com/android/systemui/notifications/ui/viewmodel/NotificationsShadeOverlayActionsViewModel.kt
+index e3e836a4dccf..ffc4eec90a78 100644
+--- a/packages/SystemUI/src/com/android/systemui/notifications/ui/viewmodel/NotificationsShadeOverlayActionsViewModel.kt
++++ b/packages/SystemUI/src/com/android/systemui/notifications/ui/viewmodel/NotificationsShadeOverlayActionsViewModel.kt
+@@ -28,6 +28,7 @@ import com.android.systemui.scene.ui.viewmodel.SceneContainerArea.EndHalf
+ import com.android.systemui.scene.ui.viewmodel.SceneContainerArea.TopEdgeEndHalf
+ import com.android.systemui.scene.ui.viewmodel.UserActionsViewModel
+ import com.android.systemui.shade.domain.interactor.ShadeModeInteractor
++import com.android.systemui.shade.shared.model.ShadePanelAnchor
+ import dagger.assisted.AssistedFactory
+ import dagger.assisted.AssistedInject
+ import kotlinx.coroutines.flow.map
+@@ -47,10 +48,14 @@ constructor(private val shadeModeInteractor: ShadeModeInteractor) : UserActionsV
+ 
+         shadeModeInteractor.isFullWidthShade
+             .map { isFullWidthShade ->
++                val anchorBottom = !isFullWidthShade && ShadePanelAnchor.isBottom
+                 buildMap {
+                     put(Swipe.Up, hideNotificationsShade)
+                     put(Back, hideNotificationsShade)
+-                    if (!isFullWidthShade) {
++                    if (anchorBottom) {
++                        // The panel sits above the tray on the end half: swiping down closes it.
++                        put(Swipe.Down, hideNotificationsShade)
++                    } else if (!isFullWidthShade) {
+                         put(Swipe.Down(fromSource = EndHalf), openQuickSettingsShade)
+                     }
+                     put(Swipe.Down(fromSource = TopEdgeEndHalf), openQuickSettingsShade)
+diff --git a/packages/SystemUI/src/com/android/systemui/qs/ui/viewmodel/QuickSettingsShadeOverlayActionsViewModel.kt b/packages/SystemUI/src/com/android/systemui/qs/ui/viewmodel/QuickSettingsShadeOverlayActionsViewModel.kt
+index d034ae75f0f8..9bc72330f97b 100644
+--- a/packages/SystemUI/src/com/android/systemui/qs/ui/viewmodel/QuickSettingsShadeOverlayActionsViewModel.kt
++++ b/packages/SystemUI/src/com/android/systemui/qs/ui/viewmodel/QuickSettingsShadeOverlayActionsViewModel.kt
+@@ -30,6 +30,7 @@ import com.android.systemui.scene.ui.viewmodel.SceneContainerArea.StartHalf
+ import com.android.systemui.scene.ui.viewmodel.SceneContainerArea.TopEdgeStartHalf
+ import com.android.systemui.scene.ui.viewmodel.UserActionsViewModel
+ import com.android.systemui.shade.domain.interactor.ShadeModeInteractor
++import com.android.systemui.shade.shared.model.ShadePanelAnchor
+ import dagger.assisted.AssistedFactory
+ import dagger.assisted.AssistedInject
+ import kotlinx.coroutines.flow.combine
+@@ -64,6 +65,10 @@ constructor(
+                     put(Swipe.Down(fromSource = TopEdgeStartHalf), openNotificationsShade)
+                     if (!isFullWidthShade) {
+                         put(Swipe.Down(fromSource = StartHalf), openNotificationsShade)
++                        if (ShadePanelAnchor.isBottom && !isEditing) {
++                            // The panel sits above the tray: swiping down on it closes it.
++                            put(Swipe.Down, hideQuickSettings)
++                        }
+                     }
+                 }
+             }
+diff --git a/packages/SystemUI/src/com/android/systemui/shade/display/StatusBarTouchShadeDisplayPolicy.kt b/packages/SystemUI/src/com/android/systemui/shade/display/StatusBarTouchShadeDisplayPolicy.kt
+index c3a4a27410fe..bf13b9e0ec13 100644
+--- a/packages/SystemUI/src/com/android/systemui/shade/display/StatusBarTouchShadeDisplayPolicy.kt
++++ b/packages/SystemUI/src/com/android/systemui/shade/display/StatusBarTouchShadeDisplayPolicy.kt
+@@ -77,6 +77,14 @@ constructor(
+         updateExpansionIntent(element)
+     }
+ 
++    /** Called when a launcher tray button on [displayId] asks to toggle a shade panel. */
++    fun onTrayTouched(displayId: Int, quickSettings: Boolean) {
++        ShadeWindowGoesAround.isUnexpectedlyInLegacyMode()
++        updateShadeDisplayIfNeeded(displayId)
++        val element = if (quickSettings) qsShadeElement.get() else notificationElement.get()
++        updateExpansionIntent(element)
++    }
++
+     private fun onKeyboardShortcut(element: ShadeElement) {
+         ShadeWindowGoesAround.isUnexpectedlyInLegacyMode()
+         updateShadeDisplayIfNeeded(focusedDisplayRepository.focusedDisplayId.value)
+diff --git a/packages/SystemUI/src/com/android/systemui/shade/shared/model/ShadePanelAnchor.kt b/packages/SystemUI/src/com/android/systemui/shade/shared/model/ShadePanelAnchor.kt
+new file mode 100644
+index 000000000000..a6c53f67e22e
+--- /dev/null
++++ b/packages/SystemUI/src/com/android/systemui/shade/shared/model/ShadePanelAnchor.kt
+@@ -0,0 +1,24 @@
++/*
++ * Copyright (C) 2026 Navotpala Tech (Bliss Co-Labs Inc.)
++ *
++ * SPDX-License-Identifier: AGPL-3.0-only OR LicenseRef-Navotpala-Commercial
++ * Part of retro-style (vendor/retro-style). Licensed under the GNU Affero General Public
++ * License v3.0, or under a commercial license from Navotpala Tech (info@navotpala.tech).
++ * See LICENSE and LICENSE_COMMERCIAL in vendor/retro-style.
++ */
++
++package com.android.systemui.shade.shared.model
++
++import android.os.SystemProperties
++
++/**
++ * Where the floating Dual Shade panels open on wide screens.
++ *
++ * `persist.retro.panel_anchor=bottom_end` opens them above a bottom tray (tablet system bar)
++ * instead of under the top status bar. Read once per process; changing it restarts SystemUI.
++ */
++object ShadePanelAnchor {
++    const val PROPERTY = "persist.retro.panel_anchor"
++
++    val isBottom: Boolean by lazy { SystemProperties.get(PROPERTY) == "bottom_end" }
++}
+-- 
+2.43.0
+

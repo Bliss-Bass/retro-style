@@ -1,0 +1,1070 @@
+From 361c379dd08a86eb324c8733e25caa2962060a32 Mon Sep 17 00:00:00 2001
+From: Jon West <electrikjesus@gmail.com>
+Date: Tue, 3 Nov 2026 16:11:23 -0500
+Subject: [PATCH 1/8] Taskbar: Add the tablet system bar layout
+
+With persist.retro.ui_layout=system_bar and three-button navigation the
+taskbar becomes a tablet system bar: back, home and recents (plus optional
+volume, screenshot and sleep buttons) at the start, and a tray at the end
+with notification icons, network, battery, volume and the clock. Tapping
+the tray opens the notification or quick settings panel on this display.
+persist.retro.ui_style=kitkat draws the KitKat look and hides the app icons.
+
+Needs the frameworks/base ISystemUiProxy per-display panel toggles.
+
+Change-Id: Ic6565db4f92aaf71293dd5f1c2eaf5e4524ce0c1
+---
+ quickstep/AndroidManifest.xml                 |   2 +
+ quickstep/res/drawable/ic_retro_power.xml     |  19 ++
+ .../res/drawable/ic_retro_screenshot.xml      |  19 ++
+ .../res/drawable/ic_retro_tray_battery.xml    |  19 ++
+ .../res/drawable/ic_retro_tray_ethernet.xml   |  19 ++
+ .../res/drawable/ic_retro_tray_volume.xml     |  19 ++
+ quickstep/res/drawable/ic_retro_tray_wifi.xml |  19 ++
+ .../res/drawable/ic_retro_volume_down.xml     |  19 ++
+ quickstep/res/drawable/ic_retro_volume_up.xml |  19 ++
+ quickstep/res/values/retro_system_bar.xml     |  28 ++
+ .../taskbar/NavbarButtonsViewController.java  |  16 +
+ .../launcher3/taskbar/RetroSystemBar.kt       |  76 +++++
+ .../taskbar/TaskbarNavButtonController.java   |  39 ++-
+ .../taskbar/TaskbarSystemTrayView.kt          | 296 ++++++++++++++++++
+ .../taskbar/TaskbarViewController.java        |  11 +-
+ .../navbutton/NavButtonLayoutFactory.kt       |  11 +
+ .../navbutton/SystemBarNavLayoutter.kt        |  82 +++++
+ .../com/android/quickstep/SystemUiProxy.kt    |  12 +
+ .../notification/NotificationListener.java    |  44 +++
+ 19 files changed, 765 insertions(+), 4 deletions(-)
+ create mode 100644 quickstep/res/drawable/ic_retro_power.xml
+ create mode 100644 quickstep/res/drawable/ic_retro_screenshot.xml
+ create mode 100644 quickstep/res/drawable/ic_retro_tray_battery.xml
+ create mode 100644 quickstep/res/drawable/ic_retro_tray_ethernet.xml
+ create mode 100644 quickstep/res/drawable/ic_retro_tray_volume.xml
+ create mode 100644 quickstep/res/drawable/ic_retro_tray_wifi.xml
+ create mode 100644 quickstep/res/drawable/ic_retro_volume_down.xml
+ create mode 100644 quickstep/res/drawable/ic_retro_volume_up.xml
+ create mode 100644 quickstep/res/values/retro_system_bar.xml
+ create mode 100644 quickstep/src/com/android/launcher3/taskbar/RetroSystemBar.kt
+ create mode 100644 quickstep/src/com/android/launcher3/taskbar/TaskbarSystemTrayView.kt
+ create mode 100644 quickstep/src/com/android/launcher3/taskbar/navbutton/SystemBarNavLayoutter.kt
+
+diff --git a/quickstep/AndroidManifest.xml b/quickstep/AndroidManifest.xml
+index 0dd735eea71..2b6d349810a 100644
+--- a/quickstep/AndroidManifest.xml
++++ b/quickstep/AndroidManifest.xml
+@@ -25,6 +25,8 @@
+     <uses-permission android:name="android.permission.BROADCAST_CLOSE_SYSTEM_DIALOGS" />
+     <uses-permission android:name="android.permission.CONTROL_REMOTE_APP_TRANSITION_ANIMATIONS"/>
+     <uses-permission android:name="android.permission.VIBRATE"/>
++    <!-- Taskbar system bar tray network icon. -->
++    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE"/>
+     <uses-permission android:name="android.permission.QUERY_ALL_PACKAGES"/>
+     <uses-permission android:name="android.permission.START_TASKS_FROM_RECENTS"/>
+     <uses-permission android:name="android.permission.REMOVE_TASKS"/>
+diff --git a/quickstep/res/drawable/ic_retro_power.xml b/quickstep/res/drawable/ic_retro_power.xml
+new file mode 100644
+index 00000000000..3f8db0632ae
+--- /dev/null
++++ b/quickstep/res/drawable/ic_retro_power.xml
+@@ -0,0 +1,19 @@
++<?xml version="1.0" encoding="utf-8"?>
++<!--
++     Copyright (C) 2026 Navotpala Tech (Bliss Co-Labs Inc.)
++
++     SPDX-License-Identifier: AGPL-3.0-only OR LicenseRef-Navotpala-Commercial
++     Part of retro-style (vendor/retro-style). Licensed under the GNU Affero General Public
++     License v3.0, or under a commercial license from Navotpala Tech (info@navotpala.tech).
++     See LICENSE and LICENSE_COMMERCIAL in vendor/retro-style.
++     Icon path data from Material Design Icons (Google), Apache License 2.0.
++-->
++<vector xmlns:android="http://schemas.android.com/apk/res/android"
++    android:width="24dp"
++    android:height="24dp"
++    android:viewportWidth="24"
++    android:viewportHeight="24">
++    <path
++        android:fillColor="#FFFFFFFF"
++        android:pathData="M13,3h-2v10h2V3zM17.83,5.17l-1.42,1.42C17.99,7.86 19,9.81 19,12c0,3.87 -3.13,7 -7,7s-7,-3.13 -7,-7c0,-2.19 1.01,-4.14 2.58,-5.42L6.17,5.17C4.23,6.82 3,9.26 3,12c0,4.97 4.03,9 9,9s9,-4.03 9,-9c0,-2.74 -1.23,-5.18 -3.17,-6.83z" />
++</vector>
+diff --git a/quickstep/res/drawable/ic_retro_screenshot.xml b/quickstep/res/drawable/ic_retro_screenshot.xml
+new file mode 100644
+index 00000000000..93233c58e8b
+--- /dev/null
++++ b/quickstep/res/drawable/ic_retro_screenshot.xml
+@@ -0,0 +1,19 @@
++<?xml version="1.0" encoding="utf-8"?>
++<!--
++     Copyright (C) 2026 Navotpala Tech (Bliss Co-Labs Inc.)
++
++     SPDX-License-Identifier: AGPL-3.0-only OR LicenseRef-Navotpala-Commercial
++     Part of retro-style (vendor/retro-style). Licensed under the GNU Affero General Public
++     License v3.0, or under a commercial license from Navotpala Tech (info@navotpala.tech).
++     See LICENSE and LICENSE_COMMERCIAL in vendor/retro-style.
++     Icon path data from Material Design Icons (Google), Apache License 2.0.
++-->
++<vector xmlns:android="http://schemas.android.com/apk/res/android"
++    android:width="24dp"
++    android:height="24dp"
++    android:viewportWidth="24"
++    android:viewportHeight="24">
++    <path
++        android:fillColor="#FFFFFFFF"
++        android:pathData="M17,1.01L7,1C5.9,1 5,1.9 5,3v18c0,1.1 0.9,2 2,2h10c1.1,0 2,-0.9 2,-2V3c0,-1.1 -0.9,-1.99 -2,-1.99zM17,19H7V5h10v14zM8,10h2V8h2V6H8v4zM12,18h4v-4h-2v2h-2v2z" />
++</vector>
+diff --git a/quickstep/res/drawable/ic_retro_tray_battery.xml b/quickstep/res/drawable/ic_retro_tray_battery.xml
+new file mode 100644
+index 00000000000..177f3ab8329
+--- /dev/null
++++ b/quickstep/res/drawable/ic_retro_tray_battery.xml
+@@ -0,0 +1,19 @@
++<?xml version="1.0" encoding="utf-8"?>
++<!--
++     Copyright (C) 2026 Navotpala Tech (Bliss Co-Labs Inc.)
++
++     SPDX-License-Identifier: AGPL-3.0-only OR LicenseRef-Navotpala-Commercial
++     Part of retro-style (vendor/retro-style). Licensed under the GNU Affero General Public
++     License v3.0, or under a commercial license from Navotpala Tech (info@navotpala.tech).
++     See LICENSE and LICENSE_COMMERCIAL in vendor/retro-style.
++     Icon path data from Material Design Icons (Google), Apache License 2.0.
++-->
++<vector xmlns:android="http://schemas.android.com/apk/res/android"
++    android:width="24dp"
++    android:height="24dp"
++    android:viewportWidth="24"
++    android:viewportHeight="24">
++    <path
++        android:fillColor="#FFFFFFFF"
++        android:pathData="M15.67,4H14V2h-4v2H8.33C7.6,4 7,4.6 7,5.33v15.33C7,21.4 7.6,22 8.33,22h7.33c0.74,0 1.34,-0.6 1.34,-1.33V5.33C17,4.6 16.4,4 15.67,4z" />
++</vector>
+diff --git a/quickstep/res/drawable/ic_retro_tray_ethernet.xml b/quickstep/res/drawable/ic_retro_tray_ethernet.xml
+new file mode 100644
+index 00000000000..332082e8fcd
+--- /dev/null
++++ b/quickstep/res/drawable/ic_retro_tray_ethernet.xml
+@@ -0,0 +1,19 @@
++<?xml version="1.0" encoding="utf-8"?>
++<!--
++     Copyright (C) 2026 Navotpala Tech (Bliss Co-Labs Inc.)
++
++     SPDX-License-Identifier: AGPL-3.0-only OR LicenseRef-Navotpala-Commercial
++     Part of retro-style (vendor/retro-style). Licensed under the GNU Affero General Public
++     License v3.0, or under a commercial license from Navotpala Tech (info@navotpala.tech).
++     See LICENSE and LICENSE_COMMERCIAL in vendor/retro-style.
++     Icon path data from Material Design Icons (Google), Apache License 2.0.
++-->
++<vector xmlns:android="http://schemas.android.com/apk/res/android"
++    android:width="24dp"
++    android:height="24dp"
++    android:viewportWidth="24"
++    android:viewportHeight="24">
++    <path
++        android:fillColor="#FFFFFFFF"
++        android:pathData="M7.77,6.76L6.23,5.48 0.82,12l5.41,6.52 1.54,-1.28L3.42,12l4.35,-5.24zM7,13h2v-2H7v2zM17,11h-2v2h2v-2zM11,13h2v-2h-2v2zM17.77,5.48l-1.54,1.28L20.58,12l-4.35,5.24 1.54,1.28L23.18,12l-5.41,-6.52z" />
++</vector>
+diff --git a/quickstep/res/drawable/ic_retro_tray_volume.xml b/quickstep/res/drawable/ic_retro_tray_volume.xml
+new file mode 100644
+index 00000000000..190bfa0e503
+--- /dev/null
++++ b/quickstep/res/drawable/ic_retro_tray_volume.xml
+@@ -0,0 +1,19 @@
++<?xml version="1.0" encoding="utf-8"?>
++<!--
++     Copyright (C) 2026 Navotpala Tech (Bliss Co-Labs Inc.)
++
++     SPDX-License-Identifier: AGPL-3.0-only OR LicenseRef-Navotpala-Commercial
++     Part of retro-style (vendor/retro-style). Licensed under the GNU Affero General Public
++     License v3.0, or under a commercial license from Navotpala Tech (info@navotpala.tech).
++     See LICENSE and LICENSE_COMMERCIAL in vendor/retro-style.
++     Icon path data from Material Design Icons (Google), Apache License 2.0.
++-->
++<vector xmlns:android="http://schemas.android.com/apk/res/android"
++    android:width="24dp"
++    android:height="24dp"
++    android:viewportWidth="24"
++    android:viewportHeight="24">
++    <path
++        android:fillColor="#FFFFFFFF"
++        android:pathData="M3,9v6h4l5,5V4L7,9H3zM16.5,12c0,-1.77 -1.02,-3.29 -2.5,-4.03v8.05c1.48,-0.73 2.5,-2.25 2.5,-4.02zM14,3.23v2.06c2.89,0.86 5,3.54 5,6.71s-2.11,5.85 -5,6.71v2.06c4.01,-0.91 7,-4.49 7,-8.77s-2.99,-7.86 -7,-8.77z" />
++</vector>
+diff --git a/quickstep/res/drawable/ic_retro_tray_wifi.xml b/quickstep/res/drawable/ic_retro_tray_wifi.xml
+new file mode 100644
+index 00000000000..5947c835647
+--- /dev/null
++++ b/quickstep/res/drawable/ic_retro_tray_wifi.xml
+@@ -0,0 +1,19 @@
++<?xml version="1.0" encoding="utf-8"?>
++<!--
++     Copyright (C) 2026 Navotpala Tech (Bliss Co-Labs Inc.)
++
++     SPDX-License-Identifier: AGPL-3.0-only OR LicenseRef-Navotpala-Commercial
++     Part of retro-style (vendor/retro-style). Licensed under the GNU Affero General Public
++     License v3.0, or under a commercial license from Navotpala Tech (info@navotpala.tech).
++     See LICENSE and LICENSE_COMMERCIAL in vendor/retro-style.
++     Icon path data from Material Design Icons (Google), Apache License 2.0.
++-->
++<vector xmlns:android="http://schemas.android.com/apk/res/android"
++    android:width="24dp"
++    android:height="24dp"
++    android:viewportWidth="24"
++    android:viewportHeight="24">
++    <path
++        android:fillColor="#FFFFFFFF"
++        android:pathData="M1,9l2,2c4.97,-4.97 13.03,-4.97 18,0l2,-2C16.93,2.93 7.08,2.93 1,9zM9,17l3,3 3,-3c-1.65,-1.66 -4.34,-1.66 -6,0zM5,13l2,2c2.76,-2.76 7.24,-2.76 10,0l2,-2C15.14,9.14 8.87,9.14 5,13z" />
++</vector>
+diff --git a/quickstep/res/drawable/ic_retro_volume_down.xml b/quickstep/res/drawable/ic_retro_volume_down.xml
+new file mode 100644
+index 00000000000..e9b23078c42
+--- /dev/null
++++ b/quickstep/res/drawable/ic_retro_volume_down.xml
+@@ -0,0 +1,19 @@
++<?xml version="1.0" encoding="utf-8"?>
++<!--
++     Copyright (C) 2026 Navotpala Tech (Bliss Co-Labs Inc.)
++
++     SPDX-License-Identifier: AGPL-3.0-only OR LicenseRef-Navotpala-Commercial
++     Part of retro-style (vendor/retro-style). Licensed under the GNU Affero General Public
++     License v3.0, or under a commercial license from Navotpala Tech (info@navotpala.tech).
++     See LICENSE and LICENSE_COMMERCIAL in vendor/retro-style.
++     Icon path data from Material Design Icons (Google), Apache License 2.0.
++-->
++<vector xmlns:android="http://schemas.android.com/apk/res/android"
++    android:width="24dp"
++    android:height="24dp"
++    android:viewportWidth="24"
++    android:viewportHeight="24">
++    <path
++        android:fillColor="#FFFFFFFF"
++        android:pathData="M18.5,12c0,-1.77 -1.02,-3.29 -2.5,-4.03v8.05c1.48,-0.73 2.5,-2.25 2.5,-4.02zM5,9v6h4l5,5V4L9,9H5z" />
++</vector>
+diff --git a/quickstep/res/drawable/ic_retro_volume_up.xml b/quickstep/res/drawable/ic_retro_volume_up.xml
+new file mode 100644
+index 00000000000..190bfa0e503
+--- /dev/null
++++ b/quickstep/res/drawable/ic_retro_volume_up.xml
+@@ -0,0 +1,19 @@
++<?xml version="1.0" encoding="utf-8"?>
++<!--
++     Copyright (C) 2026 Navotpala Tech (Bliss Co-Labs Inc.)
++
++     SPDX-License-Identifier: AGPL-3.0-only OR LicenseRef-Navotpala-Commercial
++     Part of retro-style (vendor/retro-style). Licensed under the GNU Affero General Public
++     License v3.0, or under a commercial license from Navotpala Tech (info@navotpala.tech).
++     See LICENSE and LICENSE_COMMERCIAL in vendor/retro-style.
++     Icon path data from Material Design Icons (Google), Apache License 2.0.
++-->
++<vector xmlns:android="http://schemas.android.com/apk/res/android"
++    android:width="24dp"
++    android:height="24dp"
++    android:viewportWidth="24"
++    android:viewportHeight="24">
++    <path
++        android:fillColor="#FFFFFFFF"
++        android:pathData="M3,9v6h4l5,5V4L7,9H3zM16.5,12c0,-1.77 -1.02,-3.29 -2.5,-4.03v8.05c1.48,-0.73 2.5,-2.25 2.5,-4.02zM14,3.23v2.06c2.89,0.86 5,3.54 5,6.71s-2.11,5.85 -5,6.71v2.06c4.01,-0.91 7,-4.49 7,-8.77s-2.99,-7.86 -7,-8.77z" />
++</vector>
+diff --git a/quickstep/res/values/retro_system_bar.xml b/quickstep/res/values/retro_system_bar.xml
+new file mode 100644
+index 00000000000..965233450a5
+--- /dev/null
++++ b/quickstep/res/values/retro_system_bar.xml
+@@ -0,0 +1,28 @@
++<?xml version="1.0" encoding="utf-8"?>
++<!--
++     Copyright (C) 2026 Navotpala Tech (Bliss Co-Labs Inc.)
++
++     SPDX-License-Identifier: AGPL-3.0-only OR LicenseRef-Navotpala-Commercial
++     Part of retro-style (vendor/retro-style). Licensed under the GNU Affero General Public
++     License v3.0, or under a commercial license from Navotpala Tech (info@navotpala.tech).
++     See LICENSE and LICENSE_COMMERCIAL in vendor/retro-style.
++-->
++<!-- Tablet system bar taskbar layout (RetroSystemBar). -->
++<resources xmlns:xliff="urn:oasis:names:tc:xliff:document:1.2">
++    <item type="id" name="retro_volume_down" />
++    <item type="id" name="retro_volume_up" />
++    <item type="id" name="retro_screenshot" />
++    <item type="id" name="retro_power" />
++
++    <!-- Nav buttons are as wide as on the 3.x/4.x tablet system bar. -->
++    <dimen name="retro_system_bar_button_width">80dp</dimen>
++    <dimen name="retro_system_bar_edge_margin">8dp</dimen>
++
++    <string name="retro_system_bar_volume_down">Volume down</string>
++    <string name="retro_system_bar_volume_up">Volume up</string>
++    <string name="retro_system_bar_screenshot">Screenshot</string>
++    <string name="retro_system_bar_power">Sleep</string>
++    <string name="retro_system_bar_volume">Volume</string>
++    <!-- Battery level in the tray, e.g. "30%". -->
++    <string name="retro_system_bar_battery"><xliff:g id="percent" example="30">%d</xliff:g>%%</string>
++</resources>
+diff --git a/quickstep/src/com/android/launcher3/taskbar/NavbarButtonsViewController.java b/quickstep/src/com/android/launcher3/taskbar/NavbarButtonsViewController.java
+index bd2fe9a9906..85564c03eec 100644
+--- a/quickstep/src/com/android/launcher3/taskbar/NavbarButtonsViewController.java
++++ b/quickstep/src/com/android/launcher3/taskbar/NavbarButtonsViewController.java
+@@ -526,6 +526,22 @@ public class NavbarButtonsViewController implements TaskbarControllers.LoggableT
+         mSpace.setOnLongClickListener(view ->
+                 navButtonController.onButtonLongClick(BUTTON_SPACE, view));
+ 
++        // Tablet system bar: extra buttons after the nav buttons, and the tray at the end.
++        if (RetroSystemBar.isEnabled() && !mContext.isPhoneMode()) {
++            for (RetroSystemBar.ExtraButton extra : RetroSystemBar.getExtraButtons()) {
++                ImageView button = addButton(extra.getDrawable(), extra.getType(), navContainer,
++                        navButtonController, extra.getId());
++                mPropertyHolders.add(new StatePropertyHolder(button,
++                        flags -> (flags & FLAG_KEYGUARD_VISIBLE) == 0));
++            }
++            TaskbarSystemTrayView tray = new TaskbarSystemTrayView(mContext, navButtonController);
++            mNavButtonsView.addView(tray, new FrameLayout.LayoutParams(
++                    ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.MATCH_PARENT,
++                    Gravity.END | Gravity.CENTER_VERTICAL));
++            mPropertyHolders.add(new StatePropertyHolder(tray,
++                    flags -> (flags & FLAG_KEYGUARD_VISIBLE) == 0));
++        }
++
+         if (android.view.accessibility.Flags.navbarFlipOrderOption()) {
+             SettingsCache.INSTANCE.get(mContext).register(
+                     mButtonOrderChangedUri, mButtonOrderListener);
+diff --git a/quickstep/src/com/android/launcher3/taskbar/RetroSystemBar.kt b/quickstep/src/com/android/launcher3/taskbar/RetroSystemBar.kt
+new file mode 100644
+index 00000000000..627040ac656
+--- /dev/null
++++ b/quickstep/src/com/android/launcher3/taskbar/RetroSystemBar.kt
+@@ -0,0 +1,76 @@
++/*
++ * Copyright (C) 2026 Navotpala Tech (Bliss Co-Labs Inc.)
++ *
++ * SPDX-License-Identifier: AGPL-3.0-only OR LicenseRef-Navotpala-Commercial
++ * Part of retro-style (vendor/retro-style). Licensed under the GNU Affero General Public
++ * License v3.0, or under a commercial license from Navotpala Tech (info@navotpala.tech).
++ * See LICENSE and LICENSE_COMMERCIAL in vendor/retro-style.
++ */
++
++package com.android.launcher3.taskbar
++
++import android.os.SystemProperties
++import com.android.launcher3.R
++import com.android.launcher3.taskbar.TaskbarNavButtonController.BUTTON_POWER
++import com.android.launcher3.taskbar.TaskbarNavButtonController.BUTTON_SCREENSHOT
++import com.android.launcher3.taskbar.TaskbarNavButtonController.BUTTON_VOLUME_DOWN
++import com.android.launcher3.taskbar.TaskbarNavButtonController.BUTTON_VOLUME_UP
++
++/**
++ * The tablet "system bar" taskbar layout: nav buttons at the start, optional extra buttons, and a
++ * tray (notifications, status, volume, clock) at the end.
++ *
++ * Driven by `persist.retro.ui_layout=system_bar`; `persist.retro.ui_style=kitkat` switches the tray
++ * to the KitKat look and hides the app icons. Read once per process; the RetroStyle app restarts the
++ * launcher when they change.
++ */
++object RetroSystemBar {
++    @JvmStatic
++    val isEnabled: Boolean by lazy {
++        SystemProperties.get("persist.retro.ui_layout") == "system_bar"
++    }
++
++    @JvmStatic
++    val isKitKat: Boolean by lazy { SystemProperties.get("persist.retro.ui_style") == "kitkat" }
++
++    /** App icons between the nav buttons and the tray (off by default for KitKat). */
++    @JvmStatic
++    val showApps: Boolean by lazy {
++        SystemProperties.getBoolean("persist.retro.ui_bar_apps", !isKitKat)
++    }
++
++    /** Seconds on the tray clock. */
++    @JvmStatic
++    val clockSeconds: Boolean by lazy {
++        SystemProperties.getBoolean("persist.retro.ui_bar_clock_seconds", false)
++    }
++
++    private val extraButtonsByName =
++        mapOf(
++            "vol_down" to
++                ExtraButton(
++                    BUTTON_VOLUME_DOWN,
++                    R.drawable.ic_retro_volume_down,
++                    R.id.retro_volume_down,
++                ),
++            "vol_up" to
++                ExtraButton(BUTTON_VOLUME_UP, R.drawable.ic_retro_volume_up, R.id.retro_volume_up),
++            "screenshot" to
++                ExtraButton(BUTTON_SCREENSHOT, R.drawable.ic_retro_screenshot, R.id.retro_screenshot),
++            "power" to ExtraButton(BUTTON_POWER, R.drawable.ic_retro_power, R.id.retro_power),
++        )
++
++    /** Extra nav buttons in `persist.retro.ui_bar_buttons` order (TabletKat-style button order). */
++    @JvmStatic
++    val extraButtons: List<ExtraButton> by lazy {
++        if (!isEnabled) return@lazy emptyList()
++        SystemProperties.get("persist.retro.ui_bar_buttons", "vol_down,vol_up,screenshot")
++            .split(',')
++            .mapNotNull { extraButtonsByName[it.trim()] }
++    }
++
++    @JvmStatic
++    fun isExtraButton(viewId: Int): Boolean = extraButtonsByName.values.any { it.id == viewId }
++
++    data class ExtraButton(val type: Int, val drawable: Int, val id: Int)
++}
+diff --git a/quickstep/src/com/android/launcher3/taskbar/TaskbarNavButtonController.java b/quickstep/src/com/android/launcher3/taskbar/TaskbarNavButtonController.java
+index c42dd515f04..bd3c27966f3 100644
+--- a/quickstep/src/com/android/launcher3/taskbar/TaskbarNavButtonController.java
++++ b/quickstep/src/com/android/launcher3/taskbar/TaskbarNavButtonController.java
+@@ -99,6 +99,10 @@ public class TaskbarNavButtonController implements TaskbarControllers.LoggableTa
+             BUTTON_A11Y,
+             BUTTON_QUICK_SETTINGS,
+             BUTTON_NOTIFICATIONS,
++            BUTTON_VOLUME_DOWN,
++            BUTTON_VOLUME_UP,
++            BUTTON_SCREENSHOT,
++            BUTTON_POWER,
+     })
+ 
+     public @interface TaskbarButton {}
+@@ -111,6 +115,11 @@ public class TaskbarNavButtonController implements TaskbarControllers.LoggableTa
+     static final int BUTTON_QUICK_SETTINGS = BUTTON_A11Y << 1;
+     static final int BUTTON_NOTIFICATIONS = BUTTON_QUICK_SETTINGS << 1;
+     static final int BUTTON_SPACE = BUTTON_NOTIFICATIONS << 1;
++    // Extra tablet system bar buttons (RetroSystemBar).
++    static final int BUTTON_VOLUME_DOWN = BUTTON_SPACE << 1;
++    static final int BUTTON_VOLUME_UP = BUTTON_VOLUME_DOWN << 1;
++    static final int BUTTON_SCREENSHOT = BUTTON_VOLUME_UP << 1;
++    static final int BUTTON_POWER = BUTTON_SCREENSHOT << 1;
+ 
+     private static final int SCREEN_UNPIN_COMBO = BUTTON_BACK | BUTTON_RECENTS;
+     private int mLongPressedButtons = 0;
+@@ -177,6 +186,18 @@ public class TaskbarNavButtonController implements TaskbarControllers.LoggableTa
+             case BUTTON_NOTIFICATIONS:
+                 showNotifications();
+                 break;
++            case BUTTON_VOLUME_DOWN:
++                mSystemUiProxy.onKeyEvent(KeyEvent.KEYCODE_VOLUME_DOWN, mDisplayId);
++                break;
++            case BUTTON_VOLUME_UP:
++                mSystemUiProxy.onKeyEvent(KeyEvent.KEYCODE_VOLUME_UP, mDisplayId);
++                break;
++            case BUTTON_SCREENSHOT:
++                mSystemUiProxy.onKeyEvent(KeyEvent.KEYCODE_SYSRQ, mDisplayId);
++                break;
++            case BUTTON_POWER:
++                mSystemUiProxy.onKeyEvent(KeyEvent.KEYCODE_SLEEP, mDisplayId);
++                break;
+         }
+     }
+ 
+@@ -232,6 +253,12 @@ public class TaskbarNavButtonController implements TaskbarControllers.LoggableTa
+                 view.performHapticFeedback(HapticFeedbackConstants.LONG_PRESS,
+                         HapticFeedbackConstants.FLAG_IGNORE_VIEW_SETTING);
+                 return true;
++            case BUTTON_POWER:
++                // Like holding the power key: opens the power menu.
++                mSystemUiProxy.onLongPressKeyEvent(KeyEvent.KEYCODE_POWER, mDisplayId);
++                view.performHapticFeedback(HapticFeedbackConstants.LONG_PRESS,
++                        HapticFeedbackConstants.FLAG_IGNORE_VIEW_SETTING);
++                return true;
+             default:
+                 return false;
+         }
+@@ -253,6 +280,14 @@ public class TaskbarNavButtonController implements TaskbarControllers.LoggableTa
+                 return R.string.taskbar_button_notifications;
+             case BUTTON_QUICK_SETTINGS:
+                 return R.string.taskbar_button_quick_settings;
++            case BUTTON_VOLUME_DOWN:
++                return R.string.retro_system_bar_volume_down;
++            case BUTTON_VOLUME_UP:
++                return R.string.retro_system_bar_volume_up;
++            case BUTTON_SCREENSHOT:
++                return R.string.retro_system_bar_screenshot;
++            case BUTTON_POWER:
++                return R.string.retro_system_bar_power;
+             default:
+                 return 0;
+         }
+@@ -421,11 +456,11 @@ public class TaskbarNavButtonController implements TaskbarControllers.LoggableTa
+     }
+ 
+     private void showQuickSettings() {
+-        mSystemUiProxy.toggleNotificationPanel();
++        mSystemUiProxy.toggleQuickSettingsPanelOnDisplay(mDisplayId);
+     }
+ 
+     private void showNotifications() {
+-        mSystemUiProxy.toggleNotificationPanel();
++        mSystemUiProxy.toggleNotificationPanelOnDisplay(mDisplayId);
+     }
+ 
+     /** Callbacks for navigation buttons on Taskbar. */
+diff --git a/quickstep/src/com/android/launcher3/taskbar/TaskbarSystemTrayView.kt b/quickstep/src/com/android/launcher3/taskbar/TaskbarSystemTrayView.kt
+new file mode 100644
+index 00000000000..f7d282831a4
+--- /dev/null
++++ b/quickstep/src/com/android/launcher3/taskbar/TaskbarSystemTrayView.kt
+@@ -0,0 +1,296 @@
++/*
++ * Copyright (C) 2026 Navotpala Tech (Bliss Co-Labs Inc.)
++ *
++ * SPDX-License-Identifier: AGPL-3.0-only OR LicenseRef-Navotpala-Commercial
++ * Part of retro-style (vendor/retro-style). Licensed under the GNU Affero General Public
++ * License v3.0, or under a commercial license from Navotpala Tech (info@navotpala.tech).
++ * See LICENSE and LICENSE_COMMERCIAL in vendor/retro-style.
++ */
++
++package com.android.launcher3.taskbar
++
++import android.app.Notification
++import android.content.BroadcastReceiver
++import android.content.Context
++import android.content.Intent
++import android.content.IntentFilter
++import android.content.res.Configuration
++import android.graphics.Typeface
++import android.graphics.drawable.Drawable
++import android.graphics.drawable.GradientDrawable
++import android.media.AudioManager
++import android.net.ConnectivityManager
++import android.net.Network
++import android.net.NetworkCapabilities
++import android.net.wifi.WifiManager
++import android.os.BatteryManager
++import android.service.notification.StatusBarNotification
++import android.util.TypedValue
++import android.view.Gravity
++import android.view.View
++import android.widget.ImageView
++import android.widget.LinearLayout
++import android.widget.TextClock
++import android.widget.TextView
++import com.android.launcher3.R
++import com.android.launcher3.notification.NotificationListener
++import com.android.launcher3.taskbar.TaskbarNavButtonController.BUTTON_NOTIFICATIONS
++import com.android.launcher3.taskbar.TaskbarNavButtonController.BUTTON_QUICK_SETTINGS
++import java.util.function.Consumer
++
++/**
++ * The tablet system bar tray: notification icons, network and battery, volume and the clock.
++ *
++ * Tapping the notifications opens the notification panel and tapping the status icons or the clock
++ * opens Quick Settings, both on this taskbar's display. Material style draws Googlebook-like
++ * capsules in the dynamic colors; KitKat style draws flat white icons and a thin Holo-blue clock.
++ */
++class TaskbarSystemTrayView(
++    context: Context,
++    private val navButtonController: TaskbarNavButtonController,
++) : LinearLayout(context) {
++
++    private val kitKat = RetroSystemBar.isKitKat
++    private val iconSize = dp(if (kitKat) 20f else 18f)
++    private val contentColor: Int
++    private val notificationIcons = LinearLayout(context)
++    private val notificationCount = TextView(context)
++    private val networkIcon = ImageView(context)
++    private val batteryIcon = ImageView(context)
++    private val batteryText = TextView(context)
++    private val clock = TextClock(context)
++
++    private val notificationCallback =
++        Consumer<Array<StatusBarNotification>> { active ->
++            val shown =
++                active.filter { (it.notification.flags and Notification.FLAG_GROUP_SUMMARY) == 0 }
++            val icons =
++                shown
++                    .distinctBy { it.packageName }
++                    .take(MAX_NOTIFICATION_ICONS)
++                    .mapNotNull { it.notification.smallIcon?.loadDrawable(context) }
++            post { showNotifications(icons, shown.size) }
++        }
++
++    private val batteryReceiver =
++        object : BroadcastReceiver() {
++            override fun onReceive(context: Context, intent: Intent) {
++                val level = intent.getIntExtra(BatteryManager.EXTRA_LEVEL, -1)
++                val scale = intent.getIntExtra(BatteryManager.EXTRA_SCALE, 100)
++                val present = intent.getBooleanExtra(BatteryManager.EXTRA_PRESENT, true)
++                if (!present || level < 0) {
++                    batteryIcon.visibility = GONE
++                    batteryText.visibility = GONE
++                    return
++                }
++                val percent = level * 100 / scale.coerceAtLeast(1)
++                batteryIcon.visibility = VISIBLE
++                batteryIcon.setImageLevel(percent)
++                batteryText.visibility = VISIBLE
++                batteryText.text = context.getString(R.string.retro_system_bar_battery, percent)
++            }
++        }
++
++    private val networkCallback =
++        object : ConnectivityManager.NetworkCallback() {
++            override fun onCapabilitiesChanged(network: Network, caps: NetworkCapabilities) {
++                post { showNetwork(caps) }
++            }
++
++            override fun onLost(network: Network) {
++                post { networkIcon.visibility = GONE }
++            }
++        }
++
++    init {
++        orientation = HORIZONTAL
++        gravity = Gravity.CENTER_VERTICAL
++        val night =
++            (resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK) ==
++                Configuration.UI_MODE_NIGHT_YES
++        contentColor =
++            when {
++                kitKat -> 0xFFFFFFFF.toInt()
++                night -> context.getColor(android.R.color.system_neutral1_50)
++                else -> context.getColor(android.R.color.system_neutral1_900)
++            }
++
++        notificationIcons.orientation = HORIZONTAL
++        notificationIcons.gravity = Gravity.CENTER_VERTICAL
++        notificationCount.setTextColor(contentColor)
++        notificationCount.setTextSize(TypedValue.COMPLEX_UNIT_SP, 12f)
++        notificationCount.gravity = Gravity.CENTER
++        val notifications = group(notificationIcons, notificationCount)
++        notifications.contentDescription = context.getString(R.string.taskbar_button_notifications)
++        notifications.setOnClickListener {
++            navButtonController.onButtonClick(BUTTON_NOTIFICATIONS, it)
++        }
++        notifications.visibility = GONE
++
++        networkIcon.visibility = GONE
++        batteryIcon.setImageResource(R.drawable.ic_retro_tray_battery)
++        batteryText.setTextColor(if (kitKat) HOLO_BLUE else contentColor)
++        batteryText.setTextSize(TypedValue.COMPLEX_UNIT_SP, if (kitKat) 18f else 12f)
++        if (kitKat) batteryText.typeface = Typeface.create("sans-serif-light", Typeface.NORMAL)
++        listOf(networkIcon, batteryIcon).forEach {
++            styleIcon(it, if (kitKat) HOLO_BLUE else contentColor)
++        }
++        val status = group(networkIcon, batteryIcon, batteryText)
++        status.contentDescription = context.getString(R.string.taskbar_button_quick_settings)
++        status.setOnClickListener { navButtonController.onButtonClick(BUTTON_QUICK_SETTINGS, it) }
++
++        if (kitKat) {
++            clock.format12Hour = if (RetroSystemBar.clockSeconds) "h:mm:ss a" else "h:mm a"
++            clock.format24Hour = if (RetroSystemBar.clockSeconds) "H:mm:ss" else "H:mm"
++            clock.setTextColor(HOLO_BLUE)
++            clock.setTextSize(TypedValue.COMPLEX_UNIT_SP, 26f)
++            clock.typeface = Typeface.create("sans-serif-thin", Typeface.NORMAL)
++        } else {
++            clock.format12Hour = if (RetroSystemBar.clockSeconds) "h:mm:ss a" else "h:mm a"
++            clock.format24Hour = if (RetroSystemBar.clockSeconds) "H:mm:ss" else "H:mm"
++            clock.setTextColor(contentColor)
++            clock.setTextSize(TypedValue.COMPLEX_UNIT_SP, 14f)
++        }
++        clock.setPadding(dp(8f), 0, dp(8f), 0)
++        clock.setOnClickListener { navButtonController.onButtonClick(BUTTON_QUICK_SETTINGS, it) }
++
++        addView(notifications)
++        addView(status)
++        if (!kitKat) {
++            // KitKat has volume buttons with the nav buttons; Material keeps it in the tray.
++            val volume = ImageView(context)
++            volume.setImageResource(R.drawable.ic_retro_tray_volume)
++            volume.contentDescription = context.getString(R.string.retro_system_bar_volume)
++            styleIcon(volume)
++            volume.setOnClickListener {
++                context
++                    .getSystemService(AudioManager::class.java)
++                    ?.adjustSuggestedStreamVolume(
++                        AudioManager.ADJUST_SAME,
++                        AudioManager.USE_DEFAULT_STREAM_TYPE,
++                        AudioManager.FLAG_SHOW_UI,
++                    )
++            }
++            addView(group(volume))
++        }
++        addView(clock)
++    }
++
++    override fun onAttachedToWindow() {
++        super.onAttachedToWindow()
++        context.registerReceiver(batteryReceiver, IntentFilter(Intent.ACTION_BATTERY_CHANGED))
++        try {
++            context
++                .getSystemService(ConnectivityManager::class.java)
++                ?.registerDefaultNetworkCallback(networkCallback)
++        } catch (e: SecurityException) {
++            networkIcon.visibility = GONE
++        }
++        NotificationListener.addTrayCallback(notificationCallback)
++    }
++
++    override fun onDetachedFromWindow() {
++        NotificationListener.removeTrayCallback(notificationCallback)
++        context.getSystemService(ConnectivityManager::class.java)?.let {
++            try {
++                it.unregisterNetworkCallback(networkCallback)
++            } catch (e: IllegalArgumentException) {
++                // Never registered.
++            }
++        }
++        try {
++            context.unregisterReceiver(batteryReceiver)
++        } catch (e: IllegalArgumentException) {
++            // Never registered.
++        }
++        super.onDetachedFromWindow()
++    }
++
++    private fun showNotifications(icons: List<Drawable>, count: Int) {
++        val notifications = notificationIcons.parent as View
++        notifications.visibility = if (count > 0) VISIBLE else GONE
++        notificationIcons.removeAllViews()
++        if (kitKat) {
++            // KitKat lists the icons themselves.
++            icons.forEach { icon ->
++                val view = ImageView(context)
++                view.setImageDrawable(icon)
++                styleIcon(view)
++                notificationIcons.addView(view)
++            }
++            notificationCount.visibility = GONE
++        } else {
++            // Material shows a count bubble, like the Googlebook tray.
++            notificationCount.text = count.toString()
++            notificationCount.visibility = VISIBLE
++            notificationCount.background =
++                GradientDrawable().apply {
++                    shape = GradientDrawable.OVAL
++                    setStroke(dp(1.5f), contentColor)
++                }
++            notificationCount.minWidth = dp(22f)
++            notificationCount.minHeight = dp(22f)
++        }
++    }
++
++    private fun showNetwork(caps: NetworkCapabilities) {
++        when {
++            caps.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) -> {
++                networkIcon.setImageResource(R.drawable.ic_retro_tray_wifi)
++                val rssi = caps.signalStrength
++                val level =
++                    if (rssi == NetworkCapabilities.SIGNAL_STRENGTH_UNSPECIFIED) WIFI_LEVELS - 1
++                    else
++                        context
++                            .getSystemService(WifiManager::class.java)
++                            ?.calculateSignalLevel(rssi) ?: (WIFI_LEVELS - 1)
++                networkIcon.setImageLevel(level)
++                networkIcon.visibility = VISIBLE
++            }
++            caps.hasTransport(NetworkCapabilities.TRANSPORT_ETHERNET) -> {
++                networkIcon.setImageResource(R.drawable.ic_retro_tray_ethernet)
++                networkIcon.visibility = VISIBLE
++            }
++            else -> networkIcon.visibility = GONE
++        }
++    }
++
++    /** Wraps tray items in one tappable group; Material groups get a capsule background. */
++    private fun group(vararg views: View): LinearLayout {
++        val group = LinearLayout(context)
++        group.orientation = HORIZONTAL
++        group.gravity = Gravity.CENTER_VERTICAL
++        group.setPadding(dp(8f), dp(4f), dp(8f), dp(4f))
++        group.isClickable = true
++        group.isFocusable = true
++        if (!kitKat) {
++            group.background =
++                GradientDrawable().apply {
++                    cornerRadius = dp(16f).toFloat()
++                    setStroke(dp(1f), contentColor and 0x60FFFFFF)
++                }
++        }
++        val params = LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT)
++        params.marginStart = dp(4f)
++        views.forEach { group.addView(it) }
++        group.layoutParams = params
++        return group
++    }
++
++    private fun styleIcon(view: ImageView, color: Int = contentColor) {
++        view.setColorFilter(color)
++        val params = LayoutParams(iconSize, iconSize)
++        params.marginEnd = dp(4f)
++        view.layoutParams = params
++    }
++
++    private fun dp(value: Float): Int =
++        TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, value, resources.displayMetrics)
++            .toInt()
++
++    companion object {
++        private const val MAX_NOTIFICATION_ICONS = 4
++        private const val WIFI_LEVELS = 5
++        private const val HOLO_BLUE = 0xFF33B5E5.toInt()
++    }
++}
+diff --git a/quickstep/src/com/android/launcher3/taskbar/TaskbarViewController.java b/quickstep/src/com/android/launcher3/taskbar/TaskbarViewController.java
+index 224eb310e67..328e45eff99 100644
+--- a/quickstep/src/com/android/launcher3/taskbar/TaskbarViewController.java
++++ b/quickstep/src/com/android/launcher3/taskbar/TaskbarViewController.java
+@@ -129,8 +129,9 @@ public class TaskbarViewController implements TaskbarControllers.LoggableTaskbar
+     public static final int ALPHA_INDEX_SMALL_SCREEN = 6;
+     public static final int ALPHA_INDEX_BUBBLE_BAR = 7;
+     public static final int ALPHA_INDEX_RECREATE = 8;
++    public static final int ALPHA_INDEX_RETRO_SYSTEM_BAR = 9;
+ 
+-    private static final int NUM_ALPHA_CHANNELS = 9;
++    private static final int NUM_ALPHA_CHANNELS = 10;
+ 
+     /** Only used for animation purposes, to position the divider between two item indices. */
+     public static final float DIVIDER_VIEW_POSITION_OFFSET = 0.5f;
+@@ -319,6 +320,9 @@ public class TaskbarViewController implements TaskbarControllers.LoggableTaskbar
+         // This gets modified in NavbarButtonsViewController, but the initial value it reads
+         // may be incorrect since it's state gets destroyed on taskbar recreate, so reset here
+         mTaskbarIconAlpha.get(ALPHA_INDEX_SMALL_SCREEN).setValue(mActivity.isPhoneMode() ? 0 : 1);
++        // The KitKat system bar has no app icons, only nav buttons and the tray.
++        mTaskbarIconAlpha.get(ALPHA_INDEX_RETRO_SYSTEM_BAR).setValue(
++                RetroSystemBar.isEnabled() && !RetroSystemBar.getShowApps() ? 0 : 1);
+ 
+         if (enableTaskbarPinning() || refactorTaskbarUiState()) {
+             mTaskbarView.addOnLayoutChangeListener(mTaskbarViewLayoutChangeListener);
+@@ -1498,7 +1502,10 @@ public class TaskbarViewController implements TaskbarControllers.LoggableTaskbar
+                 "ALPHA_INDEX_RECENTS_DISABLED",
+                 "ALPHA_INDEX_NOTIFICATION_EXPANDED",
+                 "ALPHA_INDEX_ASSISTANT_INVOKED",
+-                "ALPHA_INDEX_SMALL_SCREEN");
++                "ALPHA_INDEX_SMALL_SCREEN",
++                "ALPHA_INDEX_BUBBLE_BAR",
++                "ALPHA_INDEX_RECREATE",
++                "ALPHA_INDEX_RETRO_SYSTEM_BAR");
+ 
+         mModelCallbacks.dumpLogs(prefix + "\t", pw);
+     }
+diff --git a/quickstep/src/com/android/launcher3/taskbar/navbutton/NavButtonLayoutFactory.kt b/quickstep/src/com/android/launcher3/taskbar/navbutton/NavButtonLayoutFactory.kt
+index 0f1b337749d..726a17702fb 100644
+--- a/quickstep/src/com/android/launcher3/taskbar/navbutton/NavButtonLayoutFactory.kt
++++ b/quickstep/src/com/android/launcher3/taskbar/navbutton/NavButtonLayoutFactory.kt
+@@ -24,6 +24,7 @@ import android.widget.ImageView
+ import android.widget.LinearLayout
+ import android.widget.Space
+ import com.android.launcher3.DeviceProfile
++import com.android.launcher3.taskbar.RetroSystemBar
+ import com.android.launcher3.taskbar.TaskbarActivityContext
+ import com.android.launcher3.taskbar.navbutton.LayoutResourceHelper.ID_END_CONTEXTUAL_BUTTONS
+ import com.android.launcher3.taskbar.navbutton.LayoutResourceHelper.ID_END_NAV_BUTTONS
+@@ -149,6 +150,16 @@ class NavButtonLayoutFactory {
+                                 space,
+                             )
+                         }
++                        isThreeButtonNav && RetroSystemBar.isEnabled ->
++                            SystemBarNavLayoutter(
++                                resources,
++                                navButtonContainer,
++                                endContextualContainer,
++                                startContextualContainer,
++                                imeSwitcher,
++                                a11yButton,
++                                space,
++                            )
+                         else ->
+                             TaskbarNavLayoutter(
+                                 resources,
+diff --git a/quickstep/src/com/android/launcher3/taskbar/navbutton/SystemBarNavLayoutter.kt b/quickstep/src/com/android/launcher3/taskbar/navbutton/SystemBarNavLayoutter.kt
+new file mode 100644
+index 00000000000..779ddec7cc4
+--- /dev/null
++++ b/quickstep/src/com/android/launcher3/taskbar/navbutton/SystemBarNavLayoutter.kt
+@@ -0,0 +1,82 @@
++/*
++ * Copyright (C) 2026 Navotpala Tech (Bliss Co-Labs Inc.)
++ *
++ * SPDX-License-Identifier: AGPL-3.0-only OR LicenseRef-Navotpala-Commercial
++ * Part of retro-style (vendor/retro-style). Licensed under the GNU Affero General Public
++ * License v3.0, or under a commercial license from Navotpala Tech (info@navotpala.tech).
++ * See LICENSE and LICENSE_COMMERCIAL in vendor/retro-style.
++ */
++
++package com.android.launcher3.taskbar.navbutton
++
++import android.content.res.Resources
++import android.view.Gravity
++import android.view.View
++import android.view.ViewGroup
++import android.widget.FrameLayout
++import android.widget.ImageView
++import android.widget.LinearLayout
++import android.widget.Space
++import com.android.launcher3.R
++import com.android.launcher3.taskbar.RetroSystemBar
++import com.android.launcher3.taskbar.TaskbarActivityContext
++
++/**
++ * Layoutter for the tablet system bar: back/home/recents and the extra buttons at the start, then
++ * the IME switcher and accessibility button. The end of the bar belongs to the tray.
++ */
++class SystemBarNavLayoutter(
++    resources: Resources,
++    navBarContainer: LinearLayout,
++    endContextualContainer: ViewGroup,
++    startContextualContainer: ViewGroup,
++    imeSwitcher: ImageView?,
++    a11yButton: ImageView?,
++    space: Space?,
++) :
++    AbstractNavButtonLayoutter(
++        resources,
++        navBarContainer,
++        endContextualContainer,
++        startContextualContainer,
++        imeSwitcher,
++        a11yButton,
++        space,
++    ) {
++
++    override fun layoutButtons(context: TaskbarActivityContext, isA11yButtonPersistent: Boolean) {
++        val extras =
++            (0 until navButtonContainer.childCount)
++                .map { navButtonContainer.getChildAt(it) }
++                .filter { RetroSystemBar.isExtraButton(it.id) }
++
++        addThreeButtons()
++        extras.forEach { navButtonContainer.addView(it) }
++
++        endContextualContainer.removeAllViews()
++        startContextualContainer.removeAllViews()
++        listOfNotNull(imeSwitcher, a11yButton).forEach { button ->
++            (button.parent as? ViewGroup)?.removeView(button)
++            navButtonContainer.addView(button)
++        }
++
++        val buttonWidth = resources.getDimensionPixelSize(R.dimen.retro_system_bar_button_width)
++        for (i in 0 until navButtonContainer.childCount) {
++            val button: View = navButtonContainer.getChildAt(i)
++            button.layoutParams =
++                LinearLayout.LayoutParams(buttonWidth, ViewGroup.LayoutParams.MATCH_PARENT)
++        }
++
++        navButtonContainer.orientation = LinearLayout.HORIZONTAL
++        navButtonContainer.layoutParams =
++            FrameLayout.LayoutParams(
++                    FrameLayout.LayoutParams.WRAP_CONTENT,
++                    ViewGroup.LayoutParams.MATCH_PARENT,
++                )
++                .apply {
++                    gravity = Gravity.START or Gravity.CENTER_VERTICAL
++                    marginStart =
++                        resources.getDimensionPixelSize(R.dimen.retro_system_bar_edge_margin)
++                }
++    }
++}
+diff --git a/quickstep/src/com/android/quickstep/SystemUiProxy.kt b/quickstep/src/com/android/quickstep/SystemUiProxy.kt
+index 3dd1ca0cff9..44043af352e 100644
+--- a/quickstep/src/com/android/quickstep/SystemUiProxy.kt
++++ b/quickstep/src/com/android/quickstep/SystemUiProxy.kt
+@@ -524,6 +524,18 @@ class SystemUiProxy @Inject constructor(
+             systemUiProxy?.toggleQuickSettingsPanel()
+         }
+ 
++    /** Toggles the notification panel on [displayId] (e.g. from that display's taskbar tray). */
++    fun toggleNotificationPanelOnDisplay(displayId: Int) =
++        executeWithErrorLog({ "Failed call toggleNotificationPanelOnDisplay" }) {
++            systemUiProxy?.toggleNotificationPanelOnDisplay(displayId)
++        }
++
++    /** Toggles the quick settings panel on [displayId] (e.g. from that display's taskbar tray). */
++    fun toggleQuickSettingsPanelOnDisplay(displayId: Int) =
++        executeWithErrorLog({ "Failed call toggleQuickSettingsPanelOnDisplay" }) {
++            systemUiProxy?.toggleQuickSettingsPanelOnDisplay(displayId)
++        }
++
+     //
+     // Pip
+     //
+diff --git a/src/com/android/launcher3/notification/NotificationListener.java b/src/com/android/launcher3/notification/NotificationListener.java
+index 468599a44a5..026996ed6b5 100644
+--- a/src/com/android/launcher3/notification/NotificationListener.java
++++ b/src/com/android/launcher3/notification/NotificationListener.java
+@@ -43,6 +43,8 @@ import java.util.Arrays;
+ import java.util.HashMap;
+ import java.util.List;
+ import java.util.Map;
++import java.util.concurrent.CopyOnWriteArrayList;
++import java.util.function.Consumer;
+ import java.util.function.Function;
+ import java.util.function.Predicate;
+ 
+@@ -67,6 +69,11 @@ public class NotificationListener extends NotificationListenerService {
+ 
+     private boolean mIsConnected = false;
+ 
++    /** Taskbar trays; each gets the active notifications whenever they change. */
++    private static final List<Consumer<StatusBarNotification[]>> sTrayCallbacks =
++            new CopyOnWriteArrayList<>();
++    private static volatile NotificationListener sConnectedInstance;
++
+     /** Maps packages to their DotInfo's . */
+     private final Map<PackageUserKey, DotInfo> mPackageUserToDotInfos = new HashMap<>();
+ 
+@@ -189,11 +196,42 @@ public class NotificationListener extends NotificationListenerService {
+         return result == null ? new StatusBarNotification[0] : result;
+     }
+ 
++    /**
++     * Registers a taskbar tray. It's called on a worker thread with the active notifications now
++     * (if the listener is connected) and after every change.
++     */
++    public static void addTrayCallback(Consumer<StatusBarNotification[]> callback) {
++        sTrayCallbacks.add(callback);
++        NotificationListener listener = sConnectedInstance;
++        if (listener != null) {
++            listener.notifyTrays();
++        }
++    }
++
++    public static void removeTrayCallback(Consumer<StatusBarNotification[]> callback) {
++        sTrayCallbacks.remove(callback);
++    }
++
++    private void notifyTrays() {
++        if (sTrayCallbacks.isEmpty()) {
++            return;
++        }
++        mWorkerHandler.post(() -> {
++            StatusBarNotification[] active = mIsConnected
++                    ? getActiveNotificationsSafely(null) : new StatusBarNotification[0];
++            for (Consumer<StatusBarNotification[]> callback : sTrayCallbacks) {
++                callback.accept(active);
++            }
++        });
++    }
++
+     @Override
+     public void onListenerConnected() {
+         super.onListenerConnected();
+         Log.i(TAG, "onListenerConnected");
+         mIsConnected = true;
++        sConnectedInstance = this;
++        notifyTrays();
+ 
+         // Register an observer to rebind the notification listener when dots are re-enabled.
+         mSettingsCache = SettingsCache.INSTANCE.get(this);
+@@ -220,6 +258,10 @@ public class NotificationListener extends NotificationListenerService {
+         super.onListenerDisconnected();
+         Log.i(TAG, "onListenerDisconnected");
+         mIsConnected = false;
++        if (sConnectedInstance == this) {
++            sConnectedInstance = null;
++        }
++        notifyTrays();
+         mSettingsCache.unregister(NOTIFICATION_BADGING_URI, mNotificationSettingsChangedListener);
+         onNotificationFullRefresh();
+     }
+@@ -228,6 +270,7 @@ public class NotificationListener extends NotificationListenerService {
+     public void onNotificationPosted(final StatusBarNotification sbn) {
+         if (sbn != null) {
+             mWorkerHandler.obtainMessage(MSG_NOTIFICATION_POSTED, sbn).sendToTarget();
++            notifyTrays();
+         }
+     }
+ 
+@@ -235,6 +278,7 @@ public class NotificationListener extends NotificationListenerService {
+     public void onNotificationRemoved(final StatusBarNotification sbn) {
+         if (sbn != null) {
+             mWorkerHandler.obtainMessage(MSG_NOTIFICATION_REMOVED, sbn).sendToTarget();
++            notifyTrays();
+         }
+     }
+ 
+-- 
+2.43.0
+

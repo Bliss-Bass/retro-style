@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Holo corners for notifications, Quick Settings, the shade panels and the power menu. -->
+<resources>
+    <dimen name="notification_corner_radius">2dp</dimen>
+    <dimen name="notification_corner_radius_small">2dp</dimen>
+    <dimen name="notification_scrim_corner_radius">2dp</dimen>
+    <dimen name="qs_corner_radius">2dp</dimen>
+    <dimen name="overlay_shade_panel_shape_radius">2dp</dimen>
+    <dimen name="global_actions_corner_radius">2dp</dimen>
+</resources>

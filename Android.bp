@@ -1,0 +1,33 @@
+// Copyright (C) 2026 Navotpala Tech (Bliss Co-Labs Inc.)
+// SPDX-License-Identifier: AGPL-3.0-only OR LicenseRef-Navotpala-Commercial
+
+// License metadata for the build's notice files and compliance reports. Every module in
+// vendor/retro-style names one of these through package { default_applicable_licenses }.
+// See LICENSING.md.
+
+// retro-style's own code and resources: AGPL-3.0, or Navotpala Tech's commercial license.
+license {
+    name: "vendor_retro-style_license",
+    visibility: [":__subpackages__"],
+    license_kinds: ["SPDX-license-identifier-AGPL-3.0-only"],
+    license_text: [
+        "LICENSE",
+        "LICENSE_COMMERCIAL",
+        "NOTICE",
+    ],
+}
+
+// Overlays that also carry unmodified Android 4.x artwork from AOSP (Apache-2.0).
+license {
+    name: "vendor_retro-style_aosp_assets_license",
+    visibility: [":__subpackages__"],
+    license_kinds: [
+        "SPDX-license-identifier-AGPL-3.0-only",
+        "SPDX-license-identifier-Apache-2.0",
+    ],
+    license_text: [
+        "LICENSE",
+        "LICENSE_COMMERCIAL",
+        "NOTICE",
+    ],
+}

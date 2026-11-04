@@ -1,0 +1,187 @@
+From e61b8eba7f609391eb53f9fd33af7981ad6fa4c6 Mon Sep 17 00:00:00 2001
+From: Jon West <electrikjesus@gmail.com>
+Date: Wed, 4 Nov 2026 15:53:03 -0500
+Subject: [PATCH 8/8] SystemUI: Read the applied retro style from
+ Settings.Secure
+
+The RetroStyle app runs as a system app on SELinux-enforcing builds,
+where it can't set custom persist.* properties without extra policy.
+It writes the resolved style to the secure setting retro_ui_applied
+instead (style, variant, anchor, ... as key=value pairs), and SystemUI
+reads that once per process through RetroUiApplied.
+---
+ .../shade/shared/model/RetroUiAppliedTest.kt  | 48 +++++++++++++++++++
+ .../shade/shared/model/RetroUiApplied.kt      | 44 +++++++++++++++++
+ .../shade/shared/model/RetroUiStyle.kt        | 17 ++-----
+ .../shade/shared/model/ShadePanelAnchor.kt    | 12 ++---
+ 4 files changed, 101 insertions(+), 20 deletions(-)
+ create mode 100644 packages/SystemUI/multivalentTests/src/com/android/systemui/shade/shared/model/RetroUiAppliedTest.kt
+ create mode 100644 packages/SystemUI/src/com/android/systemui/shade/shared/model/RetroUiApplied.kt
+
+diff --git a/packages/SystemUI/multivalentTests/src/com/android/systemui/shade/shared/model/RetroUiAppliedTest.kt b/packages/SystemUI/multivalentTests/src/com/android/systemui/shade/shared/model/RetroUiAppliedTest.kt
+new file mode 100644
+index 000000000000..a3b92b0e7ef6
+--- /dev/null
++++ b/packages/SystemUI/multivalentTests/src/com/android/systemui/shade/shared/model/RetroUiAppliedTest.kt
+@@ -0,0 +1,48 @@
++/*
++ * Copyright (C) 2026 Navotpala Tech (Bliss Co-Labs Inc.)
++ *
++ * SPDX-License-Identifier: AGPL-3.0-only OR LicenseRef-Navotpala-Commercial
++ * Part of retro-style (vendor/retro-style). Licensed under the GNU Affero General Public
++ * License v3.0, or under a commercial license from Navotpala Tech (info@navotpala.tech).
++ * See LICENSE and LICENSE_COMMERCIAL in vendor/retro-style.
++ */
++
++package com.android.systemui.shade.shared.model
++
++import androidx.test.ext.junit.runners.AndroidJUnit4
++import androidx.test.filters.SmallTest
++import com.android.systemui.SysuiTestCase
++import com.google.common.truth.Truth.assertThat
++import org.junit.Test
++import org.junit.runner.RunWith
++
++@SmallTest
++@RunWith(AndroidJUnit4::class)
++class RetroUiAppliedTest : SysuiTestCase() {
++
++    @Test
++    fun parse_readsPairs() {
++        assertThat(
++                RetroUiApplied.parse("style=kitkat;anchor=bottom_end;bar_buttons=vol_down,power")
++            )
++            .containsExactly(
++                "style",
++                "kitkat",
++                "anchor",
++                "bottom_end",
++                "bar_buttons",
++                "vol_down,power",
++            )
++    }
++
++    @Test
++    fun parse_skipsMalformedPairs() {
++        assertThat(RetroUiApplied.parse("style=m3;;broken;=x;variant="))
++            .containsExactly("style", "m3", "variant", "")
++    }
++
++    @Test
++    fun parse_unsetIsEmpty() {
++        assertThat(RetroUiApplied.parse(null)).isEmpty()
++    }
++}
+diff --git a/packages/SystemUI/src/com/android/systemui/shade/shared/model/RetroUiApplied.kt b/packages/SystemUI/src/com/android/systemui/shade/shared/model/RetroUiApplied.kt
+new file mode 100644
+index 000000000000..da34807d51b4
+--- /dev/null
++++ b/packages/SystemUI/src/com/android/systemui/shade/shared/model/RetroUiApplied.kt
+@@ -0,0 +1,44 @@
++/*
++ * Copyright (C) 2026 Navotpala Tech (Bliss Co-Labs Inc.)
++ *
++ * SPDX-License-Identifier: AGPL-3.0-only OR LicenseRef-Navotpala-Commercial
++ * Part of retro-style (vendor/retro-style). Licensed under the GNU Affero General Public
++ * License v3.0, or under a commercial license from Navotpala Tech (info@navotpala.tech).
++ * See LICENSE and LICENSE_COMMERCIAL in vendor/retro-style.
++ */
++
++package com.android.systemui.shade.shared.model
++
++import android.app.AppGlobals
++import android.provider.Settings
++
++/**
++ * The retro style the RetroStyle app (vendor/retro-style) last applied.
++ *
++ * The app resolves the user's choices and their defaults and writes them to the secure setting
++ * `retro_ui_applied` as `key=value` pairs separated by `;`, for example
++ * `style=kitkat;variant=kitkat_stock;layout=system_bar;anchor=bottom_end`. A secure setting needs
++ * no SELinux policy, unlike a custom system property. Read once per process: the app restarts
++ * SystemUI when a value SystemUI uses changes.
++ */
++object RetroUiApplied {
++    const val SETTING = "retro_ui_applied"
++
++    private val values: Map<String, String> by lazy {
++        val resolver = AppGlobals.getInitialApplication()?.contentResolver
++        parse(resolver?.let { Settings.Secure.getString(it, SETTING) })
++    }
++
++    operator fun get(key: String): String? = values[key]
++
++    fun parse(value: String?): Map<String, String> =
++        value
++            .orEmpty()
++            .split(';')
++            .mapNotNull { pair ->
++                val parts = pair.split('=', limit = 2)
++                if (parts.size == 2 && parts[0].isNotBlank()) parts[0].trim() to parts[1].trim()
++                else null
++            }
++            .toMap()
++}
+diff --git a/packages/SystemUI/src/com/android/systemui/shade/shared/model/RetroUiStyle.kt b/packages/SystemUI/src/com/android/systemui/shade/shared/model/RetroUiStyle.kt
+index 5e1e0d427d40..24aee70feaaf 100644
+--- a/packages/SystemUI/src/com/android/systemui/shade/shared/model/RetroUiStyle.kt
++++ b/packages/SystemUI/src/com/android/systemui/shade/shared/model/RetroUiStyle.kt
+@@ -9,25 +9,18 @@
+ 
+ package com.android.systemui.shade.shared.model
+ 
+-import android.os.SystemProperties
+-
+ /**
+- * The UI style SystemUI's shade panels are drawn in.
++ * The UI style SystemUI's shade panels are drawn in, from [RetroUiApplied].
+  *
+- * `persist.retro.ui_style=kitkat` swaps the Quick Settings grid for KitKat tablet rows and uses Holo
+- * panel colors; `persist.retro.ui_style_variant` picks `holo_unified` (navy) or `kitkat_stock`
+- * (black). Read once per process; changing either restarts SystemUI.
++ * `style=kitkat` swaps the Quick Settings grid for KitKat tablet rows and uses Holo panel colors;
++ * `variant` picks `holo_unified` (navy) or `kitkat_stock` (black).
+  */
+ object RetroUiStyle {
+-    const val PROPERTY = "persist.retro.ui_style"
+-    const val VARIANT_PROPERTY = "persist.retro.ui_style_variant"
+-
+-    val isKitKat: Boolean by lazy { SystemProperties.get(PROPERTY) == "kitkat" }
++    val isKitKat: Boolean by lazy { RetroUiApplied["style"] == "kitkat" }
+ 
+     /** Panel background (ARGB) for the KitKat style. */
+     val kitKatPanelColor: Int by lazy {
+-        if (SystemProperties.get(VARIANT_PROPERTY) == "holo_unified") 0xCC1A1F2E.toInt()
+-        else 0xF0000000.toInt()
++        if (RetroUiApplied["variant"] == "holo_unified") 0xCC1A1F2E.toInt() else 0xF0000000.toInt()
+     }
+ 
+     /** Holo blue, the KitKat accent. */
+diff --git a/packages/SystemUI/src/com/android/systemui/shade/shared/model/ShadePanelAnchor.kt b/packages/SystemUI/src/com/android/systemui/shade/shared/model/ShadePanelAnchor.kt
+index 2fa48f543a61..1f661173d849 100644
+--- a/packages/SystemUI/src/com/android/systemui/shade/shared/model/ShadePanelAnchor.kt
++++ b/packages/SystemUI/src/com/android/systemui/shade/shared/model/ShadePanelAnchor.kt
+@@ -9,16 +9,12 @@
+ 
+ package com.android.systemui.shade.shared.model
+ 
+-import android.os.SystemProperties
+-
+ /**
+- * Where the floating Dual Shade panels open on wide screens.
++ * Where the floating Dual Shade panels open on wide screens, from [RetroUiApplied].
+  *
+- * `persist.retro.panel_anchor=bottom_end` opens them above a bottom tray (tablet system bar) instead
+- * of under the top status bar. Read once per process; changing it restarts SystemUI.
++ * `anchor=bottom_end` opens them above a bottom tray (tablet system bar) instead of under the top
++ * status bar.
+  */
+ object ShadePanelAnchor {
+-    const val PROPERTY = "persist.retro.panel_anchor"
+-
+-    val isBottom: Boolean by lazy { SystemProperties.get(PROPERTY) == "bottom_end" }
++    val isBottom: Boolean by lazy { RetroUiApplied["anchor"] == "bottom_end" }
+ }
+-- 
+2.43.0
+

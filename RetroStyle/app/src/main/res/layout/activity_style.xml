@@ -1,0 +1,186 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:fitsSystemWindows="true"
+    android:orientation="vertical">
+
+    <com.google.android.material.appbar.MaterialToolbar
+        android:id="@+id/toolbar"
+        android:layout_width="match_parent"
+        android:layout_height="?attr/actionBarSize"
+        app:navigationContentDescription="@string/navigate_up"
+        app:navigationIcon="@drawable/ic_arrow_back"
+        app:title="@string/app_name" />
+
+    <androidx.core.widget.NestedScrollView
+        android:layout_width="match_parent"
+        android:layout_height="match_parent">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:paddingHorizontal="24dp"
+            android:paddingBottom="24dp">
+
+            <TextView
+                style="@style/RetroStyle.Section"
+                android:text="@string/section_style" />
+
+            <RadioGroup
+                android:id="@+id/style_group"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content">
+
+                <com.google.android.material.radiobutton.MaterialRadioButton
+                    android:id="@+id/style_material"
+                    style="@style/RetroStyle.Choice"
+                    android:text="@string/style_material" />
+
+                <com.google.android.material.radiobutton.MaterialRadioButton
+                    android:id="@+id/style_m3"
+                    style="@style/RetroStyle.Choice"
+                    android:text="@string/style_m3" />
+
+                <com.google.android.material.radiobutton.MaterialRadioButton
+                    android:id="@+id/style_kitkat"
+                    style="@style/RetroStyle.Choice"
+                    android:text="@string/style_kitkat" />
+            </RadioGroup>
+
+            <TextView
+                style="@style/RetroStyle.Section"
+                android:text="@string/section_variant" />
+
+            <RadioGroup
+                android:id="@+id/variant_group"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content">
+
+                <com.google.android.material.radiobutton.MaterialRadioButton
+                    android:id="@+id/variant_kitkat_stock"
+                    style="@style/RetroStyle.Choice"
+                    android:text="@string/variant_kitkat_stock" />
+
+                <com.google.android.material.radiobutton.MaterialRadioButton
+                    android:id="@+id/variant_holo_unified"
+                    style="@style/RetroStyle.Choice"
+                    android:text="@string/variant_holo_unified" />
+            </RadioGroup>
+
+            <TextView
+                style="@style/RetroStyle.Section"
+                android:text="@string/section_layout" />
+
+            <RadioGroup
+                android:id="@+id/layout_group"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content">
+
+                <com.google.android.material.radiobutton.MaterialRadioButton
+                    android:id="@+id/layout_stock"
+                    style="@style/RetroStyle.Choice"
+                    android:text="@string/layout_stock" />
+
+                <com.google.android.material.radiobutton.MaterialRadioButton
+                    android:id="@+id/layout_system_bar"
+                    style="@style/RetroStyle.Choice"
+                    android:text="@string/layout_system_bar" />
+            </RadioGroup>
+
+            <com.google.android.material.materialswitch.MaterialSwitch
+                android:id="@+id/bar_apps"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:minHeight="56dp"
+                android:text="@string/bar_apps" />
+
+            <TextView
+                style="@style/RetroStyle.Section"
+                android:text="@string/section_apps_gravity" />
+
+            <RadioGroup
+                android:id="@+id/apps_gravity_group"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content">
+
+                <com.google.android.material.radiobutton.MaterialRadioButton
+                    android:id="@+id/apps_gravity_start"
+                    style="@style/RetroStyle.Choice"
+                    android:text="@string/apps_gravity_start" />
+
+                <com.google.android.material.radiobutton.MaterialRadioButton
+                    android:id="@+id/apps_gravity_center"
+                    style="@style/RetroStyle.Choice"
+                    android:text="@string/apps_gravity_center" />
+
+                <com.google.android.material.radiobutton.MaterialRadioButton
+                    android:id="@+id/apps_gravity_end"
+                    style="@style/RetroStyle.Choice"
+                    android:text="@string/apps_gravity_end" />
+            </RadioGroup>
+
+            <TextView
+                style="@style/RetroStyle.Section"
+                android:text="@string/section_bar_buttons" />
+
+            <com.google.android.material.materialswitch.MaterialSwitch
+                android:id="@+id/bar_button_vol_down"
+                style="@style/RetroStyle.Switch"
+                android:text="@string/bar_button_vol_down" />
+
+            <com.google.android.material.materialswitch.MaterialSwitch
+                android:id="@+id/bar_button_vol_up"
+                style="@style/RetroStyle.Switch"
+                android:text="@string/bar_button_vol_up" />
+
+            <com.google.android.material.materialswitch.MaterialSwitch
+                android:id="@+id/bar_button_screenshot"
+                style="@style/RetroStyle.Switch"
+                android:text="@string/bar_button_screenshot" />
+
+            <com.google.android.material.materialswitch.MaterialSwitch
+                android:id="@+id/bar_button_power"
+                style="@style/RetroStyle.Switch"
+                android:text="@string/bar_button_power" />
+
+            <TextView
+                style="@style/RetroStyle.Section"
+                android:text="@string/section_anchor" />
+
+            <RadioGroup
+                android:id="@+id/anchor_group"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content">
+
+                <com.google.android.material.radiobutton.MaterialRadioButton
+                    android:id="@+id/anchor_top_end"
+                    style="@style/RetroStyle.Choice"
+                    android:text="@string/anchor_top_end" />
+
+                <com.google.android.material.radiobutton.MaterialRadioButton
+                    android:id="@+id/anchor_bottom_end"
+                    style="@style/RetroStyle.Choice"
+                    android:text="@string/anchor_bottom_end" />
+            </RadioGroup>
+
+            <com.google.android.material.materialswitch.MaterialSwitch
+                android:id="@+id/hide_status_bar"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="16dp"
+                android:minHeight="56dp"
+                android:text="@string/hide_status_bar" />
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:text="@string/footer"
+                android:textAppearance="?attr/textAppearanceBodySmall" />
+        </LinearLayout>
+    </androidx.core.widget.NestedScrollView>
+</LinearLayout>

@@ -1,0 +1,18 @@
+retro-style
+Copyright (C) 2026 Navotpala Tech (Bliss Co-Labs Inc.)
+Licensed under the GNU Affero General Public License v3.0 (LICENSE) or a commercial license
+(LICENSE_COMMERCIAL). See LICENSING.md.
+
+This product includes material from the Android Open Source Project
+(https://source.android.com), licensed under the Apache License, Version 2.0:
+
+  - Android 4.1.2 and 4.4.4 SystemUI artwork and fonts (assets/aosp/, and the PNG drawables in
+    overlays/KitKatIconsAndroid, overlays/KitKatIconsSystemUI and overlays/KitKatLauncher3).
+    Copyright (C) The Android Open Source Project. assets/ASSET_SOURCES.md lists each file.
+  - The frameworks/base and packages/apps/Launcher3 files that patches/ change. Those files
+    remain under the Apache License, Version 2.0, Copyright (C) The Android Open Source Project;
+    the changes are under retro-style's license.
+  - Material Design icon path data (Google), in the ic_retro_* drawables the Launcher3 patches add.
+
+A copy of the Apache License, Version 2.0 is available at
+https://www.apache.org/licenses/LICENSE-2.0

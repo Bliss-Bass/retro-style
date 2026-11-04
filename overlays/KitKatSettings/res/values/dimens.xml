@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Flat Holo preference lists instead of rounded Material cards. -->
+<resources>
+    <dimen name="settingslib_preference_corner_radius">2dp</dimen>
+    <dimen name="settingslib_expressive_radius_extralarge1">2dp</dimen>
+    <dimen name="settingslib_expressive_radius_extralarge2">2dp</dimen>
+    <dimen name="settingslib_expressive_radius_extralarge3">2dp</dimen>
+</resources>

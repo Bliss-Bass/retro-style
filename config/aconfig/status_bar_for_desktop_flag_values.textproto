@@ -1,0 +1,7 @@
+# Build-time value for a SystemUI aconfig flag (see docs/HOW_IT_WORKS.md, "Dual Shade").
+flag_value {
+  package: "com.android.systemui"
+  name: "status_bar_for_desktop"
+  state: ENABLED
+  permission: READ_WRITE
+}

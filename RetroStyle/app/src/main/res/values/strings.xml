@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">UI style</string>
+    <string name="app_summary">Material You or KitKat, taskbar or tablet system bar</string>
+    <string name="navigate_up">Navigate up</string>
+
+    <string name="section_style">Style</string>
+    <string name="style_material">Material You (colors from your wallpaper)</string>
+    <string name="style_m3">Material 3 (fixed colors)</string>
+    <string name="style_kitkat">KitKat (Holo)</string>
+
+    <string name="section_variant">KitKat panels</string>
+    <string name="variant_kitkat_stock">KitKat stock (black)</string>
+    <string name="variant_holo_unified">Holo unified (navy)</string>
+
+    <string name="section_layout">Bottom bar</string>
+    <string name="layout_stock">Taskbar</string>
+    <string name="layout_system_bar">Tablet system bar (navigation left, clock and tray right)</string>
+    <string name="bar_apps">Show apps and running tasks on the tablet system bar</string>
+
+    <string name="section_apps_gravity">Apps on the tablet system bar</string>
+    <string name="apps_gravity_start">After the buttons</string>
+    <string name="apps_gravity_center">Centered</string>
+    <string name="apps_gravity_end">Before the tray</string>
+
+    <string name="section_bar_buttons">Extra buttons on the tablet system bar</string>
+    <string name="bar_button_vol_down">Volume down</string>
+    <string name="bar_button_vol_up">Volume up</string>
+    <string name="bar_button_screenshot">Screenshot</string>
+    <string name="bar_button_power">Sleep (hold for the power menu)</string>
+
+    <string name="section_anchor">Notifications and Quick Settings open</string>
+    <string name="anchor_top_end">From the top right</string>
+    <string name="anchor_bottom_end">From the tray, bottom right</string>
+
+    <string name="hide_status_bar">Hide the top status bar on the tablet system bar</string>
+    <string name="footer">The KitKat style always hides the top status bar on the tablet system bar. Changes apply right away; open apps restyle when they restart.</string>
+</resources>

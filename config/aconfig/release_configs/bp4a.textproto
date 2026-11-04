@@ -1,0 +1,3 @@
+# Contribution to the bp4a release: append retro-style's aconfig value set.
+name: "bp4a"
+aconfig_value_sets: "aconfig_value_set-retro-style-bp4a"

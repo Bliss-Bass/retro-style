@@ -1,0 +1,10 @@
+# Adds retro-style's aconfig values to the bp4a release (LineageOS 23.2 builds lunch
+# lineage_<device>-bp4a-<variant>; see vendor/lineage/vars/aosp_target_release).
+# If your tree builds another release, copy release_configs/bp4a.textproto to
+# release_configs/<release>.textproto and change its name.
+description: "retro-style: SystemUI Dual Shade (scene_container, status_bar_for_desktop)"
+# A map that contributes to a release must list the containers its flags may live in.
+default_containers: "product"
+default_containers: "system"
+default_containers: "system_ext"
+default_containers: "vendor"

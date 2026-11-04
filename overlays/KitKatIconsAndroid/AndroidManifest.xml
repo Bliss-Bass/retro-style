@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- KitKat tablet Wi-Fi bars (AOSP 4.1.2). Applied from the theme JSON. -->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    package="org.retro.style.kitkat.icons.android">
+    <overlay
+        android:targetPackage="android"
+        android:category="android.theme.customization.icon_pack.android"
+        android:priority="1" />
+    <application android:hasCode="false" android:label="KitKat icons (framework)" />
+</manifest>

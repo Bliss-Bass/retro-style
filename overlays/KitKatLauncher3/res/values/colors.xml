@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The KitKat system bar is solid black. -->
+<resources>
+    <color name="taskbar_background">#FF000000</color>
+    <color name="taskbar_background_dark">#FF000000</color>
+</resources>

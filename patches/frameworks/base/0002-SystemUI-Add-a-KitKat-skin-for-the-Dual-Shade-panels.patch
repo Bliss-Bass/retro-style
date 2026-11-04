@@ -1,0 +1,387 @@
+From 3f966406d359075aa6e043f65a25a58c0eb785e6 Mon Sep 17 00:00:00 2001
+From: Jon West <electrikjesus@gmail.com>
+Date: Tue, 3 Nov 2026 15:47:53 -0500
+Subject: [PATCH 2/8] SystemUI: Add a KitKat skin for the Dual Shade panels
+
+With persist.retro.ui_style=kitkat the quick settings panel shows the
+KitKat tablet layout: a large Holo-blue clock header and one row per tile
+with a Holo ON/OFF switch, with settings, power and edit kept underneath.
+Both panels use Holo colors, black or navy per persist.retro.ui_style_variant.
+---
+ .../composable/QuickSettingsShadeOverlay.kt   |  47 +++-
+ .../shade/ui/composable/OverlayShade.kt       |   2 +
+ .../qs/panels/ui/compose/KitKatTileList.kt    | 203 ++++++++++++++++++
+ .../shade/shared/model/RetroUiStyle.kt        |  35 +++
+ .../shade/shared/model/ShadePanelAnchor.kt    |   4 +-
+ 5 files changed, 278 insertions(+), 13 deletions(-)
+ create mode 100644 packages/SystemUI/src/com/android/systemui/qs/panels/ui/compose/KitKatTileList.kt
+ create mode 100644 packages/SystemUI/src/com/android/systemui/shade/shared/model/RetroUiStyle.kt
+
+diff --git a/packages/SystemUI/compose/features/src/com/android/systemui/qs/ui/composable/QuickSettingsShadeOverlay.kt b/packages/SystemUI/compose/features/src/com/android/systemui/qs/ui/composable/QuickSettingsShadeOverlay.kt
+index 10dce56fd1f5..9e59bc4a1d9c 100644
+--- a/packages/SystemUI/compose/features/src/com/android/systemui/qs/ui/composable/QuickSettingsShadeOverlay.kt
++++ b/packages/SystemUI/compose/features/src/com/android/systemui/qs/ui/composable/QuickSettingsShadeOverlay.kt
+@@ -88,6 +88,8 @@ import com.android.systemui.notifications.ui.composable.headsUpTopInset
+ import com.android.systemui.qs.composefragment.ui.GridAnchor
+ import com.android.systemui.qs.flags.QsDetailedView
+ import com.android.systemui.qs.panels.ui.compose.EditMode
++import com.android.systemui.qs.panels.ui.compose.KitKatQuickSettingsHeader
++import com.android.systemui.qs.panels.ui.compose.KitKatTileList
+ import com.android.systemui.qs.panels.ui.compose.TileDetails
+ import com.android.systemui.qs.panels.ui.compose.TileGrid
+ import com.android.systemui.qs.panels.ui.compose.toolbar.Toolbar
+@@ -101,6 +103,7 @@ import com.android.systemui.res.R
+ import com.android.systemui.scene.shared.model.Overlays
+ import com.android.systemui.scene.shared.model.Scenes
+ import com.android.systemui.scene.ui.composable.Overlay
++import com.android.systemui.shade.shared.model.RetroUiStyle
+ import com.android.systemui.shade.ui.composable.ChipHighlightModel
+ import com.android.systemui.shade.ui.composable.OverlayShade
+ import com.android.systemui.shade.ui.composable.OverlayShadeHeader
+@@ -363,13 +366,19 @@ private fun ContentScope.QuickSettingsLayout(
+ 
+         val toolbarViewModel =
+             rememberViewModel("QuickSettingsLayout") { toolbarViewModelFactory.create() }
++        val kitKat = RetroUiStyle.isKitKat
+ 
+-        Toolbar(
+-            modifier =
+-                Modifier.fillMaxWidth().requiredHeight(QuickSettingsShade.Dimensions.ToolbarHeight),
+-            viewModel = toolbarViewModel,
+-            isFullyVisible = { layoutState.isIdle(contentKey) },
+-        )
++        if (kitKat) {
++            KitKatQuickSettingsHeader()
++        } else {
++            Toolbar(
++                modifier =
++                    Modifier.fillMaxWidth()
++                        .requiredHeight(QuickSettingsShade.Dimensions.ToolbarHeight),
++                viewModel = toolbarViewModel,
++                isFullyVisible = { layoutState.isIdle(contentKey) },
++            )
++        }
+ 
+         VerticalSeparator(QuickSettingsShade.Dimensions.ShortPadding)
+ 
+@@ -455,11 +464,27 @@ private fun ContentScope.QuickSettingsLayout(
+             VerticalSeparator(QuickSettingsShade.Dimensions.Padding)
+ 
+             GridAnchor()
+-            TileGrid(
+-                viewModel = qsContainerViewModel.tileGridViewModel,
+-                modifier = Modifier.fillMaxWidth(),
+-                enableRevealEffect = TileRevealFlag.isEnabled,
+-            )
++            if (kitKat) {
++                KitKatTileList(
++                    viewModel = qsContainerViewModel.tileGridViewModel,
++                    listening = { true },
++                )
++                VerticalSeparator(QuickSettingsShade.Dimensions.ShortPadding)
++                // Settings, power and edit stay reachable under the KitKat rows.
++                Toolbar(
++                    modifier =
++                        Modifier.fillMaxWidth()
++                            .requiredHeight(QuickSettingsShade.Dimensions.ToolbarHeight),
++                    viewModel = toolbarViewModel,
++                    isFullyVisible = { layoutState.isIdle(contentKey) },
++                )
++            } else {
++                TileGrid(
++                    viewModel = qsContainerViewModel.tileGridViewModel,
++                    modifier = Modifier.fillMaxWidth(),
++                    enableRevealEffect = TileRevealFlag.isEnabled,
++                )
++            }
+ 
+             val buildNumberViewModel =
+                 rememberViewModel("QuickSettingsShadeOverlay.BuildNumber") {
+diff --git a/packages/SystemUI/compose/features/src/com/android/systemui/shade/ui/composable/OverlayShade.kt b/packages/SystemUI/compose/features/src/com/android/systemui/shade/ui/composable/OverlayShade.kt
+index f9669b974a54..3f35abdf496f 100644
+--- a/packages/SystemUI/compose/features/src/com/android/systemui/shade/ui/composable/OverlayShade.kt
++++ b/packages/SystemUI/compose/features/src/com/android/systemui/shade/ui/composable/OverlayShade.kt
+@@ -57,6 +57,7 @@ import com.android.mechanics.behavior.VerticalExpandContainerSpec
+ import com.android.mechanics.behavior.verticalExpandContainerBackground
+ import com.android.mechanics.compose.modifier.motionDriver
+ import com.android.systemui.res.R
++import com.android.systemui.shade.shared.model.RetroUiStyle
+ import com.android.systemui.shade.shared.model.ShadePanelAnchor
+ import com.android.systemui.shade.ui.ShadeColors.shadePanel
+ import com.android.systemui.shade.ui.ShadeColors.shadePanelScrimBehind
+@@ -230,6 +231,7 @@ object OverlayShade {
+         @Composable
+         @ReadOnlyComposable
+         fun panelBackground(transparencyEnabled: Boolean): Color {
++            if (RetroUiStyle.isKitKat) return Color(RetroUiStyle.kitKatPanelColor)
+             return Color(
+                 shadePanel(
+                     context = LocalContext.current,
+diff --git a/packages/SystemUI/src/com/android/systemui/qs/panels/ui/compose/KitKatTileList.kt b/packages/SystemUI/src/com/android/systemui/qs/panels/ui/compose/KitKatTileList.kt
+new file mode 100644
+index 000000000000..d887249a28bd
+--- /dev/null
++++ b/packages/SystemUI/src/com/android/systemui/qs/panels/ui/compose/KitKatTileList.kt
+@@ -0,0 +1,203 @@
++/*
++ * Copyright (C) 2026 Navotpala Tech (Bliss Co-Labs Inc.)
++ *
++ * SPDX-License-Identifier: AGPL-3.0-only OR LicenseRef-Navotpala-Commercial
++ * Part of retro-style (vendor/retro-style). Licensed under the GNU Affero General Public
++ * License v3.0, or under a commercial license from Navotpala Tech (info@navotpala.tech).
++ * See LICENSE and LICENSE_COMMERCIAL in vendor/retro-style.
++ */
++
++package com.android.systemui.qs.panels.ui.compose
++
++import android.content.Context
++import android.graphics.Typeface
++import android.service.quicksettings.Tile.STATE_ACTIVE
++import android.service.quicksettings.Tile.STATE_UNAVAILABLE
++import android.widget.TextClock
++import androidx.compose.foundation.background
++import androidx.compose.foundation.clickable
++import androidx.compose.foundation.layout.Arrangement
++import androidx.compose.foundation.layout.Box
++import androidx.compose.foundation.layout.Column
++import androidx.compose.foundation.layout.Row
++import androidx.compose.foundation.layout.Spacer
++import androidx.compose.foundation.layout.fillMaxHeight
++import androidx.compose.foundation.layout.fillMaxWidth
++import androidx.compose.foundation.layout.height
++import androidx.compose.foundation.layout.heightIn
++import androidx.compose.foundation.layout.padding
++import androidx.compose.foundation.layout.width
++import androidx.compose.foundation.shape.RoundedCornerShape
++import androidx.compose.material3.Text
++import androidx.compose.runtime.Composable
++import androidx.compose.runtime.getValue
++import androidx.compose.runtime.key
++import androidx.compose.runtime.produceState
++import androidx.compose.ui.Alignment
++import androidx.compose.ui.Modifier
++import androidx.compose.ui.draw.clip
++import androidx.compose.ui.graphics.Color
++import androidx.compose.ui.graphics.toArgb
++import androidx.compose.ui.platform.LocalContext
++import androidx.compose.ui.text.font.FontFamily
++import androidx.compose.ui.text.style.TextOverflow
++import androidx.compose.ui.unit.dp
++import androidx.compose.ui.unit.sp
++import androidx.compose.ui.viewinterop.AndroidView
++import com.android.systemui.common.shared.model.Icon
++import com.android.systemui.qs.panels.ui.compose.infinitegrid.SmallTileContent
++import com.android.systemui.qs.panels.ui.viewmodel.IconProvider
++import com.android.systemui.qs.panels.ui.viewmodel.TileGridViewModel
++import com.android.systemui.qs.panels.ui.viewmodel.TileViewModel
++import com.android.systemui.qs.panels.ui.viewmodel.toIconProvider
++import com.android.systemui.qs.panels.ui.viewmodel.toUiState
++import com.android.systemui.qs.tileimpl.QSTileImpl
++import com.android.systemui.res.R
++import com.android.systemui.shade.shared.model.RetroUiStyle
++
++private val HoloBlue = Color(RetroUiStyle.HOLO_BLUE)
++private val HoloDivider = Color(0x33FFFFFF)
++private val SecondaryText = Color(0xFFBEBEBE)
++
++/** KitKat tablet clock header: large thin Holo-blue time with the date under it. */
++@Composable
++fun KitKatQuickSettingsHeader(modifier: Modifier = Modifier) {
++    Column(modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp)) {
++        AndroidView(
++            factory = { context ->
++                TextClock(context).apply {
++                    format12Hour = "h:mm a"
++                    format24Hour = "H:mm"
++                    textSize = 44f
++                    setTextColor(RetroUiStyle.HOLO_BLUE)
++                    typeface = Typeface.create("sans-serif-thin", Typeface.NORMAL)
++                }
++            }
++        )
++        AndroidView(
++            factory = { context ->
++                TextClock(context).apply {
++                    format12Hour = "EEEE, MMMM d"
++                    format24Hour = "EEEE, MMMM d"
++                    isAllCaps = true
++                    textSize = 12f
++                    setTextColor(SecondaryText.toArgb())
++                }
++            }
++        )
++    }
++    Spacer(Modifier.fillMaxWidth().height(1.dp).background(HoloDivider))
++}
++
++/** KitKat tablet quick settings: one full-width row per tile with a Holo ON/OFF switch. */
++@Composable
++fun KitKatTileList(
++    viewModel: TileGridViewModel,
++    listening: () -> Boolean,
++    modifier: Modifier = Modifier,
++) {
++    val tiles = viewModel.tileViewModels
++    TileListener(tiles, listening)
++    Column(modifier.fillMaxWidth()) {
++        tiles.forEach { tile ->
++            key(tile.spec) {
++                KitKatTileRow(tile)
++                Spacer(Modifier.fillMaxWidth().height(1.dp).background(HoloDivider))
++            }
++        }
++    }
++}
++
++@Composable
++private fun KitKatTileRow(tile: TileViewModel) {
++    val resources = LocalContext.current.resources
++    val uiState by
++        produceState(tile.currentState.toUiState(resources), tile, resources) {
++            tile.state.collect { value = it.toUiState(resources) }
++        }
++    val icon by
++        produceState(tile.currentState.toIconProvider(), tile) {
++            tile.state.collect { value = it.toIconProvider() }
++        }
++    val enabled = uiState.state != STATE_UNAVAILABLE
++    val active = uiState.state == STATE_ACTIVE
++
++    Row(
++        verticalAlignment = Alignment.CenterVertically,
++        horizontalArrangement = Arrangement.spacedBy(16.dp),
++        modifier =
++            Modifier.fillMaxWidth()
++                .heightIn(min = 52.dp)
++                .clickable(enabled = enabled) { tile.mainClick(null) }
++                .padding(horizontal = 16.dp, vertical = 6.dp),
++    ) {
++        SmallTileContent(
++            iconProvider = { kitKatTileIcon(icon) },
++            color = if (enabled) Color.White else SecondaryText,
++            size = { 24.dp },
++        )
++        Column(Modifier.weight(1f)) {
++            Text(
++                text = uiState.label,
++                color = if (enabled) Color.White else SecondaryText,
++                fontSize = 16.sp,
++                fontFamily = FontFamily.SansSerif,
++                maxLines = 1,
++                overflow = TextOverflow.Ellipsis,
++            )
++            if (uiState.secondaryLabel.isNotEmpty()) {
++                Text(
++                    text = uiState.secondaryLabel,
++                    color = SecondaryText,
++                    fontSize = 12.sp,
++                    maxLines = 1,
++                    overflow = TextOverflow.Ellipsis,
++                )
++            }
++        }
++        if (uiState.isToggleable || uiState.handlesSecondaryClick) {
++            HoloSwitch(
++                checked = active,
++                enabled = enabled,
++                onToggle = {
++                    if (uiState.handlesSecondaryClick) tile.toggleClick() else tile.mainClick(null)
++                },
++            )
++        }
++    }
++}
++
++/** The Holo ON/OFF switch: a dark track with a labelled thumb that turns blue when on. */
++@Composable
++private fun HoloSwitch(checked: Boolean, enabled: Boolean, onToggle: () -> Unit) {
++    val trackShape = RoundedCornerShape(2.dp)
++    Box(
++        contentAlignment = if (checked) Alignment.CenterEnd else Alignment.CenterStart,
++        modifier =
++            Modifier.width(80.dp)
++                .height(28.dp)
++                .clip(trackShape)
++                .background(Color(0x33FFFFFF))
++                .clickable(enabled = enabled, onClick = onToggle),
++    ) {
++        Box(
++            contentAlignment = Alignment.Center,
++            modifier =
++                Modifier.width(40.dp)
++                    .fillMaxHeight()
++                    .clip(trackShape)
++                    .background(if (checked) HoloBlue else Color(0xFF5A5A5A)),
++        ) {
++            Text(text = if (checked) "ON" else "OFF", color = Color.White, fontSize = 11.sp)
++        }
++    }
++}
++
++private fun Context.kitKatTileIcon(icon: IconProvider): Icon =
++    icon.icon?.let {
++        if (it is QSTileImpl.ResourceIcon) {
++            Icon.Resource(it.resId, null)
++        } else {
++            Icon.Loaded(it.getDrawable(this), null)
++        }
++    } ?: Icon.Resource(R.drawable.ic_error_outline, null)
+diff --git a/packages/SystemUI/src/com/android/systemui/shade/shared/model/RetroUiStyle.kt b/packages/SystemUI/src/com/android/systemui/shade/shared/model/RetroUiStyle.kt
+new file mode 100644
+index 000000000000..5e1e0d427d40
+--- /dev/null
++++ b/packages/SystemUI/src/com/android/systemui/shade/shared/model/RetroUiStyle.kt
+@@ -0,0 +1,35 @@
++/*
++ * Copyright (C) 2026 Navotpala Tech (Bliss Co-Labs Inc.)
++ *
++ * SPDX-License-Identifier: AGPL-3.0-only OR LicenseRef-Navotpala-Commercial
++ * Part of retro-style (vendor/retro-style). Licensed under the GNU Affero General Public
++ * License v3.0, or under a commercial license from Navotpala Tech (info@navotpala.tech).
++ * See LICENSE and LICENSE_COMMERCIAL in vendor/retro-style.
++ */
++
++package com.android.systemui.shade.shared.model
++
++import android.os.SystemProperties
++
++/**
++ * The UI style SystemUI's shade panels are drawn in.
++ *
++ * `persist.retro.ui_style=kitkat` swaps the Quick Settings grid for KitKat tablet rows and uses Holo
++ * panel colors; `persist.retro.ui_style_variant` picks `holo_unified` (navy) or `kitkat_stock`
++ * (black). Read once per process; changing either restarts SystemUI.
++ */
++object RetroUiStyle {
++    const val PROPERTY = "persist.retro.ui_style"
++    const val VARIANT_PROPERTY = "persist.retro.ui_style_variant"
++
++    val isKitKat: Boolean by lazy { SystemProperties.get(PROPERTY) == "kitkat" }
++
++    /** Panel background (ARGB) for the KitKat style. */
++    val kitKatPanelColor: Int by lazy {
++        if (SystemProperties.get(VARIANT_PROPERTY) == "holo_unified") 0xCC1A1F2E.toInt()
++        else 0xF0000000.toInt()
++    }
++
++    /** Holo blue, the KitKat accent. */
++    const val HOLO_BLUE: Int = 0xFF33B5E5.toInt()
++}
+diff --git a/packages/SystemUI/src/com/android/systemui/shade/shared/model/ShadePanelAnchor.kt b/packages/SystemUI/src/com/android/systemui/shade/shared/model/ShadePanelAnchor.kt
+index a6c53f67e22e..2fa48f543a61 100644
+--- a/packages/SystemUI/src/com/android/systemui/shade/shared/model/ShadePanelAnchor.kt
++++ b/packages/SystemUI/src/com/android/systemui/shade/shared/model/ShadePanelAnchor.kt
+@@ -14,8 +14,8 @@ import android.os.SystemProperties
+ /**
+  * Where the floating Dual Shade panels open on wide screens.
+  *
+- * `persist.retro.panel_anchor=bottom_end` opens them above a bottom tray (tablet system bar)
+- * instead of under the top status bar. Read once per process; changing it restarts SystemUI.
++ * `persist.retro.panel_anchor=bottom_end` opens them above a bottom tray (tablet system bar) instead
++ * of under the top status bar. Read once per process; changing it restarts SystemUI.
+  */
+ object ShadePanelAnchor {
+     const val PROPERTY = "persist.retro.panel_anchor"
+-- 
+2.43.0
+

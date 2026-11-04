@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- KitKat nav glyphs (AOSP 4.4.4) for the taskbar nav buttons. -->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    package="org.retro.style.kitkat.launcher3">
+    <overlay
+        android:targetPackage="com.android.launcher3"
+        android:category="org.retro.style"
+        android:priority="10"
+        android:isStatic="false" />
+    <application android:hasCode="false" android:label="KitKat style (Launcher3)" />
+</manifest>

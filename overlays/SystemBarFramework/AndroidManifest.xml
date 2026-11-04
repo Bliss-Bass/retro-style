@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Tablet system bar layout: no top status bar; the taskbar tray replaces it. -->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    package="org.retro.layout.systembar.android">
+    <overlay
+        android:targetPackage="android"
+        android:category="org.retro.layout"
+        android:priority="10"
+        android:isStatic="false" />
+    <application android:hasCode="false" android:label="Tablet system bar (framework)" />
+</manifest>

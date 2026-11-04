@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Allowlist for RetroStyle's privileged permissions. Installed to
+    /system_ext/etc/permissions; a priv-app missing here fails to boot when
+    ro.control_privapp_permissions=enforce. (KILL_UID is signature-only, so it
+    needs no entry.)
+-->
+<permissions>
+    <privapp-permissions package="org.retro.style">
+        <permission name="android.permission.CHANGE_OVERLAY_PACKAGES" />
+        <permission name="android.permission.REAL_GET_TASKS" />
+        <permission name="android.permission.WRITE_SECURE_SETTINGS" />
+    </privapp-permissions>
+</permissions>

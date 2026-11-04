@@ -1,0 +1,47 @@
+# retro-style - Commercial License Agreement
+
+This Commercial License Agreement ("License") is a legal agreement between you (either an
+individual or a single entity, "Licensee") and Navotpala Tech (Bliss Co-Labs Inc.) ("Licensor"),
+the copyright holder of retro-style.
+
+retro-style is also available under the GNU Affero General Public License, version 3 (see
+`LICENSE`). Anyone may use, modify and distribute it under that license, including open-source
+ROMs and other open-source projects, as long as they meet its terms (among them, providing the
+complete corresponding source code of what they distribute, and of modified versions they offer
+over a network). This Commercial License is for those who want to use retro-style without the
+obligations of the AGPL, for example in a product whose source code they do not publish.
+
+## 1. GRANT OF LICENSE
+Licensor grants Licensee a non-exclusive, non-transferable right to integrate, modify, bundle and
+distribute retro-style ("Software") as a pre-installed component of Licensee's hardware products
+or Android distributions, without the obligations of the GNU Affero General Public License, under
+the terms of this License and of the order or agreement under which Licensee obtained it.
+
+## 2. RESTRICTIONS
+*   **Redistribution:** Licensee shall not sell, rent, lease, sub-license or redistribute the
+    Software (binary or source code) as a standalone application, library or product.
+*   **Source disclosure:** Licensee is not required to disclose its modifications to the
+    Software. Licensee shall not disclose the Software's source code to third parties except as
+    needed to build and support Licensee's products.
+
+## 3. THIRD-PARTY COMPONENTS
+The Software includes material from the Android Open Source Project under the Apache License 2.0
+(see `NOTICE` and `LICENSING.md`). Those parts remain under the Apache License 2.0, and Licensee
+must keep their notices.
+
+## 4. INTELLECTUAL PROPERTY
+All title and copyrights in and to the Software, other than the third-party components above, are
+owned by Licensor. The Software is protected by copyright laws and international treaty
+provisions.
+
+## 5. TERMINATION & BREACH
+*   **Breach of Agreement:** Any use of the Software outside the terms of this License, or of the
+    GNU Affero General Public License, constitutes a breach of the licensing agreement.
+*   **Termination:** Without prejudice to any other rights, Licensor may terminate this License if
+    Licensee fails to comply with its terms. Upon termination, Licensee must cease all use and
+    distribution of the Software under this License.
+
+## 6. CONTACT
+For licensing inquiries, volume distribution or enterprise support, contact Navotpala Tech
+(Bliss Co-Labs Inc.).
+- **Email:** info@navotpala.tech
