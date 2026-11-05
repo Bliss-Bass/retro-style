@@ -4,6 +4,7 @@
 package org.retro.style
 
 import android.app.ActivityManager
+import android.app.KeyguardManager
 import android.app.UiModeManager
 import android.content.ContentResolver
 import android.content.Context
@@ -42,6 +43,12 @@ object StyleApplier {
     private const val SAVED_NIGHT_SETTING = "retro_ui_style_saved_night"
     private const val SAVED_BLACK_SETTING = "retro_ui_style_saved_black"
     private const val DUAL_SHADE_SETTING = "dual_shade"
+    private const val SETUP_COMPLETE_SETTING = "user_setup_complete"
+    private const val DISMISS_TRIES = 5
+    private const val DISMISS_POLL_MS = 600L
+
+    /** UserHandle.PER_USER_RANGE: a uid is user * 100000 + app ID. */
+    private const val PER_USER_RANGE = 100_000
 
     /** Theme JSON categories a pack may set (ThemeOverlayApplier in SystemUI). */
     private const val PALETTE = "android.theme.customization.system_palette"
@@ -70,18 +77,25 @@ object StyleApplier {
 
     private const val SYSTEMUI = "com.android.systemui"
 
-    /** First boot: turn on Dual Shade unless the user already chose the single shade. */
     fun onBoot(context: Context) {
-        val cr = context.contentResolver
+        apply(context, restoreWindows = false)
+    }
+
+    /**
+     * Dual Shade panels unless the user already chose the single shade. SystemUI treats an unset
+     * `dual_shade` as off while Settings shows it as on, so it must be written, not left unset.
+     */
+    private fun ensureDualShade(cr: ContentResolver) {
         if (Settings.Secure.getString(cr, DUAL_SHADE_SETTING) == null) {
             Settings.Secure.putInt(cr, DUAL_SHADE_SETTING, 1)
         }
-        apply(context, restoreWindows = false)
     }
 
     @Synchronized
     fun apply(context: Context, restoreWindows: Boolean = true) {
         val cr = context.contentResolver
+        ensureDualShade(cr)
+        val setupComplete = Settings.Secure.getInt(cr, SETUP_COMPLETE_SETTING, 0) == 1
         val pack = StyleSettings.pack(cr)
         val layout = StyleSettings.layout(cr)
         val systemBar = layout == StyleSettings.LAYOUT_SYSTEM_BAR
@@ -132,22 +146,54 @@ object StyleApplier {
         val am = context.getSystemService(ActivityManager::class.java)
         var windows = emptyList<WindowSession.Window>()
         var oldSystemUiPid = 0
+        var unlockAfter = false
         if (restartSystemUi) {
             if (restoreWindows) windows = WindowSession.save(context)
             oldSystemUiPid = pidOf(am, SYSTEMUI)
+            // A new SystemUI shows the lockscreen. When the user was in the device and it has no
+            // PIN, pattern or password, take it down again: a style change isn't a reason to lock.
+            val km = context.getSystemService(KeyguardManager::class.java)
+            unlockAfter = setupComplete && !km.isKeyguardLocked && !km.isDeviceSecure
             Log.i(TAG, "skin, panel colors, panel anchor or status bar changed; restarting SystemUI")
             restart(context, am, SYSTEMUI)
         }
         if (restartLauncher) {
-            homePackage(context)?.let {
-                Log.i(TAG, "bar layout, skin or bar options changed; restarting $it")
-                restart(context, am, it)
+            val home = homePackage(context)
+            if (!setupComplete) {
+                // Home is the setup wizard; the launcher reads the style when it first starts.
+                Log.i(TAG, "bar layout, skin or bar options changed; setup still running, not restarting $home")
+            } else if (home != null) {
+                Log.i(TAG, "bar layout, skin or bar options changed; restarting $home")
+                restart(context, am, home)
             }
         }
-        if (restartSystemUi && restoreWindows) {
-            WindowSession.restore(context, windows, oldSystemUiPid)
+        if (restartSystemUi && (restoreWindows || unlockAfter)) {
+            WindowSession.waitForNewSystemUi(context, oldSystemUiPid)
+            if (unlockAfter) dismissLockscreen(context)
+            if (restoreWindows) WindowSession.restore(context, windows)
         }
         Log.i(TAG, "applied ${format(applied)}")
+    }
+
+    /** Dismisses the insecure lockscreen a SystemUI restart brought up; tries for a few seconds. */
+    private fun dismissLockscreen(context: Context) {
+        val km = context.getSystemService(KeyguardManager::class.java)
+        repeat(DISMISS_TRIES) {
+            if (km.isDeviceSecure) return
+            if (km.isKeyguardLocked) {
+                try {
+                    Hidden.dismissKeyguard()
+                } catch (e: Exception) {
+                    Log.w(TAG, "could not dismiss the lockscreen", e)
+                    return
+                }
+            }
+            Thread.sleep(DISMISS_POLL_MS)
+            if (!km.isKeyguardLocked) {
+                Log.i(TAG, "dismissed the lockscreen the SystemUI restart showed")
+                return
+            }
+        }
     }
 
     /**
@@ -268,10 +314,18 @@ object StyleApplier {
         )
     }
 
-    /** Kills every process of [packageName]; persistent SystemUI and the launcher restart. */
+    /**
+     * Kills every process of [packageName]'s user ID; persistent SystemUI and the launcher
+     * restart. Apps that run as the system user ID (Settings, setup wizards, SmartDock, this app)
+     * share it, so killing it would take all of them down: those are left alone.
+     */
     private fun restart(context: Context, am: ActivityManager, packageName: String) {
         try {
             val uid = context.packageManager.getApplicationInfo(packageName, 0).uid
+            if (uid % PER_USER_RANGE < Process.FIRST_APPLICATION_UID) {
+                Log.w(TAG, "not restarting $packageName: it shares the system user ID with other apps")
+                return
+            }
             Hidden.killUid(am, uid, "retro style changed")
         } catch (e: Exception) {
             Log.w(TAG, "could not restart $packageName", e)

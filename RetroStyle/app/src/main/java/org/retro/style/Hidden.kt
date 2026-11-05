@@ -66,6 +66,21 @@ internal object Hidden {
             .invoke(om, pkg, enable, user)
     }
 
+    /**
+     * IWindowManager.dismissKeyguard (needs CONTROL_KEYGUARD): takes down an insecure lockscreen
+     * the way a swipe would. Callers check the device has no PIN, pattern or password first.
+     */
+    fun dismissKeyguard() {
+        val wm =
+            Class.forName("android.view.WindowManagerGlobal")
+                .getMethod("getWindowManagerService")
+                .invoke(null) ?: return
+        val callback = Class.forName("com.android.internal.policy.IKeyguardDismissCallback")
+        wm.javaClass
+            .getMethod("dismissKeyguard", callback, CharSequence::class.java)
+            .invoke(wm, null, null)
+    }
+
     /** OverlayManager.setEnabledExclusiveInCategory (SystemApi): one overlay of its category. */
     fun setOverlayExclusiveInCategory(om: OverlayManager, pkg: String, user: UserHandle) {
         OverlayManager::class

@@ -17,7 +17,8 @@ import android.util.Log
  * On large screens, desktop windows live in root tasks that WM Shell creates, and WM Shell runs
  * inside SystemUI. When SystemUI dies, WindowManager removes those root tasks and every window in
  * them. [save] notes the visible desktop windows (app and bounds) before the restart; [restore]
- * reopens them at the same bounds once the new SystemUI has set the desktop up again. Apps reopen
+ * reopens them at the same bounds once the new SystemUI has set the desktop up again
+ * ([waitForNewSystemUi]). Apps reopen
  * at their main screen, except the UI style page, which reopens on itself.
  */
 object WindowSession {
@@ -49,11 +50,10 @@ object WindowSession {
     }
 
     /**
-     * Waits for SystemUI to come back with a new process (not [oldSystemUiPid]), gives WM Shell
-     * time to set up the desktop, then reopens [windows].
+     * Waits for SystemUI to come back with a new process (not [oldSystemUiPid]) and gives it time
+     * to set the desktop and the lockscreen up again.
      */
-    fun restore(context: Context, windows: List<Window>, oldSystemUiPid: Int) {
-        if (windows.isEmpty()) return
+    fun waitForNewSystemUi(context: Context, oldSystemUiPid: Int) {
         val am = context.getSystemService(ActivityManager::class.java)
         var waited = 0
         while (waited < WAIT_MS) {
@@ -64,6 +64,11 @@ object WindowSession {
         }
         // Windows opened before the new shell organizes the desktop get removed again.
         Thread.sleep(SETTLE_MS)
+    }
+
+    /** Reopens [windows] once [waitForNewSystemUi] returned. */
+    fun restore(context: Context, windows: List<Window>) {
+        if (windows.isEmpty()) return
         Log.i(TAG, "reopening ${windows.size} window(s) closed by the SystemUI restart")
         for (window in windows) {
             val intent =
