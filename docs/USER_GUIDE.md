@@ -20,9 +20,10 @@ include.
 - **Froyo** and **Gingerbread**: Android 2.x. The original grey buttons and checkboxes on a
   black background, with orange (Froyo) or green (Gingerbread) highlights.
 - **Honeycomb**: Android 3, the first tablet Android. Holo, with deep navy panels.
-- **Jelly Bean** and **KitKat**: the Android 4.x tablet look. Holo blue, square corners, Holo
-  buttons and switches, the navigation icons of the time, and Quick Settings shown as a list of
-  ON/OFF rows under a large clock. Jelly Bean has the blue status icons; KitKat the later glyphs.
+- **Jelly Bean** and **KitKat**: the Android 4.x tablet look. Black and grey with Holo blue
+  accents (pure black needs a LineageOS build), square corners, Holo buttons and switches, the
+  navigation icons of the time, and Quick Settings shown as a list of ON/OFF rows under a large
+  clock. Jelly Bean has the blue status icons; KitKat the later glyphs.
 - **Holo Light**: the light Android 4.x look.
 - **Lollipop**: Android 5, the first Material Design. Light, flat, indigo.
 - **Pie**: Android 9. Rounded cards and Google blue, before Material You.

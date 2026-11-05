@@ -7,7 +7,7 @@ package {
     default_applicable_licenses: ["vendor_retro-style_aosp_assets_license"],
 }
 
-// Jelly Bean: Android 4.0 to 4.3 (2011 to 2013): Holo Dark, Holo blue status icons and the Jelly Bean tablet glyphs on the system bar.
+// Jelly Bean: Android 4.0 to 4.3 (2011 to 2013): black and grey Holo Dark, Holo blue status icons and the Jelly Bean tablet glyphs on the system bar.
 // Add this one module to PRODUCT_PACKAGES (retro_style.mk does, through themes.mk).
 phony {
     name: "RetroTheme_jellybean",

@@ -67,12 +67,13 @@ behave exactly like ThemePicker's.
   "schema": 1,
   "id": "kitkat",
   "name": "KitKat",
-  "summary": "Android 4.4 (2013): Holo Dark widgets, Holo blue, Roboto, square corners and the tablet system bar.",
+  "summary": "Android 4.4 (2013): black and grey Holo Dark with Holo blue accents, Roboto, square corners and the tablet system bar.",
   "category": "android",
   "order": 44,
   "authors": ["Navotpala Tech"],
   "palette": { "source": "preset", "seed": "#33B5E5", "style": "VIBRANT" },
   "night": "dark",
+  "black": true,
   "font": { "body": "sans-serif", "body_medium": "sans-serif-medium",
             "headline": "sans-serif", "headline_medium": "sans-serif-medium" },
   "widgets": "holo",
@@ -129,6 +130,10 @@ background, the system bar), set it in `shell`, which is drawn as given.
 
 Holo and the classic eras were dark. Material 1 (Lollipop) was light. Pick what the era looked
 like by default.
+
+Monet derives the greys from the seed too, so a strong seed tints every background. Eras with
+black and grey surfaces and a colored accent only (Holo Dark: KitKat, Jelly Bean) set `black`,
+which swaps the tinted neutrals for real black and grey and leaves the accent alone.
 
 ### Typography
 

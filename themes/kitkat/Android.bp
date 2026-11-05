@@ -7,7 +7,7 @@ package {
     default_applicable_licenses: ["vendor_retro-style_aosp_assets_license"],
 }
 
-// KitKat: Android 4.4 (2013): Holo Dark widgets, Holo blue, Roboto, square corners and the tablet system bar.
+// KitKat: Android 4.4 (2013): black and grey Holo Dark with Holo blue accents, Roboto, square corners and the tablet system bar.
 // Add this one module to PRODUCT_PACKAGES (retro_style.mk does, through themes.mk).
 phony {
     name: "RetroTheme_kitkat",
