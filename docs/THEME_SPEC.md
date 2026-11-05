@@ -236,6 +236,11 @@ colors, sizes, drawables, strings. Some guidance:
   level-lists).
 - Overlays can't add layouts or views that don't exist, and can't change code. If you need
   that, it's a patch.
+- Cover every folder the target uses for a resource. An overlay only replaces the variants it
+  also defines: if the target has `values-night/` or `color-night-v31/` versions (Launcher3's
+  taskbar colors do), a plain `values/` entry loses in dark mode. Look the name up with
+  `aapt2 dump resources <target>.apk` and add the same folders (`values-night/`, ...).
+  `theme_tool.py` already does this for the colors it generates.
 - Fewer overrides survive Android updates better. Every hand-made name is one that can be
   renamed or removed in the next release.
 

@@ -159,13 +159,12 @@ object StyleApplier {
             restart(context, am, SYSTEMUI)
         }
         if (restartLauncher) {
-            val home = homePackage(context)
-            if (!setupComplete) {
-                // Home is the setup wizard; the launcher reads the style when it first starts.
-                Log.i(TAG, "bar layout, skin or bar options changed; setup still running, not restarting $home")
-            } else if (home != null) {
-                Log.i(TAG, "bar layout, skin or bar options changed; restarting $home")
-                restart(context, am, home)
+            // The taskbar runs in the recents launcher, which is already running during setup
+            // while the setup wizard is home; restart that, and home when it's another app.
+            // restart() leaves system-UID apps (setup wizards) alone.
+            for (pkg in listOfNotNull(taskbarPackage(context), homePackage(context)).distinct()) {
+                Log.i(TAG, "bar layout, skin or bar options changed; restarting $pkg")
+                restart(context, am, pkg)
             }
         }
         if (restartSystemUi && (restoreWindows || unlockAfter)) {
@@ -373,6 +372,14 @@ object StyleApplier {
 
     private fun pidOf(am: ActivityManager, processName: String): Int =
         am.runningAppProcesses?.firstOrNull { it.processName == processName }?.pid ?: 0
+
+    /** The app that draws the taskbar: the recents component (config_recentsComponentName). */
+    private fun taskbarPackage(context: Context): String? {
+        val res = android.content.res.Resources.getSystem()
+        val id = res.getIdentifier("config_recentsComponentName", "string", "android")
+        if (id == 0) return null
+        return android.content.ComponentName.unflattenFromString(res.getString(id))?.packageName
+    }
 
     private fun homePackage(context: Context): String? =
         context.packageManager

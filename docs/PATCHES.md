@@ -40,6 +40,7 @@ applied first.
 | 0007 | Keep the whole system bar in front of the shade | Opening a panel faded the app icons behind the shade's blur while the buttons stayed on top; on the system bar the whole bar stays in front. |
 | 0008 | Read the applied retro style from Settings.Secure | Switches `RetroSystemBar` from system properties to `retro_ui_applied`. |
 | 0009 | Let the system bar pick its home screen background | `RetroBarBackground`: with `bar_background` set, the system bar draws its own background on the home screen (solid, a 4.x shadow gradient, semi-transparent or transparent) instead of whatever the stock taskbar draws there. Apps keep the stock background. |
+| 0010 | Keep the volume icon in the KitKat tray without volume buttons | The tray shows a volume icon whenever the bar has no volume buttons next to the nav buttons; KitKat used to leave it out and had no volume control on the bar by default. |
 
 ## Maintaining the series
 

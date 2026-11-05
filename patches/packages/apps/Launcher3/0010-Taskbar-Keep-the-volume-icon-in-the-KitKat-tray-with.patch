@@ -1,0 +1,53 @@
+From 663ff454bcb0bf0b6515da0655bcb405f2184de1 Mon Sep 17 00:00:00 2001
+From: Jon West <electrikjesus@gmail.com>
+Date: Thu, 5 Nov 2026 16:54:56 -0500
+Subject: [PATCH] Taskbar: Keep the volume icon in the KitKat tray without
+ volume buttons
+
+KitKat left volume out of the tray because the system bar had volume
+buttons next to the nav buttons. Those are off unless the user turns
+them on, which left KitKat with no volume control on the bar. The tray
+now shows the volume icon whenever the bar has no volume buttons, in
+every style.
+
+Change-Id: I42201e6ccea3013b940b3d707734d6af88a2beaa
+---
+ .../src/com/android/launcher3/taskbar/RetroSystemBar.kt     | 6 ++++++
+ .../com/android/launcher3/taskbar/TaskbarSystemTrayView.kt  | 4 ++--
+ 2 files changed, 8 insertions(+), 2 deletions(-)
+
+diff --git a/quickstep/src/com/android/launcher3/taskbar/RetroSystemBar.kt b/quickstep/src/com/android/launcher3/taskbar/RetroSystemBar.kt
+index 1f91128168..12258513d0 100644
+--- a/quickstep/src/com/android/launcher3/taskbar/RetroSystemBar.kt
++++ b/quickstep/src/com/android/launcher3/taskbar/RetroSystemBar.kt
+@@ -70,6 +70,12 @@ object RetroSystemBar {
+     @JvmStatic
+     fun isExtraButton(viewId: Int): Boolean = extraButtonsByName.values.any { it.id == viewId }
+ 
++    /** Whether the bar shows a volume up or down button next to the nav buttons. */
++    @JvmStatic
++    val hasVolumeButtons: Boolean by lazy {
++        extraButtons.any { it.type == BUTTON_VOLUME_UP || it.type == BUTTON_VOLUME_DOWN }
++    }
++
+     /** Where the app icons sit between the buttons and the tray: `start`, `center` or `end`. */
+     @JvmStatic
+     val appsGravity: String by lazy {
+diff --git a/quickstep/src/com/android/launcher3/taskbar/TaskbarSystemTrayView.kt b/quickstep/src/com/android/launcher3/taskbar/TaskbarSystemTrayView.kt
+index 55f4521895..e5aa24f173 100644
+--- a/quickstep/src/com/android/launcher3/taskbar/TaskbarSystemTrayView.kt
++++ b/quickstep/src/com/android/launcher3/taskbar/TaskbarSystemTrayView.kt
+@@ -177,8 +177,8 @@ class TaskbarSystemTrayView(
+             addView(divider)
+         }
+         addView(status)
+-        if (!kitKat) {
+-            // KitKat has volume buttons with the nav buttons; Material keeps it in the tray.
++        if (!RetroSystemBar.hasVolumeButtons) {
++            // Volume lives in the tray unless the user put volume buttons next to the nav buttons.
+             val volume = ImageView(context)
+             volume.setImageResource(R.drawable.ic_retro_tray_volume)
+             volume.contentDescription = context.getString(R.string.retro_system_bar_volume)
+-- 
+2.43.0
+

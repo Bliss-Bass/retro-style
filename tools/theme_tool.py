@@ -149,6 +149,12 @@ FONT_RESOURCES = {
     "headline_medium": "config_headlineFontFamilyMedium",
 }
 BAR_COLORS = ["taskbar_background", "taskbar_background_dark"]
+# Launcher3 defines taskbar_background again for newer Android versions and night mode
+# (values-v31, values-v34, values-night*, color-v31). An overlay only replaces the configurations
+# it also defines, so the generated launcher3 values go into each of these folders.
+GENERATED_QUALIFIERS = {
+    "launcher3": ["", "-v31", "-v34", "-night", "-night-v31", "-night-v34"],
+}
 
 # Widget families: DeviceDefault styles re-parented to an older family. Theme.DeviceDefault
 # itself is left alone, because SystemUI and Settings need its newer materialColor* attributes.
@@ -506,7 +512,8 @@ def expected_files(pack, values_dir):
         files[f"{target}/AndroidManifest.xml"] = manifest(pack, target)
         tokens = pack.tokens(target, values_dir)
         if tokens:
-            files[f"{target}/res_gen/values/retro_generated.xml"] = generated_values(tokens)
+            for qualifier in GENERATED_QUALIFIERS.get(target, [""]):
+                files[f"{target}/res_gen/values{qualifier}/retro_generated.xml"] = generated_values(tokens)
     files["Android.bp"] = android_bp(pack, targets, values_dir)
     return files
 
@@ -515,7 +522,15 @@ def stale_generated(pack, files):
     """Generated files that exist on disk but are no longer produced."""
     stale = []
     for target in TARGETS:
-        for rel in (f"{target}/AndroidManifest.xml", f"{target}/res_gen/values/retro_generated.xml"):
+        rels = [f"{target}/AndroidManifest.xml"]
+        gen = os.path.join(pack.dir, target, "res_gen")
+        if os.path.isdir(gen):
+            rels += [
+                f"{target}/res_gen/{d}/retro_generated.xml"
+                for d in os.listdir(gen)
+                if os.path.isfile(os.path.join(gen, d, "retro_generated.xml"))
+            ]
+        for rel in rels:
             if os.path.isfile(os.path.join(pack.dir, rel)) and rel not in files:
                 stale.append(rel)
     return stale
