@@ -12,6 +12,8 @@
 #                                       # materialyou means material)
 #   RETRO_STYLE_LAYOUT := system_bar    # stock | system_bar (default: what the pack suggests)
 #   RETRO_STYLE_THEMES := material m3 kitkat   # packs to ship (default: all of them)
+#   RETRO_STYLE_BLACK := on             # pure black dark mode for every pack: on | off
+#                                       # (default: what each pack sets; LineageOS only)
 #   $(call inherit-product, vendor/retro-style/retro_style.mk)
 #
 # The defaults only apply until the user picks something in Settings > System > UI style.
@@ -52,11 +54,20 @@ ifeq ($(filter stock system_bar,$(RETRO_STYLE_LAYOUT)),)
 $(error RETRO_STYLE_LAYOUT must be stock or system_bar (got '$(RETRO_STYLE_LAYOUT)'))
 endif
 
+ifeq ($(filter-out on off,$(RETRO_STYLE_BLACK)),)
+else
+$(error RETRO_STYLE_BLACK must be on or off (got '$(RETRO_STYLE_BLACK)'))
+endif
+
 # Read-only properties in /system_ext/build.prop. The RetroStyle app reads them; any app may
 # read an ro.* property, and nothing writes them.
 PRODUCT_SYSTEM_EXT_PROPERTIES += \
     ro.retro.ui_style.default=$(RETRO_UI_STYLE_DEFAULT) \
     ro.retro.ui_layout.default=$(RETRO_STYLE_LAYOUT)
+ifneq ($(RETRO_STYLE_BLACK),)
+PRODUCT_SYSTEM_EXT_PROPERTIES += \
+    ro.retro.ui_black.default=$(if $(filter on,$(RETRO_STYLE_BLACK)),1,0)
+endif
 
 # --- The Settings page and the code that applies the style ------------------------------------
 

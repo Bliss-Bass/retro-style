@@ -88,7 +88,8 @@ schedules a job (`SetupCompleteJob`) that writes the pack's JSON again once
 
 Packs can also force dark or light mode (`UiModeManager`) and turn on LineageOS's pure black
 theme (the `berry_black_theme` setting). The page's **Pure black** switch (`retro_ui_black`)
-overrides the pack's choice once the user flips it. RetroStyle keeps the user's own values in
+overrides the pack's choice once the user flips it; until then a build default
+(`RETRO_STYLE_BLACK`, read from `ro.retro.ui_black.default`) overrides the pack. RetroStyle keeps the user's own values in
 `retro_ui_style_saved_night` and `retro_ui_style_saved_black` and puts them back when the user
 picks a pack that leaves them alone.
 

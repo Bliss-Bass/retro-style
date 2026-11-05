@@ -112,9 +112,17 @@ object StyleSettings {
 
     fun clockSeconds(cr: ContentResolver): Boolean = get(cr, KEY_CLOCK_SECONDS) == "1"
 
-    /** Pure black dark mode (LineageOS black theme): the user's choice, else the pack's `black`. */
+    /** Pure black dark mode (LineageOS black theme): the user's choice, else [defaultBlack]. */
     fun black(cr: ContentResolver): Boolean =
         when (get(cr, KEY_BLACK)) {
+            "1" -> true
+            "0" -> false
+            else -> defaultBlack(cr)
+        }
+
+    /** Pure black before the user chooses: the build's (`ro.retro.ui_black.default`), else the pack's. */
+    fun defaultBlack(cr: ContentResolver): Boolean =
+        when (SystemProperties.get("ro.retro.ui_black.default", "")) {
             "1" -> true
             "0" -> false
             else -> pack(cr).black

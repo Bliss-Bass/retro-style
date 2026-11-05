@@ -86,17 +86,19 @@ makefiles). Add, near the other `inherit-product` lines:
 RETRO_STYLE_TYPE := kitkat        # optional default pack: any id in themes/ (default: material)
 RETRO_STYLE_LAYOUT := system_bar  # optional: stock | system_bar (default: what the pack suggests)
 RETRO_STYLE_THEMES := material m3 kitkat jellybean   # optional: packs to ship (default: all)
+RETRO_STYLE_BLACK := on           # optional: pure black dark mode for every pack (on | off)
 $(call inherit-product, vendor/retro-style/retro_style.mk)
 ```
 
-`RETRO_STYLE_TYPE` and `RETRO_STYLE_LAYOUT` only set what a fresh install starts with; users
-change both in Settings. `RETRO_STYLE_THEMES` decides which packs are in the image at all. Set
+`RETRO_STYLE_TYPE`, `RETRO_STYLE_LAYOUT` and `RETRO_STYLE_BLACK` only set what a fresh install
+starts with; users change all three in Settings. `RETRO_STYLE_THEMES` decides which packs are in the image at all. Set
 them **before** the `inherit-product` line, because the makefile reads them as it's included.
 `tools/theme_tool.py list` shows every pack id.
 
 What `retro_style.mk` adds to your product:
 
-- `ro.retro.ui_style.default` and `ro.retro.ui_layout.default` in `/system_ext/build.prop`
+- `ro.retro.ui_style.default`, `ro.retro.ui_layout.default` and (with `RETRO_STYLE_BLACK`)
+  `ro.retro.ui_black.default` in `/system_ext/build.prop`
 - the `RetroStyle` app (`/system_ext/priv-app/RetroStyle`) and its permission allowlist
 - one `RetroTheme_<id>` module per pack: its `theme.json` in
   `/product/etc/retro-style/themes/` and its overlays in `/product/overlay`

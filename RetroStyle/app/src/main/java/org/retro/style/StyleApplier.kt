@@ -144,7 +144,7 @@ object StyleApplier {
 
         resourcesChanged = applyThemeJson(context, pack) or resourcesChanged
         resourcesChanged = applyNightMode(context, pack) or resourcesChanged
-        applyBlack(cr, pack)
+        applyBlack(cr)
         Settings.Secure.putString(cr, APPLIED_SETTING, format(applied))
 
         // Both read the applied style only when they start.
@@ -295,9 +295,10 @@ object StyleApplier {
 
     /**
      * LineageOS's black theme: the choice on the UI style page when the user made one; else on
-     * for packs with `black`, and the user's own value for the others.
+     * when the build or the pack asks for it ([StyleSettings.defaultBlack]), and the user's own
+     * value otherwise.
      */
-    private fun applyBlack(cr: ContentResolver, pack: ThemePack) {
+    private fun applyBlack(cr: ContentResolver) {
         val saved = Settings.Secure.getString(cr, SAVED_BLACK_SETTING)
         val chosen = Settings.Secure.getString(cr, StyleSettings.KEY_BLACK)?.takeIf { it == "0" || it == "1" }
         try {
@@ -305,7 +306,7 @@ object StyleApplier {
             if (chosen != null) {
                 if (current != chosen) putLineageSecure(cr, LINEAGE_BLACK, chosen)
                 if (saved != null) Settings.Secure.putString(cr, SAVED_BLACK_SETTING, null)
-            } else if (pack.black) {
+            } else if (StyleSettings.defaultBlack(cr)) {
                 if (saved == null) Settings.Secure.putString(cr, SAVED_BLACK_SETTING, current)
                 if (current != "1") putLineageSecure(cr, LINEAGE_BLACK, "1")
             } else if (saved != null) {
