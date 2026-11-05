@@ -8,14 +8,18 @@ From quickest to most thorough.
 |---|---|---|
 | Patches apply | `tools/apply-patches.sh check` | Upstream changes that break a patch |
 | The app compiles | `cd RetroStyle && ./gradlew :app:assembleRelease` | Kotlin and resource errors (needs an Android SDK; set `sdk.dir` in `RetroStyle/local.properties`) |
-| An overlay compiles | `prebuilts/sdk/tools/linux/bin/aapt2 compile --dir vendor/retro-style/overlays/<Name>/res -o /tmp/out` | Resource syntax errors |
+| Theme packs | `tools/theme_tool.py check` (add `--apks out/target/product/<device>` after a build) | Bad `theme.json` fields, stale generated files, resource names the target lacks, low panel contrast; with `--apks`, overlays that don't link |
+| A layout overlay compiles | `prebuilts/sdk/tools/linux/bin/aapt2 compile --dir vendor/retro-style/overlays/<Name>/res -o /tmp/out` | Resource syntax errors |
 | The makefile | `breakfast <device>` then `get_build_var PRODUCT_PACKAGES` | Bad `RETRO_STYLE_*` values, missing packages |
 
 ## On a device, by hand
 
-1. **Settings > System > UI style** opens, themed after the current style.
-2. Switch between the three styles. Each switch applies right away; switching KitKat on or off
-   restarts SystemUI once and your desktop windows come back at the same place.
+1. **Settings > System > UI style** opens, themed after the current pack, with the packs grouped
+   under Today's Android, Android through the years, and ROM and community classics.
+2. Switch between packs. Each switch applies right away; switching to or from a pack with a
+   different shade skin or panel colors restarts SystemUI once and your desktop windows come
+   back at the same place. Packs that force dark or light mode switch it, and Material You gives
+   your own setting back.
 3. **Bottom bar > Tablet system bar:** back/home/recents on the left, the tray on the right. Turn
    on the extra buttons and the apps, and try the three app positions.
 4. Tap the tray's bell and its clock: Notifications and Quick Settings open above the tray. The
@@ -43,10 +47,11 @@ adb shell am broadcast -a org.retro.style.action.APPLY -n org.retro.style/.Apply
 ## The matrix
 
 `tests/retro_style_matrix.sh` runs on the device as root and applies about 50 combinations of
-the options. For each one it checks:
+the options, then (in `full` mode) every installed pack. For each one it checks:
 
-- `retro_ui_applied` holds the expected values
-- the KitKat and status bar overlays are on or off as expected, and the theme JSON matches
+- `retro_ui_applied` holds the expected pack and skin and the other values
+- only the chosen pack's overlays and the right status bar overlay are on, and the theme JSON has
+  the pack's seed color
 - SystemUI and the launcher are running and stay up while both panels open and close
 - no crash and no ANR was logged
 - an open Settings window survived the restarts

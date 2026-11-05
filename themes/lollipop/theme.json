@@ -1,0 +1,25 @@
+{
+  "schema": 1,
+  "id": "lollipop",
+  "name": "Lollipop",
+  "summary": "Android 5 and 6 (2014 to 2015): the first Material Design, light and flat, indigo with 2dp corners.",
+  "category": "android",
+  "order": 50,
+  "authors": ["Navotpala Tech"],
+  "palette": {
+    "source": "preset",
+    "seed": "#3F51B5",
+    "style": "TONAL_SPOT"
+  },
+  "night": "light",
+  "font": {
+    "body": "sans-serif",
+    "body_medium": "sans-serif-medium",
+    "headline": "sans-serif",
+    "headline_medium": "sans-serif-medium"
+  },
+  "widgets": "material",
+  "shape": {
+    "corner": "2dp"
+  }
+}

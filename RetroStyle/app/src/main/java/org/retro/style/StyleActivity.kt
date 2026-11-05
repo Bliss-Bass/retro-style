@@ -4,32 +4,43 @@
 package org.retro.style
 
 import android.os.Bundle
+import android.text.SpannableStringBuilder
+import android.text.Spanned
+import android.text.style.ForegroundColorSpan
+import android.text.style.RelativeSizeSpan
+import android.util.TypedValue
+import android.view.View
 import android.widget.RadioGroup
+import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.WindowCompat
 import com.google.android.material.appbar.MaterialToolbar
 import com.google.android.material.materialswitch.MaterialSwitch
+import com.google.android.material.radiobutton.MaterialRadioButton
 
 /**
  * Settings > System > UI style. Each control writes one [StyleSettings] value and applies it right
  * away ([ApplyWorker]); SystemUI and the launcher restart when they need to, and the desktop
- * windows (this page included) come back afterwards.
+ * windows (this page included) come back afterwards. The style list shows every installed theme
+ * pack ([ThemeCatalog]).
  */
 class StyleActivity : AppCompatActivity() {
 
-    private var themedKitKat = false
+    private var pageTheme = 0
+    private val styleIds = linkedMapOf<Int, String>()
 
     override fun onCreate(savedInstanceState: Bundle?) {
-        // The page follows the chosen style: KitKat gets the Holo theme, the others the system
-        // palette that style sets.
-        themedKitKat = StyleSettings.style(contentResolver) == StyleSettings.STYLE_KITKAT
-        setTheme(if (themedKitKat) R.style.Theme_RetroStyle_KitKat else R.style.Theme_RetroStyle)
+        // The page follows the chosen pack: Holo Dark packs get the Holo look, square-cornered
+        // packs square controls, all of them the system palette the pack sets.
+        pageTheme = pageTheme(StyleSettings.pack(contentResolver))
+        setTheme(pageTheme)
         super.onCreate(savedInstanceState)
         WindowCompat.setDecorFitsSystemWindows(window, true)
         setContentView(R.layout.activity_style)
         findViewById<MaterialToolbar>(R.id.toolbar).setNavigationOnClickListener {
             onBackPressedDispatcher.onBackPressed()
         }
+        buildStyleList()
     }
 
     override fun onResume() {
@@ -37,23 +48,82 @@ class StyleActivity : AppCompatActivity() {
         bind()
     }
 
+    private fun pageTheme(pack: ThemePack): Int =
+        when {
+            pack.widgets == "holo" && pack.night == ThemePack.NIGHT_DARK -> R.style.Theme_RetroStyle_KitKat
+            pack.widgets != "default" || (pack.corner ?: Float.MAX_VALUE) <= 4f ->
+                R.style.Theme_RetroStyle_Square
+            else -> R.style.Theme_RetroStyle
+        }
+
+    /** One radio button per pack, under a header per category. */
+    private fun buildStyleList() {
+        val group = findViewById<RadioGroup>(R.id.style_group)
+        group.removeAllViews()
+        styleIds.clear()
+        var category: String? = null
+        for (pack in ThemeCatalog.packs()) {
+            if (pack.category != category) {
+                category = pack.category
+                categoryLabel(category)?.let { group.addView(header(it)) }
+            }
+            val button =
+                MaterialRadioButton(this).apply {
+                    id = View.generateViewId()
+                    text = label(pack)
+                    minHeight = dp(56)
+                    setPadding(paddingLeft, dp(6), paddingRight, dp(6))
+                }
+            group.addView(
+                button,
+                RadioGroup.LayoutParams(RadioGroup.LayoutParams.MATCH_PARENT, RadioGroup.LayoutParams.WRAP_CONTENT),
+            )
+            styleIds[button.id] = pack.id
+        }
+    }
+
+    private fun categoryLabel(category: String): Int? =
+        when (category) {
+            "modern" -> R.string.category_modern
+            "android" -> R.string.category_android
+            "community" -> R.string.category_community
+            else -> null
+        }
+
+    private fun header(text: Int): TextView =
+        TextView(this, null, 0, R.style.RetroStyle_Category).apply { setText(text) }
+
+    /** The pack name, with its summary in smaller secondary text under it. */
+    private fun label(pack: ThemePack): CharSequence {
+        if (pack.summary.isEmpty()) return pack.name
+        val secondary = TypedValue()
+        theme.resolveAttribute(android.R.attr.textColorSecondary, secondary, true)
+        val color = getColorStateList(secondary.resourceId).defaultColor
+        return SpannableStringBuilder(pack.name).apply {
+            append('\n')
+            val start = length
+            append(pack.summary)
+            setSpan(RelativeSizeSpan(0.85f), start, length, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
+            setSpan(ForegroundColorSpan(color), start, length, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
+        }
+    }
+
+    private fun dp(value: Int): Int = (value * resources.displayMetrics.density).toInt()
+
     private fun bind() {
         val cr = contentResolver
         bindGroup(
             R.id.style_group,
             StyleSettings.KEY_STYLE,
             StyleSettings.style(cr),
-            mapOf(
-                R.id.style_material to StyleSettings.STYLE_MATERIAL,
-                R.id.style_m3 to StyleSettings.STYLE_M3,
-                R.id.style_kitkat to StyleSettings.STYLE_KITKAT,
-            ),
+            styleIds,
             onChanged = {
                 bindSystemBarOptions()
-                val kitKat = StyleSettings.style(contentResolver) == StyleSettings.STYLE_KITKAT
-                if (kitKat != themedKitKat) recreate()
+                bindVariant()
+                if (pageTheme(StyleSettings.pack(contentResolver)) != pageTheme) recreate()
             },
         )
+        bindVariant()
         bindGroup(
             R.id.variant_group,
             StyleSettings.KEY_VARIANT,
@@ -90,6 +160,14 @@ class StyleActivity : AppCompatActivity() {
                 save(StyleSettings.KEY_HIDE_STATUS_BAR, if (checked) "1" else "0")
             }
         }
+    }
+
+    /** The KitKat panel colors only apply to packs with the KitKat skin and no panel color. */
+    private fun bindVariant() {
+        val pack = StyleSettings.pack(contentResolver)
+        val visible = if (pack.isKitKatSkin && pack.panel == null) View.VISIBLE else View.GONE
+        findViewById<View>(R.id.variant_section).visibility = visible
+        findViewById<View>(R.id.variant_group).visibility = visible
     }
 
     /** Apps, their position and the extra buttons only apply to the tablet system bar. */

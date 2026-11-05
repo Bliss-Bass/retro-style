@@ -36,7 +36,9 @@ projects() {
 # A patch counts as applied when a commit with the same subject is in the project's history.
 # git mailinfo reads the subject the way `git am` does (long subjects span two header lines).
 subject() { git mailinfo /dev/null /dev/null <"$1" | sed -n 's/^Subject: //p'; }
-applied() { git -C "$1" log --format=%s -n 500 | grep -Fxq "$(subject "$2")"; }
+# No `grep -q`: it stops reading at the first match, git log then dies of SIGPIPE, and pipefail
+# turns that into "not applied".
+applied() { git -C "$1" log --format=%s -n 500 | grep -Fx -- "$(subject "$2")" >/dev/null; }
 
 status() {
 	local project=$1 dir=$TOP/$1 p

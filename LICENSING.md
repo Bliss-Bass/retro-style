@@ -24,7 +24,7 @@ These come from the Android Open Source Project (see `NOTICE`) and keep their li
 
 | What | Where |
 |---|---|
-| Android 4.1 and 4.4 artwork and fonts, copied unmodified | `assets/aosp/`, and the PNGs in `overlays/KitKatIconsAndroid`, `overlays/KitKatIconsSystemUI` and `overlays/KitKatLauncher3`; `assets/ASSET_SOURCES.md` lists each file's origin |
+| Android 4.1 and 4.4 artwork and fonts, copied unmodified | `assets/aosp/`, and the PNGs in the theme packs (`themes/<id>/`); `assets/ASSET_SOURCES.md` and each pack's `SOURCES.md` list every file's origin |
 | The AOSP files the patches change | `frameworks/base` and `packages/apps/Launcher3`: each changed file keeps its Apache header; the changes themselves are under the dual license |
 | Material Design icon path data | the `ic_retro_*` drawables the Launcher3 patches add (noted in each file) |
 

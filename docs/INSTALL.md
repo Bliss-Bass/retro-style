@@ -82,26 +82,32 @@ Find the makefile that defines your product. In LineageOS that's usually
 makefiles). Add, near the other `inherit-product` lines:
 
 ```make
-# retro-style: retro UI styles and the tablet system bar (vendor/retro-style)
-RETRO_STYLE_TYPE := kitkat        # optional: materialyou (default) | m3 | kitkat
-RETRO_STYLE_LAYOUT := system_bar  # optional: stock | system_bar (default: system_bar for kitkat)
+# retro-style: theme packs and the tablet system bar (vendor/retro-style)
+RETRO_STYLE_TYPE := kitkat        # optional default pack: any id in themes/ (default: material)
+RETRO_STYLE_LAYOUT := system_bar  # optional: stock | system_bar (default: what the pack suggests)
+RETRO_STYLE_THEMES := material m3 kitkat jellybean   # optional: packs to ship (default: all)
 $(call inherit-product, vendor/retro-style/retro_style.mk)
 ```
 
-The two variables only set what a fresh install starts with; users change both in Settings. Set
+`RETRO_STYLE_TYPE` and `RETRO_STYLE_LAYOUT` only set what a fresh install starts with; users
+change both in Settings. `RETRO_STYLE_THEMES` decides which packs are in the image at all. Set
 them **before** the `inherit-product` line, because the makefile reads them as it's included.
+`tools/theme_tool.py list` shows every pack id.
 
 What `retro_style.mk` adds to your product:
 
 - `ro.retro.ui_style.default` and `ro.retro.ui_layout.default` in `/system_ext/build.prop`
 - the `RetroStyle` app (`/system_ext/priv-app/RetroStyle`) and its permission allowlist
-- nine overlays in `/product/overlay` (`overlays/*/Android.bp`)
+- one `RetroTheme_<id>` module per pack: its `theme.json` in
+  `/product/etc/retro-style/themes/` and its overlays in `/product/overlay`
+  (`themes/<id>/Android.bp`)
+- the system bar and Dual Shade overlays in `/product/overlay` (`overlays/*/Android.bp`)
 - `PRODUCT_RELEASE_CONFIG_MAPS += vendor/retro-style/config/aconfig/release_config_map.textproto`,
   which sets two SystemUI aconfig flags for Dual Shade (see
   [HOW_IT_WORKS.md](HOW_IT_WORKS.md#dual-shade-and-aconfig))
 
 **Check:** `get_build_var PRODUCT_PACKAGES | tr ' ' '\n' | grep -i retro` (after `breakfast`) lists
-`RetroStyle` and the overlays.
+`RetroStyle`, the `RetroTheme_*` packs and the layout overlays.
 
 ### If your tree doesn't build the bp4a release
 
@@ -124,14 +130,16 @@ m bacon
 
 After flashing and finishing setup:
 
-1. **Settings > System > UI style** is there. Pick **KitKat**: the screen restyles, SystemUI
-   restarts once, and your open windows come back.
+1. **Settings > System > UI style** is there and lists the packs you ship. Pick **KitKat**: the
+   screen restyles, SystemUI restarts once, and your open windows come back.
 2. The style was applied:
    ```sh
    adb shell settings get secure retro_ui_applied
-   # style=kitkat;variant=kitkat_stock;layout=system_bar;anchor=bottom_end;...
+   # style=kitkat;theme=kitkat;variant=kitkat_stock;layout=system_bar;anchor=bottom_end;...
    adb shell cmd overlay list | grep retro
-   # [x] org.retro.style.kitkat.android  ... (enabled overlays have [x])
+   # [x] org.retro.theme.kitkat.android  ... (enabled overlays have [x])
+   adb shell ls /product/etc/retro-style/themes
+   # one <id>.json per pack
    ```
 3. Dual Shade is on: Notifications and Quick Settings open as separate floating panels.
 
@@ -142,7 +150,8 @@ For a full check, run the on-device matrix ([TESTING.md](TESTING.md)).
 | Symptom | Likely cause and fix |
 |---|---|
 | `apply-patches.sh check` fails | Upstream moved code the patch touches. Apply by hand with `git am --3way`, resolve the conflict, and regenerate the patch ([PATCHES.md](PATCHES.md#updating-a-patch)). |
-| Build error: `RETRO_STYLE_TYPE must be ...` | A typo in the variable; allowed values are in the message. |
+| Build error: `RETRO_STYLE_TYPE must be ...` or `RETRO_STYLE_THEMES has packs that aren't in ...` | A typo, or a default pack you don't ship; the allowed ids are in the message. |
+| A pack is missing from Settings | It isn't in `RETRO_STYLE_THEMES`, or its `Android.bp` is stale: run `tools/theme_tool.py check`. |
 | Build error mentioning `release_config_map` or `aconfig_value_set-retro-style-bp4a` | The repo isn't at `vendor/retro-style`, or your release isn't `bp4a` (see step 3). |
 | Boot stops with a privapp-permissions error in the log | `privapp-permissions-org.retro.style.xml` didn't install; check `RetroStyle` is in `PRODUCT_PACKAGES` (its `required` pulls the file in). |
 | UI style page missing from Settings | `RetroStyle` isn't installed, or it isn't signed with the platform key (it shares the system user ID, so Android refuses any other signature). |

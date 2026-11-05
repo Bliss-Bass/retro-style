@@ -1,0 +1,14 @@
+{
+  "schema": 1,
+  "id": "mono",
+  "name": "Mono",
+  "summary": "The classic ROM monochrome theme: greys only, no accent color.",
+  "category": "community",
+  "order": 3,
+  "authors": ["Navotpala Tech"],
+  "palette": {
+    "source": "preset",
+    "seed": "#808080",
+    "style": "MONOCHROMATIC"
+  }
+}

@@ -8,6 +8,7 @@
 <permissions>
     <privapp-permissions package="org.retro.style">
         <permission name="android.permission.CHANGE_OVERLAY_PACKAGES" />
+        <permission name="android.permission.MODIFY_DAY_NIGHT_MODE" />
         <permission name="android.permission.REAL_GET_TASKS" />
         <permission name="android.permission.WRITE_SECURE_SETTINGS" />
     </privapp-permissions>

@@ -7,8 +7,12 @@ This product includes material from the Android Open Source Project
 (https://source.android.com), licensed under the Apache License, Version 2.0:
 
   - Android 4.1.2 and 4.4.4 SystemUI artwork and fonts (assets/aosp/, and the PNG drawables in
-    overlays/KitKatIconsAndroid, overlays/KitKatIconsSystemUI and overlays/KitKatLauncher3).
-    Copyright (C) The Android Open Source Project. assets/ASSET_SOURCES.md lists each file.
+    the theme packs, themes/<id>/). Copyright (C) The Android Open Source Project.
+    assets/ASSET_SOURCES.md lists each imported file; each pack's SOURCES.md lists its own.
+  - Widget styles generated from framework-res (themes/<id>/android/res_gen/), which re-parent
+    DeviceDefault styles to the Holo, classic and Material styles of framework-res.
+  - Palettes after Nord, Dracula, Solarized, Gruvbox and Catppuccin (MIT licensed color
+    schemes; only their color values are used, in themes/<id>/theme.json).
   - The frameworks/base and packages/apps/Launcher3 files that patches/ change. Those files
     remain under the Apache License, Version 2.0, Copyright (C) The Android Open Source Project;
     the changes are under retro-style's license.

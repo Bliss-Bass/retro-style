@@ -73,8 +73,7 @@ class ApplyReceiver : BroadcastReceiver() {
 class SetupCompleteJob : JobService() {
     override fun onStartJob(params: JobParameters): Boolean {
         if (setupComplete(this)) {
-            val cr = contentResolver
-            StyleApplier.applyThemeJson(cr, StyleSettings.style(cr))
+            StyleApplier.applyThemeJson(this, StyleSettings.pack(contentResolver))
         } else {
             scheduleIfNeeded(this)
         }

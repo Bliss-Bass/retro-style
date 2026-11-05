@@ -1,0 +1,17 @@
+{
+  "schema": 1,
+  "id": "transparent",
+  "name": "Glass",
+  "summary": "The classic ROM transparent theme: see-through shade panels and system bar over your wallpaper colors.",
+  "category": "community",
+  "order": 2,
+  "authors": ["Navotpala Tech"],
+  "palette": {
+    "source": "wallpaper"
+  },
+  "night": "dark",
+  "shell": {
+    "panel": "#8C000000",
+    "bar": "#66000000"
+  }
+}

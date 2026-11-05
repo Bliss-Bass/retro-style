@@ -1,0 +1,19 @@
+{
+  "schema": 1,
+  "id": "gruvbox",
+  "name": "Gruvbox",
+  "summary": "Warm retro yellow and orange on brown grey, after the Gruvbox color palette (MIT).",
+  "category": "community",
+  "order": 13,
+  "authors": ["Navotpala Tech"],
+  "palette": {
+    "source": "preset",
+    "seed": "#D79921",
+    "style": "EXPRESSIVE"
+  },
+  "night": "dark",
+  "shell": {
+    "panel": "#F2282828",
+    "bar": "#FF282828"
+  }
+}

@@ -20,6 +20,11 @@
     <!-- See other apps' desktop windows to reopen them after a SystemUI restart. -->
     <uses-permission android:name="android.permission.REAL_GET_TASKS" />
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+    <!-- Packs may force dark or light mode (UiModeManager.setNightMode). -->
+    <uses-permission android:name="android.permission.MODIFY_DAY_NIGHT_MODE" />
+    <!-- LineageOS's black theme lives in its own settings provider, which checks
+         lineageos.permission.WRITE_SECURE_SETTINGS. The system user passes that check, so the
+         app doesn't request it (the permission doesn't exist outside LineageOS). -->
 
     <application
         android:allowBackup="false"

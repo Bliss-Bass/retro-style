@@ -9,6 +9,7 @@ import android.provider.Settings
 
 /**
  * The user's retro style choices, stored as secure settings (the page writes them; adb can too).
+ * [KEY_STYLE] holds a theme pack id ([ThemeCatalog]).
  *
  * An unset choice means "use the default": the build default from the product makefile
  * (`ro.retro.ui_style.default`, `ro.retro.ui_layout.default`) or one derived from other choices.
@@ -26,10 +27,8 @@ object StyleSettings {
     const val KEY_BAR_BUTTONS = "retro_ui_bar_buttons"
     const val KEY_CLOCK_SECONDS = "retro_ui_bar_clock_seconds"
 
+    /** The pack used when the chosen and build default packs aren't installed. */
     const val STYLE_MATERIAL = "material"
-    const val STYLE_M3 = "m3"
-    const val STYLE_KITKAT = "kitkat"
-    val STYLES = listOf(STYLE_MATERIAL, STYLE_M3, STYLE_KITKAT)
 
     const val VARIANT_KITKAT_STOCK = "kitkat_stock"
     const val VARIANT_HOLO_UNIFIED = "holo_unified"
@@ -56,10 +55,14 @@ object StyleSettings {
         Settings.Secure.putString(cr, key, value)
     }
 
-    fun style(cr: ContentResolver): String =
-        (get(cr, KEY_STYLE) ?: SystemProperties.get("ro.retro.ui_style.default", "")).takeIf {
-            it in STYLES
-        } ?: STYLE_MATERIAL
+    /** The chosen theme pack: the user's, else the build default, else Material You. */
+    fun pack(cr: ContentResolver): ThemePack =
+        ThemeCatalog.find(get(cr, KEY_STYLE))
+            ?: ThemeCatalog.find(SystemProperties.get("ro.retro.ui_style.default", ""))
+            ?: ThemeCatalog.find(STYLE_MATERIAL)
+            ?: ThemeCatalog.packs().first()
+
+    fun style(cr: ContentResolver): String = pack(cr).id
 
     fun variant(cr: ContentResolver): String =
         get(cr, KEY_VARIANT)?.takeIf { it == VARIANT_HOLO_UNIFIED } ?: VARIANT_KITKAT_STOCK
@@ -74,15 +77,15 @@ object StyleSettings {
         get(cr, KEY_ANCHOR)?.takeIf { it == ANCHOR_TOP_END || it == ANCHOR_BOTTOM_END }
             ?: if (layout(cr) == LAYOUT_SYSTEM_BAR) ANCHOR_BOTTOM_END else ANCHOR_TOP_END
 
-    /** Hide the top status bar on the system bar; KitKat always does. */
+    /** Hide the top status bar on the system bar; packs with the KitKat skin always do. */
     fun hideStatusBar(cr: ContentResolver): Boolean = get(cr, KEY_HIDE_STATUS_BAR) == "1"
 
-    /** App icons and running tasks on the system bar; unset follows the style (off for KitKat). */
+    /** App icons and running tasks on the system bar; unset follows the pack (shell.bar_apps). */
     fun barApps(cr: ContentResolver): Boolean =
         when (get(cr, KEY_BAR_APPS)) {
             "1" -> true
             "0" -> false
-            else -> style(cr) != STYLE_KITKAT
+            else -> pack(cr).barApps
         }
 
     fun appsGravity(cr: ContentResolver): String =

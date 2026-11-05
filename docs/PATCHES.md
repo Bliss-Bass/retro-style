@@ -24,6 +24,7 @@ library, so it won't compile without the SystemUI series.
 | 0006 | Show the Quick Settings volume slider without tile details | The Dual Shade Quick Settings volume slider only appeared with the unfinished tile-details flag on. Shows it whenever `config_enableDesktopAudioTileDetailsView` is true (the Dual Shade overlay sets it). |
 | 0007 | Keep a slot for missing lockscreen elements | Scene-container fix: the lockscreen layout expects six elements, but AOSP has no provider for the ambient indication area, so SystemUI crashed whenever the lockscreen showed. |
 | 0008 | Read the applied retro style from Settings.Secure | Switches `RetroUiStyle` and `ShadePanelAnchor` from system properties to the `retro_ui_applied` secure setting RetroStyle writes ([why](HOW_IT_WORKS.md#why-a-secure-setting-and-not-system-properties)). |
+| 0009 | Use the theme pack's shade panel and accent colors | Reads `panel_color` (the shade panels' background, both skins) and `accent` (the KitKat skin's clock and switches) from `retro_ui_applied`, so theme packs can color the shell ([THEME_SPEC.md](THEME_SPEC.md#shell)). |
 
 0004, 0005 and 0007 fix AOSP bugs anyone turning on Dual Shade will hit. They don't depend on the
 rest of retro-style.

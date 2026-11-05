@@ -1,0 +1,19 @@
+{
+  "schema": 1,
+  "id": "solarized",
+  "name": "Solarized Dark",
+  "summary": "Solarized blue on its dark teal base, after Ethan Schoonover's Solarized palette (MIT).",
+  "category": "community",
+  "order": 12,
+  "authors": ["Navotpala Tech"],
+  "palette": {
+    "source": "preset",
+    "seed": "#268BD2",
+    "style": "TONAL_SPOT"
+  },
+  "night": "dark",
+  "shell": {
+    "panel": "#F2002B36",
+    "bar": "#FF002B36"
+  }
+}

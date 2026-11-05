@@ -1,0 +1,19 @@
+{
+  "schema": 1,
+  "id": "catppuccin",
+  "name": "Catppuccin Mocha",
+  "summary": "Soft pastel mauve on a dark base, after the Catppuccin Mocha palette (MIT).",
+  "category": "community",
+  "order": 14,
+  "authors": ["Navotpala Tech"],
+  "palette": {
+    "source": "preset",
+    "seed": "#CBA6F7",
+    "style": "TONAL_SPOT"
+  },
+  "night": "dark",
+  "shell": {
+    "panel": "#F21E1E2E",
+    "bar": "#FF1E1E2E"
+  }
+}

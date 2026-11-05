@@ -1,0 +1,23 @@
+{
+  "schema": 1,
+  "id": "froyo",
+  "name": "Froyo",
+  "summary": "Android 2.2 (2010): the classic grey widgets on black, orange highlights, rounded buttons.",
+  "category": "android",
+  "order": 22,
+  "authors": ["Navotpala Tech"],
+  "palette": {
+    "source": "preset",
+    "seed": "#FF8800",
+    "style": "VIBRANT"
+  },
+  "night": "dark",
+  "widgets": "classic",
+  "shape": {
+    "corner": "4dp"
+  },
+  "shell": {
+    "panel": "#F0202020",
+    "bar": "#FF000000"
+  }
+}

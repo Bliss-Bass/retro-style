@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- AOSP 4.1 tablet battery; the tray sets the level to the percentage. -->
+<level-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:maxLevel="4" android:drawable="@drawable/jellybean_tray_battery_0" />
+    <item android:maxLevel="15" android:drawable="@drawable/jellybean_tray_battery_15" />
+    <item android:maxLevel="35" android:drawable="@drawable/jellybean_tray_battery_28" />
+    <item android:maxLevel="49" android:drawable="@drawable/jellybean_tray_battery_43" />
+    <item android:maxLevel="60" android:drawable="@drawable/jellybean_tray_battery_57" />
+    <item android:maxLevel="75" android:drawable="@drawable/jellybean_tray_battery_71" />
+    <item android:maxLevel="90" android:drawable="@drawable/jellybean_tray_battery_85" />
+    <item android:maxLevel="100" android:drawable="@drawable/jellybean_tray_battery_100" />
+</level-list>

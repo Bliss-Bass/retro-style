@@ -1,0 +1,19 @@
+{
+  "schema": 1,
+  "id": "dracula",
+  "name": "Dracula",
+  "summary": "Purple and pink on deep blue grey, after the Dracula color palette (MIT).",
+  "category": "community",
+  "order": 11,
+  "authors": ["Navotpala Tech"],
+  "palette": {
+    "source": "preset",
+    "seed": "#BD93F9",
+    "style": "VIBRANT"
+  },
+  "night": "dark",
+  "shell": {
+    "panel": "#F2282A36",
+    "bar": "#FF282A36"
+  }
+}

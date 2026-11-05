@@ -1,0 +1,12 @@
+{
+  "schema": 1,
+  "id": "material",
+  "name": "Material You",
+  "summary": "Android 16 as shipped: Material 3 with colors from your wallpaper. Your own color, font and icon choices are kept.",
+  "category": "modern",
+  "order": 1,
+  "authors": ["Navotpala Tech"],
+  "palette": {
+    "source": "wallpaper"
+  }
+}

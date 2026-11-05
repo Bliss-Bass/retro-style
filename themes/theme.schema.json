@@ -1,0 +1,102 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "theme.schema.json",
+  "title": "retro-style theme pack",
+  "description": "themes/<id>/theme.json. The rules behind each field are in docs/THEME_SPEC.md; tools/theme_tool.py check enforces them.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema", "id", "name", "summary", "category", "authors", "palette"],
+  "properties": {
+    "$schema": { "type": "string" },
+    "schema": { "const": 1, "description": "Format version of this file." },
+    "id": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9_]{1,30}$",
+      "description": "Same as the folder name. Used in overlay package names and settings."
+    },
+    "name": { "type": "string", "minLength": 1, "description": "Shown in Settings." },
+    "summary": { "type": "string", "minLength": 1, "description": "One sentence shown under the name." },
+    "category": {
+      "enum": ["modern", "android", "community"],
+      "description": "Settings group: today's Android, a past Android release, or a ROM or community classic."
+    },
+    "order": { "type": "integer", "description": "Sort position inside the category (lower first)." },
+    "authors": { "type": "array", "items": { "type": "string" }, "minItems": 1 },
+    "palette": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["source"],
+      "properties": {
+        "source": {
+          "enum": ["wallpaper", "preset"],
+          "description": "wallpaper keeps the user's Material You colors; preset uses seed."
+        },
+        "seed": {
+          "type": "string",
+          "pattern": "^#[0-9A-Fa-f]{6}$",
+          "description": "Monet seed color. Every system color is derived from it."
+        },
+        "style": {
+          "enum": ["TONAL_SPOT", "VIBRANT", "EXPRESSIVE", "SPRITZ", "RAINBOW", "FRUIT_SALAD", "MONOCHROMATIC"],
+          "description": "How Monet turns the seed into palettes."
+        }
+      }
+    },
+    "night": {
+      "enum": ["system", "dark", "light"],
+      "description": "Force dark or light mode while the pack is on; system leaves the user's choice."
+    },
+    "black": {
+      "type": "boolean",
+      "description": "Pure black dark backgrounds (LineageOS Black theme). Needs night dark or system."
+    },
+    "font": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "System font families for body and headline text.",
+      "properties": {
+        "body": { "$ref": "#/$defs/fontFamily" },
+        "body_medium": { "$ref": "#/$defs/fontFamily" },
+        "headline": { "$ref": "#/$defs/fontFamily" },
+        "headline_medium": { "$ref": "#/$defs/fontFamily" }
+      }
+    },
+    "widgets": {
+      "enum": ["default", "holo", "classic", "material"],
+      "description": "Framework widget family: today's, Holo (3.0 to 4.4), classic (1.0 to 2.3) or Material 1 (5.0 to 9)."
+    },
+    "shape": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "corner": { "$ref": "#/$defs/dp", "description": "Corner radius of dialogs, buttons, cards, notifications, Quick Settings and the shade." },
+        "progress": { "$ref": "#/$defs/dp", "description": "Progress bar corners (default: corner)." }
+      }
+    },
+    "shell": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "SystemUI and Launcher3 behavior from the retro-style patches.",
+      "properties": {
+        "skin": { "enum": ["stock", "kitkat"], "description": "Shade skin: stock Android 16 or the KitKat tablet panels." },
+        "panel": { "$ref": "#/$defs/argb", "description": "Shade panel background." },
+        "accent": { "$ref": "#/$defs/argb", "description": "Clock and tile highlight of the kitkat skin." },
+        "bar": { "$ref": "#/$defs/argb", "description": "Taskbar and system bar background." },
+        "layout": { "enum": ["stock", "system_bar"], "description": "Bottom bar the pack suggests as a build default." },
+        "bar_apps": { "type": "boolean", "description": "Default for app icons on the system bar." }
+      }
+    }
+  },
+  "$defs": {
+    "dp": { "type": "string", "pattern": "^\\d+(\\.\\d+)?dp$" },
+    "argb": { "type": "string", "pattern": "^#([0-9A-Fa-f]{6}|[0-9A-Fa-f]{8})$" },
+    "fontFamily": {
+      "enum": [
+        "sans-serif", "sans-serif-thin", "sans-serif-light", "sans-serif-medium", "sans-serif-black",
+        "sans-serif-condensed", "sans-serif-condensed-light", "sans-serif-condensed-medium",
+        "sans-serif-smallcaps", "sans-serif-monospace", "serif", "serif-bold", "serif-monospace",
+        "monospace", "casual", "cursive", "roboto-flex", "source-sans-pro", "source-sans-pro-semi-bold"
+      ]
+    }
+  }
+}

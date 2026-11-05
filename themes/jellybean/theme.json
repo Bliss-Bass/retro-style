@@ -1,0 +1,33 @@
+{
+  "schema": 1,
+  "id": "jellybean",
+  "name": "Jelly Bean",
+  "summary": "Android 4.0 to 4.3 (2011 to 2013): Holo Dark, Holo blue status icons and the Jelly Bean tablet glyphs on the system bar.",
+  "category": "android",
+  "order": 41,
+  "authors": ["Navotpala Tech"],
+  "palette": {
+    "source": "preset",
+    "seed": "#33B5E5",
+    "style": "VIBRANT"
+  },
+  "night": "dark",
+  "font": {
+    "body": "sans-serif",
+    "body_medium": "sans-serif-medium",
+    "headline": "sans-serif",
+    "headline_medium": "sans-serif-medium"
+  },
+  "widgets": "holo",
+  "shape": {
+    "corner": "2dp",
+    "progress": "0dp"
+  },
+  "shell": {
+    "skin": "kitkat",
+    "accent": "#FF33B5E5",
+    "bar": "#FF000000",
+    "layout": "system_bar",
+    "bar_apps": false
+  }
+}

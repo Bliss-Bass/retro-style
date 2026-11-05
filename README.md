@@ -1,7 +1,8 @@
 # retro-style
 
-Retro UI styles and a tablet system bar for large-screen Android 16 builds
-(LineageOS 23.2), packaged as one `vendor/retro-style` repo you can drop into a source tree.
+A theme engine with styles from every Android era, plus a tablet system bar, for large-screen
+Android 16 builds (LineageOS 23.2), packaged as one `vendor/retro-style` repo you can drop into a
+source tree.
 
 | KitKat style, tablet system bar | KitKat Quick Settings |
 |---|---|
@@ -11,12 +12,19 @@ Retro UI styles and a tablet system bar for large-screen Android 16 builds
 
 What you get, all switchable at runtime in **Settings > System > UI style**:
 
-- **Styles:** Material You (wallpaper colors), Material 3 (fixed baseline colors), and KitKat
-  (Holo widgets, square corners, Holo blue, KitKat navigation glyphs, a list-style Quick Settings).
+- **Theme packs:** 18 to start with. Today's Material You and Material 3; Android through the
+  years (Froyo, Gingerbread, Honeycomb, Jelly Bean, KitKat, Holo Light, Lollipop, Pie); and ROM
+  classics (Pitch Black, Glass, Mono, and the Nord, Dracula, Solarized, Gruvbox and Catppuccin
+  palettes). A pack sets the palette, dark mode, fonts, corner shapes, the widget family (Holo,
+  classic or Material 1 widgets), icons and the shade and bar colors.
+- **Made for designers:** a pack is one `theme.json` plus optional resources.
+  `tools/theme_tool.py` generates the rest and checks the pack, and
+  [docs/THEME_SPEC.md](docs/THEME_SPEC.md) is the rulebook. New packs show up in Settings with no
+  code change.
 - **Tablet system bar:** one bottom bar laid out like Android 3.x/4.x tablets: back, home and
   recents (plus optional volume, screenshot and sleep buttons) on the left, your apps and tasks in
   the middle, and a tray with notifications, status icons, network, battery, volume and the clock
-  on the right. Works with every style.
+  on the right. Works with every pack.
 - **Dual Shade panels:** Notifications and Quick Settings as floating panels that open from the
   top right or from the tray at the bottom right.
 - **Session kept:** changing a style restarts SystemUI; your open desktop windows come back where
@@ -43,7 +51,7 @@ frameworks/base and Launcher3. The docs explain each piece as they go.
    ([what they do](docs/PATCHES.md)).
 3. Inherit the product makefile in your device makefile:
    ```make
-   RETRO_STYLE_TYPE := kitkat   # optional: materialyou (default) | m3 | kitkat
+   RETRO_STYLE_TYPE := kitkat   # optional default pack: any id in themes/ (default: material)
    $(call inherit-product, vendor/retro-style/retro_style.mk)
    ```
 4. Build as usual (`breakfast <device> && m bacon`).
@@ -57,18 +65,21 @@ frameworks/base and Launcher3. The docs explain each piece as they go.
 |---|---|
 | `retro_style.mk` | Product makefile to inherit; build defaults and the packages to install |
 | `RetroStyle/` | The UI style page and the code that applies a style (system app; Soong and Gradle builds) |
-| `overlays/` | Runtime resource overlays (RROs): the KitKat style pack, the system bar, Dual Shade config |
+| `themes/` | Theme packs (`themes/<id>/theme.json` and their overlays), the template, the JSON Schema and the generated `themes.mk` |
+| `overlays/` | Layout overlays: the tablet system bar and the Dual Shade config |
 | `config/aconfig/` | Build-time aconfig values that turn on Dual Shade, and the release config map that adds them |
 | `patches/` | `git format-patch` series for `frameworks/base` (SystemUI) and `packages/apps/Launcher3` |
-| `tools/` | `apply-patches.sh`, an overlay test builder, and the Holo widget style generator |
-| `tests/` | `retro_style_matrix.sh`, an on-device bug hunt over every option combination |
-| `assets/` | The AOSP 4.x artwork and fonts the KitKat pack uses, with their sources |
-| `docs/` | Install guide, how it works, the patches, testing, and the user guide |
+| `tools/` | `theme_tool.py` (create, generate and check packs), `apply-patches.sh`, an overlay test builder |
+| `tests/` | `retro_style_matrix.sh`, an on-device bug hunt over every option combination and pack |
+| `assets/` | The AOSP 4.x artwork and fonts the Holo packs use, with their sources |
+| `docs/` | Install guide, how it works, the theme spec, the patches, testing, and the user guide |
 
 ## Docs
 
 - [INSTALL.md](docs/INSTALL.md): add it to a tree, step by step
 - [HOW_IT_WORKS.md](docs/HOW_IT_WORKS.md): the moving parts and why they're built this way
+- [THEME_SPEC.md](docs/THEME_SPEC.md): how to design a theme pack (start from
+  [themes/_template](themes/_template/README.md))
 - [PATCHES.md](docs/PATCHES.md): what each patch changes, and how to maintain the series
 - [TESTING.md](docs/TESTING.md): quick checks, on-device tests, the matrix
 - [USER_GUIDE.md](docs/USER_GUIDE.md): the Settings page, for users

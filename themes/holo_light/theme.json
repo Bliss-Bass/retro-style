@@ -1,0 +1,26 @@
+{
+  "schema": 1,
+  "id": "holo_light",
+  "name": "Holo Light",
+  "summary": "Android 4.x light apps: Holo Light widgets with the darker Holo blue, square corners.",
+  "category": "android",
+  "order": 45,
+  "authors": ["Navotpala Tech"],
+  "palette": {
+    "source": "preset",
+    "seed": "#0099CC",
+    "style": "VIBRANT"
+  },
+  "night": "light",
+  "font": {
+    "body": "sans-serif",
+    "body_medium": "sans-serif-medium",
+    "headline": "sans-serif",
+    "headline_medium": "sans-serif-medium"
+  },
+  "widgets": "holo",
+  "shape": {
+    "corner": "2dp",
+    "progress": "0dp"
+  }
+}

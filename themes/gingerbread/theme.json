@@ -1,0 +1,23 @@
+{
+  "schema": 1,
+  "id": "gingerbread",
+  "name": "Gingerbread",
+  "summary": "Android 2.3 (2010): the classic widgets on pure black with Gingerbread green, square corners.",
+  "category": "android",
+  "order": 23,
+  "authors": ["Navotpala Tech"],
+  "palette": {
+    "source": "preset",
+    "seed": "#8BC34A",
+    "style": "VIBRANT"
+  },
+  "night": "dark",
+  "widgets": "classic",
+  "shape": {
+    "corner": "2dp"
+  },
+  "shell": {
+    "panel": "#F0000000",
+    "bar": "#FF000000"
+  }
+}

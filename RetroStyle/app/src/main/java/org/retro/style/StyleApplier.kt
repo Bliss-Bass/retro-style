@@ -4,9 +4,12 @@
 package org.retro.style
 
 import android.app.ActivityManager
+import android.app.UiModeManager
 import android.content.ContentResolver
 import android.content.Context
 import android.content.om.OverlayManager
+import android.net.Uri
+import android.os.Bundle
 import android.os.Process
 import android.os.UserHandle
 import android.provider.Settings
@@ -14,16 +17,19 @@ import android.util.Log
 import org.json.JSONObject
 
 /**
- * Applies the user's retro style choices ([StyleSettings]) to the system.
+ * Applies the user's retro style choices ([StyleSettings]) and theme pack ([ThemeCatalog]).
  * 1. Resolves every choice (defaults included) and writes the result to the secure setting
  *    [APPLIED_SETTING], the only thing SystemUI and Launcher3 read (once, when they start).
- * 2. Switches the runtime resource overlays (RROs) for the style and the bar layout.
- * 3. Writes the style's palette, font and icon packs into the theme JSON SystemUI's
+ * 2. Turns on the chosen pack's overlays and off every other pack's, and switches the overlays
+ *    for the bar layout.
+ * 3. Writes the pack's palette, font and icon packs into the theme JSON SystemUI's
  *    ThemeOverlayController applies, keeping the user's own JSON to restore later.
- * 4. Restarts SystemUI and Launcher3 when something they read at start changed, and reopens the
+ * 4. Forces dark or light mode and LineageOS's black theme when the pack asks, again keeping the
+ *    user's own values to restore later.
+ * 5. Restarts SystemUI and Launcher3 when something they read at start changed, and reopens the
  *    desktop windows the SystemUI restart closed ([WindowSession]).
  *
- * Runs on a worker thread (see [ApplyService]): restarts and window restore take seconds.
+ * Runs on a worker thread ([ApplyWorker]): restarts and window restore take seconds.
  */
 object StyleApplier {
     private const val TAG = "RetroStyle"
@@ -33,16 +39,28 @@ object StyleApplier {
 
     private const val THEME_SETTING = "theme_customization_overlay_packages"
     private const val SAVED_THEME_SETTING = "retro_ui_style_saved_theme"
+    private const val SAVED_NIGHT_SETTING = "retro_ui_style_saved_night"
+    private const val SAVED_BLACK_SETTING = "retro_ui_style_saved_black"
     private const val DUAL_SHADE_SETTING = "dual_shade"
 
-    /** KitKat style pack overlays, switched together (category org.retro.style). */
-    private val KITKAT_OVERLAYS =
+    /** Theme JSON categories a pack may set (ThemeOverlayApplier in SystemUI). */
+    private const val PALETTE = "android.theme.customization.system_palette"
+    private const val COLOR_SOURCE = "android.theme.customization.color_source"
+    private const val THEME_STYLE = "android.theme.customization.theme_style"
+    private const val FONT = "android.theme.customization.font"
+    private val PALETTE_KEYS =
         listOf(
-            "org.retro.style.kitkat.android",
-            "org.retro.style.kitkat.systemui",
-            "org.retro.style.kitkat.settings",
-            "org.retro.style.kitkat.launcher3",
+            PALETTE,
+            COLOR_SOURCE,
+            THEME_STYLE,
+            "android.theme.customization.accent_color",
+            "android.theme.customization.color_index",
+            "android.theme.customization.color_both",
         )
+
+    /** LineageOS's pure black dark theme, in its own settings provider. */
+    private val LINEAGE_SETTINGS = Uri.parse("content://lineagesettings")
+    private const val LINEAGE_BLACK = "berry_black_theme"
 
     /** Zero status bar height: the tray shows the status icons instead. */
     private const val STATUS_BAR_OVERLAY = "org.retro.layout.systembar.android"
@@ -64,13 +82,14 @@ object StyleApplier {
     @Synchronized
     fun apply(context: Context, restoreWindows: Boolean = true) {
         val cr = context.contentResolver
-        val style = StyleSettings.style(cr)
+        val pack = StyleSettings.pack(cr)
         val layout = StyleSettings.layout(cr)
-        val kitKat = style == StyleSettings.STYLE_KITKAT
         val systemBar = layout == StyleSettings.LAYOUT_SYSTEM_BAR
         val applied =
             linkedMapOf(
-                "style" to style,
+                // `style` is the shell skin the patches draw; `theme` the pack it came from.
+                "style" to if (pack.isKitKatSkin) ThemePack.SKIN_KITKAT else StyleSettings.STYLE_MATERIAL,
+                "theme" to pack.id,
                 "variant" to StyleSettings.variant(cr),
                 "layout" to layout,
                 "anchor" to StyleSettings.anchor(cr),
@@ -78,14 +97,20 @@ object StyleApplier {
                 "bar_apps_gravity" to StyleSettings.appsGravity(cr),
                 "bar_buttons" to StyleSettings.barButtons(cr).joinToString(","),
                 "clock_seconds" to if (StyleSettings.clockSeconds(cr)) "1" else "0",
+                "panel_color" to pack.panel?.let(::hex).orEmpty(),
+                "accent" to pack.accent?.let(::hex).orEmpty(),
             )
         val previous = parse(Settings.Secure.getString(cr, APPLIED_SETTING))
 
-        // Overlays.
+        // Overlays: the chosen pack's on, every other pack's off.
         val om = context.getSystemService(OverlayManager::class.java)
         val user = Process.myUserHandle()
-        KITKAT_OVERLAYS.forEach { setOverlay(om, it, kitKat, user) }
-        val hideStatusBar = systemBar && (kitKat || StyleSettings.hideStatusBar(cr))
+        for (other in ThemeCatalog.packs()) {
+            for (target in ThemeCatalog.SWITCHED_TARGETS) {
+                setOverlay(om, other.overlay(target), other.id == pack.id, user)
+            }
+        }
+        val hideStatusBar = systemBar && (pack.isKitKatSkin || StyleSettings.hideStatusBar(cr))
         val statusBarChanged = isOverlayEnabled(om, STATUS_BAR_OVERLAY, user) != hideStatusBar
         setOverlay(om, STATUS_BAR_OVERLAY, hideStatusBar, user)
         if (systemBar) {
@@ -96,7 +121,9 @@ object StyleApplier {
             }
         }
 
-        applyThemeJson(cr, style)
+        applyThemeJson(context, pack)
+        applyNightMode(context, pack)
+        applyBlack(cr, pack)
         Settings.Secure.putString(cr, APPLIED_SETTING, format(applied))
 
         // Both read the applied style only when they start.
@@ -108,12 +135,12 @@ object StyleApplier {
         if (restartSystemUi) {
             if (restoreWindows) windows = WindowSession.save(context)
             oldSystemUiPid = pidOf(am, SYSTEMUI)
-            Log.i(TAG, "style, panel anchor or status bar changed; restarting SystemUI")
+            Log.i(TAG, "skin, panel colors, panel anchor or status bar changed; restarting SystemUI")
             restart(context, am, SYSTEMUI)
         }
         if (restartLauncher) {
             homePackage(context)?.let {
-                Log.i(TAG, "bar layout, style or bar options changed; restarting $it")
+                Log.i(TAG, "bar layout, skin or bar options changed; restarting $it")
                 restart(context, am, it)
             }
         }
@@ -124,70 +151,112 @@ object StyleApplier {
     }
 
     /**
-     * Writes the style's theme JSON, which SystemUI turns into Monet palette, font and icon pack
-     * overlays. Material You restores whatever the user had before.
+     * Writes the pack's theme JSON, which SystemUI turns into Monet palette, font and icon pack
+     * overlays. The user's own JSON is saved first and is the base: a pack that sets nothing here
+     * (wallpaper colors, no font or icons) restores it.
      */
-    fun applyThemeJson(cr: ContentResolver, style: String) {
-        val json = themeJson(style)
-        val saved = Settings.Secure.getString(cr, SAVED_THEME_SETTING)
-        if (json != null) {
-            if (saved == null) {
-                Settings.Secure.putString(
-                    cr,
-                    SAVED_THEME_SETTING,
-                    Settings.Secure.getString(cr, THEME_SETTING) ?: "{}",
-                )
+    fun applyThemeJson(context: Context, pack: ThemePack) {
+        val cr = context.contentResolver
+        val om = context.getSystemService(OverlayManager::class.java)
+        val user = Process.myUserHandle()
+        val installed = { pkg: String -> overlayInstalled(om, pkg, user) }
+        val font = pack.overlay(ThemeCatalog.TARGET_FONT).takeIf(installed)
+        val icons =
+            ThemeCatalog.ICON_TARGETS.mapNotNull { (target, category) ->
+                pack.overlay(target).takeIf(installed)?.let { category to it }
             }
-            Settings.Secure.putString(cr, THEME_SETTING, json)
-        } else if (saved != null) {
-            Settings.Secure.putString(cr, THEME_SETTING, if (saved == "{}") null else saved)
-            Settings.Secure.putString(cr, SAVED_THEME_SETTING, null)
+        val saved = Settings.Secure.getString(cr, SAVED_THEME_SETTING)
+
+        if (pack.seed == null && font == null && icons.isEmpty()) {
+            if (saved != null) {
+                Settings.Secure.putString(cr, THEME_SETTING, if (saved == "{}") null else saved)
+                Settings.Secure.putString(cr, SAVED_THEME_SETTING, null)
+            }
+            return
+        }
+        val own = saved ?: Settings.Secure.getString(cr, THEME_SETTING) ?: "{}"
+        if (saved == null) Settings.Secure.putString(cr, SAVED_THEME_SETTING, own)
+        val json = runCatching { JSONObject(own) }.getOrDefault(JSONObject())
+        pack.seed?.let { seed ->
+            PALETTE_KEYS.forEach(json::remove)
+            json.put(PALETTE, hex(seed or 0xFF000000.toInt()).removePrefix("#"))
+            json.put(COLOR_SOURCE, "preset")
+            json.put(THEME_STYLE, pack.paletteStyle)
+        }
+        font?.let { json.put(FONT, it) }
+        icons.forEach { (category, pkg) -> json.put(category, pkg) }
+        json.put("_applied_timestamp", System.currentTimeMillis())
+        Settings.Secure.putString(cr, THEME_SETTING, json.toString())
+    }
+
+    /** Forces the pack's dark or light mode; packs that leave it alone restore the user's own. */
+    private fun applyNightMode(context: Context, pack: ThemePack) {
+        val cr = context.contentResolver
+        val ui = context.getSystemService(UiModeManager::class.java)
+        val saved = Settings.Secure.getString(cr, SAVED_NIGHT_SETTING)?.toIntOrNull()
+        val wanted =
+            when (pack.night) {
+                ThemePack.NIGHT_DARK -> UiModeManager.MODE_NIGHT_YES
+                ThemePack.NIGHT_LIGHT -> UiModeManager.MODE_NIGHT_NO
+                else -> null
+            }
+        try {
+            if (wanted != null) {
+                if (saved == null) Settings.Secure.putString(cr, SAVED_NIGHT_SETTING, ui.nightMode.toString())
+                if (ui.nightMode != wanted) ui.nightMode = wanted
+            } else if (saved != null) {
+                if (ui.nightMode != saved) ui.nightMode = saved
+                Settings.Secure.putString(cr, SAVED_NIGHT_SETTING, null)
+            }
+        } catch (e: Exception) {
+            Log.w(TAG, "could not set the dark mode", e)
         }
     }
 
-    /** Null means "the user's own colors" (Material You). */
-    private fun themeJson(style: String): String? {
-        val json =
-            when (style) {
-                StyleSettings.STYLE_KITKAT ->
-                    JSONObject()
-                        .put("android.theme.customization.system_palette", "FF33B5E5")
-                        .put("android.theme.customization.color_source", "preset")
-                        .put("android.theme.customization.theme_style", "VIBRANT")
-                        .put("android.theme.customization.font", "org.retro.style.kitkat.font")
-                        .put(
-                            "android.theme.customization.icon_pack.android",
-                            "org.retro.style.kitkat.icons.android",
-                        )
-                        .put(
-                            "android.theme.customization.icon_pack.systemui",
-                            "org.retro.style.kitkat.icons.systemui",
-                        )
-                // Material 3 baseline palette instead of wallpaper colors.
-                StyleSettings.STYLE_M3 ->
-                    JSONObject()
-                        .put("android.theme.customization.system_palette", "FF6750A4")
-                        .put("android.theme.customization.color_source", "preset")
-                        .put("android.theme.customization.theme_style", "TONAL_SPOT")
-                else -> return null
+    /** LineageOS's black theme for packs with `black`; elsewhere the user's own value. */
+    private fun applyBlack(cr: ContentResolver, pack: ThemePack) {
+        val saved = Settings.Secure.getString(cr, SAVED_BLACK_SETTING)
+        try {
+            val current = lineageSecure(cr, LINEAGE_BLACK) ?: return
+            if (pack.black) {
+                if (saved == null) Settings.Secure.putString(cr, SAVED_BLACK_SETTING, current)
+                if (current != "1") putLineageSecure(cr, LINEAGE_BLACK, "1")
+            } else if (saved != null) {
+                if (current != saved) putLineageSecure(cr, LINEAGE_BLACK, saved)
+                Settings.Secure.putString(cr, SAVED_BLACK_SETTING, null)
             }
-        return json.put("_applied_timestamp", System.currentTimeMillis()).toString()
+        } catch (e: Exception) {
+            // Not LineageOS: no black theme.
+            Log.i(TAG, "no LineageOS black theme here: ${e.message}")
+        }
     }
 
-    /** What SystemUI draws differently: KitKat skin, its panel color, the panel anchor. */
-    private fun systemUiView(applied: Map<String, String>): List<Any> {
-        val kitKat = applied["style"] == StyleSettings.STYLE_KITKAT
+    /** Null when the provider is missing; "0" when the setting was never written. */
+    private fun lineageSecure(cr: ContentResolver, key: String): String? {
+        val result = cr.call(LINEAGE_SETTINGS, "GET_secure", key, null) ?: return null
+        return result.getString("value") ?: "0"
+    }
+
+    private fun putLineageSecure(cr: ContentResolver, key: String, value: String) {
+        cr.call(LINEAGE_SETTINGS, "PUT_secure", key, Bundle().apply { putString("value", value) })
+    }
+
+    /** What SystemUI draws differently: skin, panel colors, the panel anchor. */
+    private fun systemUiView(applied: Map<String, String>): List<Any?> {
+        val kitKat = applied["style"] == ThemePack.SKIN_KITKAT
         return listOf(
             kitKat,
             kitKat && applied["variant"] == StyleSettings.VARIANT_HOLO_UNIFIED,
             applied["anchor"] == StyleSettings.ANCHOR_BOTTOM_END,
+            applied["panel_color"].orEmpty(),
+            if (kitKat) applied["accent"].orEmpty() else "",
         )
     }
 
     /** What the taskbar draws differently; the bar options only matter on the system bar. */
     private fun launcherView(applied: Map<String, String>): List<Any?> {
         val systemBar = applied["layout"] == StyleSettings.LAYOUT_SYSTEM_BAR
-        val kitKat = applied["style"] == StyleSettings.STYLE_KITKAT
+        val kitKat = applied["style"] == ThemePack.SKIN_KITKAT
         if (!systemBar) return listOf(false, kitKat)
         return listOf(
             true,
@@ -223,9 +292,17 @@ object StyleApplier {
             ?.activityInfo
             ?.packageName
 
+    private fun overlayInstalled(om: OverlayManager, pkg: String, user: UserHandle): Boolean =
+        try {
+            Hidden.overlayInfo(om, pkg, user) != null
+        } catch (e: Exception) {
+            false
+        }
+
     private fun setOverlay(om: OverlayManager, pkg: String, enable: Boolean, user: UserHandle) {
         try {
             if (Hidden.overlayInfo(om, pkg, user) == null) return
+            if (Hidden.isOverlayEnabled(om, pkg, user) == enable) return
             Hidden.setOverlayEnabled(om, pkg, enable, user)
         } catch (e: Exception) {
             Log.w(TAG, "could not ${if (enable) "enable" else "disable"} $pkg", e)
@@ -238,6 +315,9 @@ object StyleApplier {
         } catch (e: Exception) {
             false
         }
+
+    /** #AARRGGBB, the form SystemUI and Launcher3 parse back with Color.parseColor. */
+    fun hex(color: Int): String = "#%08X".format(color)
 
     fun format(values: Map<String, String>): String =
         values.entries.joinToString(";") { "${it.key}=${it.value}" }

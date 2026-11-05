@@ -1,0 +1,14 @@
+{
+  "schema": 1,
+  "id": "m3",
+  "name": "Material 3",
+  "summary": "Material 3 with its fixed baseline purple palette instead of wallpaper colors.",
+  "category": "modern",
+  "order": 2,
+  "authors": ["Navotpala Tech"],
+  "palette": {
+    "source": "preset",
+    "seed": "#6750A4",
+    "style": "TONAL_SPOT"
+  }
+}

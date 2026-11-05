@@ -1,0 +1,19 @@
+{
+  "schema": 1,
+  "id": "nord",
+  "name": "Nord",
+  "summary": "Arctic frost blue on Polar Night grey, after the Nord color palette (MIT).",
+  "category": "community",
+  "order": 10,
+  "authors": ["Navotpala Tech"],
+  "palette": {
+    "source": "preset",
+    "seed": "#88C0D0",
+    "style": "TONAL_SPOT"
+  },
+  "night": "dark",
+  "shell": {
+    "panel": "#F22E3440",
+    "bar": "#FF2E3440"
+  }
+}

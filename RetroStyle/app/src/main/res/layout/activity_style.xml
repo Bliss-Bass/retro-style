@@ -29,28 +29,14 @@
                 style="@style/RetroStyle.Section"
                 android:text="@string/section_style" />
 
+            <!-- Filled from the installed theme packs (ThemeCatalog), grouped by category. -->
             <RadioGroup
                 android:id="@+id/style_group"
                 android:layout_width="match_parent"
-                android:layout_height="wrap_content">
-
-                <com.google.android.material.radiobutton.MaterialRadioButton
-                    android:id="@+id/style_material"
-                    style="@style/RetroStyle.Choice"
-                    android:text="@string/style_material" />
-
-                <com.google.android.material.radiobutton.MaterialRadioButton
-                    android:id="@+id/style_m3"
-                    style="@style/RetroStyle.Choice"
-                    android:text="@string/style_m3" />
-
-                <com.google.android.material.radiobutton.MaterialRadioButton
-                    android:id="@+id/style_kitkat"
-                    style="@style/RetroStyle.Choice"
-                    android:text="@string/style_kitkat" />
-            </RadioGroup>
+                android:layout_height="wrap_content" />
 
             <TextView
+                android:id="@+id/variant_section"
                 style="@style/RetroStyle.Section"
                 android:text="@string/section_variant" />
 

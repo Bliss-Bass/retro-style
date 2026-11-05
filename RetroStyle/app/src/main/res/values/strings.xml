@@ -1,13 +1,13 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">UI style</string>
-    <string name="app_summary">Material You or KitKat, taskbar or tablet system bar</string>
+    <string name="app_summary">Themes from every Android era, taskbar or tablet system bar</string>
     <string name="navigate_up">Navigate up</string>
 
     <string name="section_style">Style</string>
-    <string name="style_material">Material You (colors from your wallpaper)</string>
-    <string name="style_m3">Material 3 (fixed colors)</string>
-    <string name="style_kitkat">KitKat (Holo)</string>
+    <string name="category_modern">Today\'s Android</string>
+    <string name="category_android">Android through the years</string>
+    <string name="category_community">ROM and community classics</string>
 
     <string name="section_variant">KitKat panels</string>
     <string name="variant_kitkat_stock">KitKat stock (black)</string>
@@ -34,5 +34,5 @@
     <string name="anchor_bottom_end">From the tray, bottom right</string>
 
     <string name="hide_status_bar">Hide the top status bar on the tablet system bar</string>
-    <string name="footer">The KitKat style always hides the top status bar on the tablet system bar. Changes apply right away; open apps restyle when they restart.</string>
+    <string name="footer">Styles with the KitKat panels always hide the top status bar on the tablet system bar. Some styles also switch dark mode on or off; styles that leave it alone, like Material You, give you back your own setting. Changes apply right away; open apps restyle when they restart.</string>
 </resources>

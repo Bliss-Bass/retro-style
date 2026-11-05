@@ -1,0 +1,18 @@
+{
+  "schema": 1,
+  "id": "black",
+  "name": "Pitch Black",
+  "summary": "The classic ROM dark theme: pure black backgrounds for OLED screens, with your wallpaper colors.",
+  "category": "community",
+  "order": 1,
+  "authors": ["Navotpala Tech"],
+  "palette": {
+    "source": "wallpaper"
+  },
+  "night": "dark",
+  "black": true,
+  "shell": {
+    "panel": "#F5000000",
+    "bar": "#FF000000"
+  }
+}

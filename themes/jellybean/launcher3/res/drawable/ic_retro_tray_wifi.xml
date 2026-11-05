@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- AOSP 4.1 tablet Wi-Fi bars; the tray sets the level (0-4). -->
+<level-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:maxLevel="0" android:drawable="@drawable/jellybean_tray_wifi_0" />
+    <item android:maxLevel="1" android:drawable="@drawable/jellybean_tray_wifi_1" />
+    <item android:maxLevel="2" android:drawable="@drawable/jellybean_tray_wifi_2" />
+    <item android:maxLevel="3" android:drawable="@drawable/jellybean_tray_wifi_3" />
+    <item android:maxLevel="4" android:drawable="@drawable/jellybean_tray_wifi_4" />
+</level-list>

@@ -1,0 +1,32 @@
+{
+  "$schema": "../theme.schema.json",
+  "schema": 1,
+  "id": "my_theme",
+  "name": "My Theme",
+  "summary": "One sentence people see under the name in Settings > System > UI style.",
+  "category": "community",
+  "order": 50,
+  "authors": ["Your Name"],
+  "palette": {
+    "source": "preset",
+    "seed": "#33B5E5",
+    "style": "TONAL_SPOT"
+  },
+  "night": "system",
+  "black": false,
+  "font": {
+    "body": "sans-serif",
+    "body_medium": "sans-serif-medium",
+    "headline": "sans-serif",
+    "headline_medium": "sans-serif-medium"
+  },
+  "widgets": "default",
+  "shape": {
+    "corner": "8dp"
+  },
+  "shell": {
+    "skin": "stock",
+    "layout": "stock",
+    "bar_apps": true
+  }
+}

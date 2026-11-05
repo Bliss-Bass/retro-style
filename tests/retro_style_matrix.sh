@@ -36,6 +36,7 @@ if ! pm path org.retro.style >/dev/null 2>&1; then
 	exit 2
 fi
 
+UI_NIGHT=$(cmd uimode night 2>/dev/null)
 KEYS="retro_ui_style retro_ui_layout retro_panel_anchor retro_ui_style_variant retro_ui_hide_status_bar retro_ui_bar_apps retro_ui_bar_apps_gravity retro_ui_bar_buttons"
 SAVED=""
 for k in $KEYS; do SAVED="$SAVED $k=$(secure "$k")"; done
@@ -47,6 +48,26 @@ apply_and_wait() {
 
 # The resolved style the app wrote for SystemUI and Launcher3.
 applied() { secure retro_ui_applied | tr ';' '\n' | sed -n "s/^$1=//p"; }
+
+# Installed theme packs (themes/<id>/theme.json, installed by the build).
+PACK_DIR=/product/etc/retro-style/themes
+PACKS=$(ls "$PACK_DIR" 2>/dev/null | sed -n 's/\.json$//p')
+pack_json() { tr -d '\n ' <"$PACK_DIR/$1.json" 2>/dev/null; }
+# The pack's shell skin as the app writes it: kitkat, else material (the stock skin).
+pack_skin() { pack_json "$1" | grep -q '"skin":"kitkat"' && echo kitkat || echo material; }
+# The pack's Monet seed without '#', empty for wallpaper colors.
+pack_seed() { pack_json "$1" | grep -q '"source":"preset"' && pack_json "$1" | sed -n 's/.*"seed":"#\([0-9A-Fa-f]*\)".*/\1/p'; }
+# Every pack's switched overlays: on for [1], off for the others.
+check_pack_overlays() {
+	for p in $PACKS; do
+		want=0
+		[ "$p" = "$1" ] && want=1
+		for t in android systemui settings launcher3; do
+			cmd overlay list 2>/dev/null | grep -q " org\.retro\.theme\.$p\.$t\$" || continue
+			[ "$(overlay_on "org.retro.theme.$p.$t")" = "$want" ] || fail "overlay org.retro.theme.$p.$t is not $want"
+		done
+	done
+}
 
 # One combination: style layout anchor variant hide apps gravity buttons
 n=0
@@ -75,8 +96,11 @@ run_combo() {
 	put retro_ui_hide_status_bar "$hide"
 	apply_and_wait
 
-	# The applied style SystemUI and Launcher3 read.
-	[ "$(applied style)" = "$style" ] || fail "applied style=$(applied style)"
+	# The applied style SystemUI and Launcher3 read: the pack id in `theme`, its shell skin in
+	# `style`.
+	[ "$(applied theme)" = "$style" ] || fail "applied theme=$(applied theme)"
+	skin=$(applied style)
+	[ "$skin" = "$(pack_skin "$style")" ] || fail "applied style (skin)=$skin"
 	[ "$(applied layout)" = "$layout" ] || fail "applied layout=$(applied layout)"
 	want_anchor=$anchor
 	[ -z "$want_anchor" ] && { [ "$layout" = system_bar ] && want_anchor=bottom_end || want_anchor=top_end; }
@@ -87,17 +111,16 @@ run_combo() {
 	[ "$want_buttons" = none ] && want_buttons=""
 	[ -z "$buttons" ] || [ "$(applied bar_buttons)" = "$want_buttons" ] || fail "bar buttons not applied"
 
-	# Overlays.
-	want_kk=0
-	[ "$style" = kitkat ] && want_kk=1
-	[ "$(overlay_on org.retro.style.kitkat.android)" = "$want_kk" ] || fail "kitkat overlay state wrong"
+	# Overlays: only the chosen pack's org.retro.theme overlays are on.
+	check_pack_overlays "$style"
 	want_sb=0
-	[ "$layout" = system_bar ] && { [ "$style" = kitkat ] || [ "$hide" = 1 ]; } && want_sb=1
+	[ "$layout" = system_bar ] && { [ "$skin" = kitkat ] || [ "$hide" = 1 ]; } && want_sb=1
 	[ "$(overlay_on org.retro.layout.systembar.android)" = "$want_sb" ] || fail "status bar overlay state wrong"
-	case "$(secure theme_customization_overlay_packages)" in
-	*FF33B5E5*) [ "$style" = kitkat ] || fail "Holo palette left on" ;;
-	*) [ "$style" = kitkat ] && fail "no Holo palette" ;;
-	esac
+	seed=$(pack_seed "$style")
+	if [ -n "$seed" ]; then
+		secure theme_customization_overlay_packages | grep -qi "FF$seed" ||
+			fail "theme JSON lacks the pack's seed $seed"
+	fi
 
 	# Stability: both processes up and not restarting.
 	sui=$(pid_of com.android.systemui)
@@ -147,6 +170,9 @@ run_combo() {
 
 STYLES="material m3 kitkat"
 [ "$MODE" = quick ] && STYLES="material kitkat"
+for style in $STYLES; do
+	[ -f "$PACK_DIR/$style.json" ] || { echo "pack $style is not installed" >&2; exit 2; }
+done
 
 # 1. Style x layout x anchor x status bar.
 for style in $STYLES; do
@@ -177,7 +203,14 @@ for style in $STYLES; do
 	run_combo "$style" system_bar "" "" 0 0 "" screenshot
 done
 
-# 4. Rapid switching (no settle between applies).
+# 4. Every installed pack, on the system bar (where the most shell options apply).
+if [ "$MODE" != quick ]; then
+	for pack in $PACKS; do
+		run_combo "$pack" system_bar "" "" 0 "" "" ""
+	done
+fi
+
+# 5. Rapid switching (no settle between applies).
 SETTLE_SAVED=$SETTLE
 SETTLE=0
 for style in kitkat material kitkat m3; do
@@ -187,9 +220,11 @@ done
 SETTLE=$SETTLE_SAVED
 run_combo material system_bar "" "" 0 1 center none
 
-# Restore.
+# Restore. Applying the saved pack also gives back the user's dark mode when that pack leaves
+# it alone; the check below catches anything left over.
 for kv in $SAVED; do put "${kv%%=*}" "${kv#*=}"; done
 apply_and_wait
+[ "$(cmd uimode night 2>/dev/null)" = "$UI_NIGHT" ] || echo "note: dark mode is now '$(cmd uimode night)', was '$UI_NIGHT'"
 
 {
 	echo "combinations: $n, failed: $fails"

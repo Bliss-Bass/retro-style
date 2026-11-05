@@ -1,0 +1,94 @@
+From 5ceeedff2a4ba4ec50c4d583d6a1ab85514ea904 Mon Sep 17 00:00:00 2001
+From: Jon West <electrikjesus@gmail.com>
+Date: Wed, 4 Nov 2026 19:42:16 -0500
+Subject: [PATCH] SystemUI: Use the theme pack's shade panel and accent colors
+
+retro-style theme packs can set a shade panel background and, for the
+KitKat skin, an accent color. The RetroStyle app writes them to
+retro_ui_applied as panel_color and accent (#AARRGGBB). The panel color
+applies to both skins; the KitKat skin keeps its variant colors and Holo
+blue when the pack sets none.
+---
+ .../shade/ui/composable/OverlayShade.kt        |  1 +
+ .../qs/panels/ui/compose/KitKatTileList.kt     |  4 ++--
+ .../shade/shared/model/RetroUiStyle.kt         | 18 ++++++++++++++++--
+ 3 files changed, 19 insertions(+), 4 deletions(-)
+
+diff --git a/packages/SystemUI/compose/features/src/com/android/systemui/shade/ui/composable/OverlayShade.kt b/packages/SystemUI/compose/features/src/com/android/systemui/shade/ui/composable/OverlayShade.kt
+index 3f35abdf496f..3f72784cc4d0 100644
+--- a/packages/SystemUI/compose/features/src/com/android/systemui/shade/ui/composable/OverlayShade.kt
++++ b/packages/SystemUI/compose/features/src/com/android/systemui/shade/ui/composable/OverlayShade.kt
+@@ -232,6 +232,7 @@ object OverlayShade {
+         @ReadOnlyComposable
+         fun panelBackground(transparencyEnabled: Boolean): Color {
+             if (RetroUiStyle.isKitKat) return Color(RetroUiStyle.kitKatPanelColor)
++            RetroUiStyle.panelColor?.let { return Color(it) }
+             return Color(
+                 shadePanel(
+                     context = LocalContext.current,
+diff --git a/packages/SystemUI/src/com/android/systemui/qs/panels/ui/compose/KitKatTileList.kt b/packages/SystemUI/src/com/android/systemui/qs/panels/ui/compose/KitKatTileList.kt
+index d887249a28bd..ad94771eac46 100644
+--- a/packages/SystemUI/src/com/android/systemui/qs/panels/ui/compose/KitKatTileList.kt
++++ b/packages/SystemUI/src/com/android/systemui/qs/panels/ui/compose/KitKatTileList.kt
+@@ -55,7 +55,7 @@ import com.android.systemui.qs.tileimpl.QSTileImpl
+ import com.android.systemui.res.R
+ import com.android.systemui.shade.shared.model.RetroUiStyle
+ 
+-private val HoloBlue = Color(RetroUiStyle.HOLO_BLUE)
++private val HoloBlue = Color(RetroUiStyle.accent)
+ private val HoloDivider = Color(0x33FFFFFF)
+ private val SecondaryText = Color(0xFFBEBEBE)
+ 
+@@ -69,7 +69,7 @@ fun KitKatQuickSettingsHeader(modifier: Modifier = Modifier) {
+                     format12Hour = "h:mm a"
+                     format24Hour = "H:mm"
+                     textSize = 44f
+-                    setTextColor(RetroUiStyle.HOLO_BLUE)
++                    setTextColor(RetroUiStyle.accent)
+                     typeface = Typeface.create("sans-serif-thin", Typeface.NORMAL)
+                 }
+             }
+diff --git a/packages/SystemUI/src/com/android/systemui/shade/shared/model/RetroUiStyle.kt b/packages/SystemUI/src/com/android/systemui/shade/shared/model/RetroUiStyle.kt
+index 24aee70feaaf..898aa5ae12b2 100644
+--- a/packages/SystemUI/src/com/android/systemui/shade/shared/model/RetroUiStyle.kt
++++ b/packages/SystemUI/src/com/android/systemui/shade/shared/model/RetroUiStyle.kt
+@@ -9,20 +9,34 @@
+ 
+ package com.android.systemui.shade.shared.model
+ 
++import android.graphics.Color
++
+ /**
+  * The UI style SystemUI's shade panels are drawn in, from [RetroUiApplied].
+  *
+  * `style=kitkat` swaps the Quick Settings grid for KitKat tablet rows and uses Holo panel colors;
+- * `variant` picks `holo_unified` (navy) or `kitkat_stock` (black).
++ * `variant` picks `holo_unified` (navy) or `kitkat_stock` (black). A theme pack may set its own
++ * `panel_color` (any skin) and `accent` (the KitKat skin's clock and switches), as #AARRGGBB.
+  */
+ object RetroUiStyle {
+     val isKitKat: Boolean by lazy { RetroUiApplied["style"] == "kitkat" }
+ 
++    /** Panel background the theme pack sets, or null for the skin's own. */
++    val panelColor: Int? by lazy { color(RetroUiApplied["panel_color"]) }
++
+     /** Panel background (ARGB) for the KitKat style. */
+     val kitKatPanelColor: Int by lazy {
+-        if (RetroUiApplied["variant"] == "holo_unified") 0xCC1A1F2E.toInt() else 0xF0000000.toInt()
++        panelColor
++            ?: if (RetroUiApplied["variant"] == "holo_unified") 0xCC1A1F2E.toInt()
++            else 0xF0000000.toInt()
+     }
+ 
++    /** Clock and switch color of the KitKat skin: the pack's accent, else Holo blue. */
++    val accent: Int by lazy { color(RetroUiApplied["accent"]) ?: HOLO_BLUE }
++
+     /** Holo blue, the KitKat accent. */
+     const val HOLO_BLUE: Int = 0xFF33B5E5.toInt()
++
++    private fun color(value: String?): Int? =
++        value?.takeIf { it.isNotEmpty() }?.let { runCatching { Color.parseColor(it) }.getOrNull() }
+ }
+-- 
+2.43.0
+
