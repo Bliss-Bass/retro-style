@@ -59,6 +59,9 @@ runtime_resource_overlay {
 runtime_resource_overlay {
     name: "RetroTheme_jellybean_launcher3",
     resource_dirs: ["launcher3/res", "launcher3/res_gen"],
+    // aapt2 links the second folder as an overlay of the first; let it add the
+    // names the first one doesn't have.
+    aaptflags: ["--auto-add-overlay"],
     manifest: "launcher3/AndroidManifest.xml",
     // /product overlays may replace resources of targets without <overlayable>.
     product_specific: true,

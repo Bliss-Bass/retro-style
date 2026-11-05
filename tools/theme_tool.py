@@ -461,6 +461,14 @@ def android_bp(pack, targets, values_dir):
             "runtime_resource_overlay {",
             f'    name: "{pack.module(target)}",',
             f"    resource_dirs: [{', '.join(json.dumps(d) for d in dirs)}],",
+        ]
+        if len(dirs) > 1:
+            out += [
+                "    // aapt2 links the second folder as an overlay of the first; let it add the",
+                "    // names the first one doesn't have.",
+                '    aaptflags: ["--auto-add-overlay"],',
+            ]
+        out += [
             f'    manifest: "{target}/AndroidManifest.xml",',
             "    // /product overlays may replace resources of targets without <overlayable>.",
             "    product_specific: true,",
@@ -654,14 +662,17 @@ def link_overlay(aapt2, framework, pack, target, res_dirs, work):
         out = os.path.join(compiled, f"{len(flats)}.zip")
         subprocess.run([aapt2, "compile", "--dir", res, "-o", out], check=True, capture_output=True)
         flats.append(out)
-    # The flags Soong's runtime_resource_overlay links with (build/soong/java/rro.go).
+    # The flags Soong's runtime_resource_overlay links with (RuntimeResourceOverlay in
+    # build/soong/java/rro.go): the first folder is the base, later ones are -R overlays, and
+    # --auto-add-overlay only comes from the module's aaptflags (android_bp adds it).
     cmd = [
         aapt2, "link", "-o", os.path.join(compiled, "overlay.apk"), "-I", framework,
         "--manifest", os.path.join(pack.dir, target, "AndroidManifest.xml"),
-        "--min-sdk-version", "36", "--target-sdk-version", "36", "--no-auto-version",
-        "--auto-add-overlay", "--keep-raw-values", "--no-resource-deduping",
-        "--no-resource-removal",
+        "--min-sdk-version", "36", "--target-sdk-version", "36",
+        "--no-resource-deduping", "--no-resource-removal",
     ]
+    if len(flats) > 1:
+        cmd.append("--auto-add-overlay")
     for i, f in enumerate(flats):
         cmd += (["-R", f] if i else [f])
     return subprocess.run(cmd, capture_output=True, text=True)
