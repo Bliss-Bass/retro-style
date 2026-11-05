@@ -44,6 +44,7 @@ object StyleApplier {
     private const val SAVED_BLACK_SETTING = "retro_ui_style_saved_black"
     private const val DUAL_SHADE_SETTING = "dual_shade"
     private const val SETUP_COMPLETE_SETTING = "user_setup_complete"
+    private const val SETTLE_BEFORE_RESTART_MS = 2_000L
     private const val DISMISS_TRIES = 5
     private const val DISMISS_POLL_MS = 600L
 
@@ -55,6 +56,7 @@ object StyleApplier {
     private const val COLOR_SOURCE = "android.theme.customization.color_source"
     private const val THEME_STYLE = "android.theme.customization.theme_style"
     private const val FONT = "android.theme.customization.font"
+    private const val TIMESTAMP = "_applied_timestamp"
     private val PALETTE_KEYS =
         listOf(
             PALETTE,
@@ -116,17 +118,20 @@ object StyleApplier {
             )
         val previous = parse(Settings.Secure.getString(cr, APPLIED_SETTING))
 
-        // Overlays: the chosen pack's on, every other pack's off.
+        // Overlays: the chosen pack's on, every other pack's off. Every change here, in the theme
+        // JSON or in dark mode makes apps recreate their windows ([resourcesChanged]).
         val om = context.getSystemService(OverlayManager::class.java)
         val user = Process.myUserHandle()
+        var resourcesChanged = false
         for (other in ThemeCatalog.packs()) {
             for (target in ThemeCatalog.SWITCHED_TARGETS) {
-                setOverlay(om, other.overlay(target), other.id == pack.id, user)
+                resourcesChanged =
+                    setOverlay(om, other.overlay(target), other.id == pack.id, user) or resourcesChanged
             }
         }
         val hideStatusBar = systemBar && (pack.isKitKatSkin || StyleSettings.hideStatusBar(cr))
         val statusBarChanged = isOverlayEnabled(om, STATUS_BAR_OVERLAY, user) != hideStatusBar
-        setOverlay(om, STATUS_BAR_OVERLAY, hideStatusBar, user)
+        resourcesChanged = setOverlay(om, STATUS_BAR_OVERLAY, hideStatusBar, user) or resourcesChanged
         if (systemBar) {
             try {
                 Hidden.setOverlayExclusiveInCategory(om, THREE_BUTTON_NAV_OVERLAY, user)
@@ -135,8 +140,8 @@ object StyleApplier {
             }
         }
 
-        applyThemeJson(context, pack)
-        applyNightMode(context, pack)
+        resourcesChanged = applyThemeJson(context, pack) or resourcesChanged
+        resourcesChanged = applyNightMode(context, pack) or resourcesChanged
         applyBlack(cr, pack)
         Settings.Secure.putString(cr, APPLIED_SETTING, format(applied))
 
@@ -154,6 +159,12 @@ object StyleApplier {
             // PIN, pattern or password, take it down again: a style change isn't a reason to lock.
             val km = context.getSystemService(KeyguardManager::class.java)
             unlockAfter = setupComplete && !km.isKeyguardLocked && !km.isDeviceSecure
+            if (resourcesChanged) {
+                // Apps are recreating their windows for the new resources. A SystemUI restart in
+                // the middle removes their desktop tasks under them, and they crash resuming
+                // (BadTokenException), so let them finish first.
+                Thread.sleep(SETTLE_BEFORE_RESTART_MS)
+            }
             Log.i(TAG, "skin, panel colors, panel anchor or status bar changed; restarting SystemUI")
             restart(context, am, SYSTEMUI)
         }
@@ -178,11 +189,13 @@ object StyleApplier {
     /** Dismisses the insecure lockscreen a SystemUI restart brought up; tries for a few seconds. */
     private fun dismissLockscreen(context: Context) {
         val km = context.getSystemService(KeyguardManager::class.java)
+        var dismissed = false
         repeat(DISMISS_TRIES) {
             if (km.isDeviceSecure) return
             if (km.isKeyguardLocked) {
                 try {
                     Hidden.dismissKeyguard()
+                    dismissed = true
                 } catch (e: Exception) {
                     Log.w(TAG, "could not dismiss the lockscreen", e)
                     return
@@ -190,18 +203,19 @@ object StyleApplier {
             }
             Thread.sleep(DISMISS_POLL_MS)
             if (!km.isKeyguardLocked) {
-                Log.i(TAG, "dismissed the lockscreen the SystemUI restart showed")
+                if (dismissed) Log.i(TAG, "dismissed the lockscreen the SystemUI restart showed")
                 return
             }
         }
+        Log.w(TAG, "the lockscreen is still showing after the SystemUI restart")
     }
 
     /**
      * Writes the pack's theme JSON, which SystemUI turns into Monet palette, font and icon pack
      * overlays. The user's own JSON is saved first and is the base: a pack that sets nothing here
-     * (wallpaper colors, no font or icons) restores it.
+     * (wallpaper colors, no font or icons) restores it. Returns whether the JSON changed.
      */
-    fun applyThemeJson(context: Context, pack: ThemePack) {
+    fun applyThemeJson(context: Context, pack: ThemePack): Boolean {
         val cr = context.contentResolver
         val om = context.getSystemService(OverlayManager::class.java)
         val user = Process.myUserHandle()
@@ -212,13 +226,14 @@ object StyleApplier {
                 pack.overlay(target).takeIf(installed)?.let { category to it }
             }
         val saved = Settings.Secure.getString(cr, SAVED_THEME_SETTING)
+        val current = Settings.Secure.getString(cr, THEME_SETTING)
 
         if (pack.seed == null && font == null && icons.isEmpty()) {
-            if (saved != null) {
-                Settings.Secure.putString(cr, THEME_SETTING, if (saved == "{}") null else saved)
-                Settings.Secure.putString(cr, SAVED_THEME_SETTING, null)
-            }
-            return
+            if (saved == null) return false
+            val own = if (saved == "{}") null else saved
+            Settings.Secure.putString(cr, THEME_SETTING, own)
+            Settings.Secure.putString(cr, SAVED_THEME_SETTING, null)
+            return !sameTheme(current, own)
         }
         val own = saved ?: Settings.Secure.getString(cr, THEME_SETTING) ?: "{}"
         if (saved == null) Settings.Secure.putString(cr, SAVED_THEME_SETTING, own)
@@ -231,12 +246,26 @@ object StyleApplier {
         }
         font?.let { json.put(FONT, it) }
         icons.forEach { (category, pkg) -> json.put(category, pkg) }
-        json.put("_applied_timestamp", System.currentTimeMillis())
+        if (sameTheme(current, json.toString())) return false
+        json.put(TIMESTAMP, System.currentTimeMillis())
         Settings.Secure.putString(cr, THEME_SETTING, json.toString())
+        return true
     }
 
-    /** Forces the pack's dark or light mode; packs that leave it alone restore the user's own. */
-    private fun applyNightMode(context: Context, pack: ThemePack) {
+    /** Two theme JSONs ask SystemUI for the same overlays (the timestamp aside). */
+    private fun sameTheme(a: String?, b: String?): Boolean {
+        fun keys(value: String?): Map<String, Any?> {
+            val json = runCatching { JSONObject(value ?: "{}") }.getOrDefault(JSONObject())
+            return json.keys().asSequence().filter { it != TIMESTAMP }.associateWith { json.opt(it) }
+        }
+        return keys(a) == keys(b)
+    }
+
+    /**
+     * Forces the pack's dark or light mode; packs that leave it alone restore the user's own.
+     * Returns whether the mode changed.
+     */
+    private fun applyNightMode(context: Context, pack: ThemePack): Boolean {
         val cr = context.contentResolver
         val ui = context.getSystemService(UiModeManager::class.java)
         val saved = Settings.Secure.getString(cr, SAVED_NIGHT_SETTING)?.toIntOrNull()
@@ -247,15 +276,18 @@ object StyleApplier {
                 else -> null
             }
         try {
+            val before = ui.nightMode
             if (wanted != null) {
-                if (saved == null) Settings.Secure.putString(cr, SAVED_NIGHT_SETTING, ui.nightMode.toString())
-                if (ui.nightMode != wanted) ui.nightMode = wanted
+                if (saved == null) Settings.Secure.putString(cr, SAVED_NIGHT_SETTING, before.toString())
+                if (before != wanted) ui.nightMode = wanted
             } else if (saved != null) {
-                if (ui.nightMode != saved) ui.nightMode = saved
+                if (before != saved) ui.nightMode = saved
                 Settings.Secure.putString(cr, SAVED_NIGHT_SETTING, null)
             }
+            return ui.nightMode != before
         } catch (e: Exception) {
             Log.w(TAG, "could not set the dark mode", e)
+            return false
         }
     }
 
@@ -353,13 +385,16 @@ object StyleApplier {
             false
         }
 
-    private fun setOverlay(om: OverlayManager, pkg: String, enable: Boolean, user: UserHandle) {
+    /** Returns whether the overlay was switched. */
+    private fun setOverlay(om: OverlayManager, pkg: String, enable: Boolean, user: UserHandle): Boolean {
         try {
-            if (Hidden.overlayInfo(om, pkg, user) == null) return
-            if (Hidden.isOverlayEnabled(om, pkg, user) == enable) return
+            if (Hidden.overlayInfo(om, pkg, user) == null) return false
+            if (Hidden.isOverlayEnabled(om, pkg, user) == enable) return false
             Hidden.setOverlayEnabled(om, pkg, enable, user)
+            return true
         } catch (e: Exception) {
             Log.w(TAG, "could not ${if (enable) "enable" else "disable"} $pkg", e)
+            return false
         }
     }
 
