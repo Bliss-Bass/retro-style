@@ -218,7 +218,8 @@ pack chooses from what they offer:
 - `bar_home`: the tablet system bar's background on the home screen: `solid` (the `bar` color),
   `gradient` (a shadow fading to dark at the bottom, as Android 4.x drew behind its navigation
   buttons), `translucent` (the `bar` color at half opacity) or `transparent` (none). Leave it out
-  for the launcher's own. Apps always keep the launcher's own background.
+  for the launcher's own. Apps always keep the launcher's own background. A build can override
+  every pack's choice with `RETRO_STYLE_BAR_BACKGROUND`.
 
 A new skin (a Gingerbread-style shade, say) is code, not a theme: it needs a patch. Packs can
 only pick skins that exist.

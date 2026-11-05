@@ -14,6 +14,9 @@
 #   RETRO_STYLE_THEMES := material m3 kitkat   # packs to ship (default: all of them)
 #   RETRO_STYLE_BLACK := on             # pure black dark mode for every pack: on | off
 #                                       # (default: what each pack sets; LineageOS only)
+#   RETRO_STYLE_BAR_BACKGROUND := gradient  # tablet system bar on the home screen: stock |
+#                                       # solid | gradient | translucent | transparent
+#                                       # (default: what each pack sets, else stock)
 #   $(call inherit-product, vendor/retro-style/retro_style.mk)
 #
 # The defaults only apply until the user picks something in Settings > System > UI style.
@@ -58,6 +61,11 @@ ifeq ($(filter-out on off,$(RETRO_STYLE_BLACK)),)
 else
 $(error RETRO_STYLE_BLACK must be on or off (got '$(RETRO_STYLE_BLACK)'))
 endif
+RETRO_BAR_BACKGROUNDS := stock solid gradient translucent transparent
+ifeq ($(filter-out $(RETRO_BAR_BACKGROUNDS),$(RETRO_STYLE_BAR_BACKGROUND)),)
+else
+$(error RETRO_STYLE_BAR_BACKGROUND must be one of $(RETRO_BAR_BACKGROUNDS) (got '$(RETRO_STYLE_BAR_BACKGROUND)'))
+endif
 
 # Read-only properties in /system_ext/build.prop. The RetroStyle app reads them; any app may
 # read an ro.* property, and nothing writes them.
@@ -67,6 +75,10 @@ PRODUCT_SYSTEM_EXT_PROPERTIES += \
 ifneq ($(RETRO_STYLE_BLACK),)
 PRODUCT_SYSTEM_EXT_PROPERTIES += \
     ro.retro.ui_black.default=$(if $(filter on,$(RETRO_STYLE_BLACK)),1,0)
+endif
+ifneq ($(RETRO_STYLE_BAR_BACKGROUND),)
+PRODUCT_SYSTEM_EXT_PROPERTIES += \
+    ro.retro.ui_bar_background.default=$(RETRO_STYLE_BAR_BACKGROUND)
 endif
 
 # --- The Settings page and the code that applies the style ------------------------------------

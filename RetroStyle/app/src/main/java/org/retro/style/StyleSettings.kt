@@ -128,9 +128,13 @@ object StyleSettings {
             else -> pack(cr).black
         }
 
-    /** The system bar's home screen background: the user's, else the pack's (shell.bar_home). */
+    /**
+     * The system bar's home screen background: the user's, else the build's
+     * (`ro.retro.ui_bar_background.default`), else the pack's (shell.bar_home), else stock.
+     */
     fun barBackground(cr: ContentResolver): String =
         get(cr, KEY_BAR_BACKGROUND)?.takeIf { it in BAR_BACKGROUNDS }
+            ?: SystemProperties.get("ro.retro.ui_bar_background.default", "").takeIf { it in BAR_BACKGROUNDS }
             ?: pack(cr).barHome?.takeIf { it in BAR_BACKGROUNDS }
             ?: BAR_BG_STOCK
 }
