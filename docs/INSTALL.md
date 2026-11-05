@@ -8,8 +8,8 @@ You touch four places:
 
 | Where | What | Step |
 |---|---|---|
-| `vendor/retro-style/` | this repo | 1 |
-| `frameworks/base`, `packages/apps/Launcher3` | patches (SystemUI and the taskbar) | 2 |
+| `vendor/retro-style/`, `vendor/dual-shade/` | this repo and the Dual Shade repo it needs | 1 |
+| `frameworks/base`, `packages/apps/Launcher3` | patches from both repos (SystemUI and the taskbar) | 2 |
 | your device makefile | one `inherit-product` line | 3 |
 | nothing else | the build picks up the overlays, the app and the flags from the makefile | 4 |
 
@@ -38,7 +38,14 @@ git clone <retro-style repo URL> vendor/retro-style
 
 then run `repo sync vendor/retro-style`.
 
-**Check:** `ls vendor/retro-style/retro_style.mk` prints the file.
+**Also get vendor/dual-shade.** retro-style's panels are SystemUI's Dual Shade, which
+[dual-shade](../../dual-shade) switches on and fixes (build flags, an overlay, five SystemUI
+patches). Put it at `vendor/dual-shade` the same way (clone it, or add a second `<project>` to the
+local manifest). `retro_style.mk` inherits it and stops the build with a clear message if it's
+missing.
+
+**Check:** `ls vendor/retro-style/retro_style.mk vendor/dual-shade/dual_shade.mk` prints both
+files.
 
 ## 2. Apply the patches
 
@@ -46,7 +53,8 @@ Most of retro-style is additive (an app, overlays, flag values), but two project
 changes:
 
 - `frameworks/base` (SystemUI): panels that open from the tray, the KitKat Quick Settings skin, the
-  status icons the tray shows, and four fixes Dual Shade needs on large screens.
+  status icons the tray shows, and the pack colors. dual-shade adds its own SystemUI series: the
+  fixes Dual Shade needs on large screens.
 - `packages/apps/Launcher3` (the taskbar): the tablet system bar layout and its tray.
 
 [PATCHES.md](PATCHES.md) explains every patch.
@@ -60,6 +68,7 @@ repo start retro-style frameworks/base packages/apps/Launcher3
 See which patches are missing, try them in a throwaway worktree, then apply:
 
 ```sh
+vendor/dual-shade/tools/apply-patches.sh check && vendor/dual-shade/tools/apply-patches.sh apply
 vendor/retro-style/tools/apply-patches.sh status
 vendor/retro-style/tools/apply-patches.sh check
 vendor/retro-style/tools/apply-patches.sh apply
@@ -105,20 +114,17 @@ What `retro_style.mk` adds to your product:
 - one `RetroTheme_<id>` module per pack: its `theme.json` in
   `/product/etc/retro-style/themes/` and its overlays in `/product/overlay`
   (`themes/<id>/Android.bp`)
-- the system bar and Dual Shade overlays in `/product/overlay` (`overlays/*/Android.bp`)
-- `PRODUCT_RELEASE_CONFIG_MAPS += vendor/retro-style/config/aconfig/release_config_map.textproto`,
-  which sets two SystemUI aconfig flags for Dual Shade (see
-  [HOW_IT_WORKS.md](HOW_IT_WORKS.md#dual-shade-and-aconfig))
+- the system bar overlay in `/product/overlay` (`overlays/*/Android.bp`)
+- everything `vendor/dual-shade/dual_shade.mk` adds: the Dual Shade overlay and the release config
+  map that sets two SystemUI aconfig flags (see dual-shade's README)
 
 **Check:** `get_build_var PRODUCT_PACKAGES | tr ' ' '\n' | grep -i retro` (after `breakfast`) lists
 `RetroStyle`, the `RetroTheme_*` packs and the layout overlays.
 
 ### If your tree doesn't build the bp4a release
 
-LineageOS 23.2 builds release `bp4a` (`breakfast` reads it from
-`vendor/lineage/vars/aosp_target_release`). The flag values are attached to that release in
-`config/aconfig/release_configs/bp4a.textproto`. If you lunch a different release, copy that file
-to `release_configs/<release>.textproto` and change its `name`.
+The Dual Shade flag values are attached to the `bp4a` release in vendor/dual-shade; its README
+explains how to add them to another release.
 
 ## 4. Build
 
@@ -156,11 +162,12 @@ For a full check, run the on-device matrix ([TESTING.md](TESTING.md)).
 | `apply-patches.sh check` fails | Upstream moved code the patch touches. Apply by hand with `git am --3way`, resolve the conflict, and regenerate the patch ([PATCHES.md](PATCHES.md#updating-a-patch)). |
 | Build error: `RETRO_STYLE_TYPE must be ...` or `RETRO_STYLE_THEMES has packs that aren't in ...` | A typo, or a default pack you don't ship; the allowed ids are in the message. |
 | A pack is missing from Settings | It isn't in `RETRO_STYLE_THEMES`, or its `Android.bp` is stale: run `tools/theme_tool.py check`. |
-| Build error mentioning `release_config_map` or `aconfig_value_set-retro-style-bp4a` | The repo isn't at `vendor/retro-style`, or your release isn't `bp4a` (see step 3). |
+| Build error: `retro-style needs vendor/dual-shade` | Get dual-shade too (step 1). |
+| Build error mentioning `release_config_map` or `aconfig_value_set-dual-shade-bp4a` | dual-shade isn't at `vendor/dual-shade`, or your release isn't `bp4a` (see its README). |
 | Boot stops with a privapp-permissions error in the log | `privapp-permissions-org.retro.style.xml` didn't install; check `RetroStyle` is in `PRODUCT_PACKAGES` (its `required` pulls the file in). |
 | UI style page missing from Settings | `RetroStyle` isn't installed, or it isn't signed with the platform key (it shares the system user ID, so Android refuses any other signature). |
 | Choosing a style changes colors but not SystemUI or the taskbar | The patches aren't applied, or SystemUI/Launcher3 weren't rebuilt after applying them. |
-| Panels are single full-width shades, not floating panels | The aconfig map isn't in the build (step 3), or the secure setting `dual_shade` is 0 (RetroStyle sets it to 1 at first boot; `adb shell settings put secure dual_shade 1` and reboot). |
+| Panels are single full-width shades, not floating panels | dual-shade's patches or makefile aren't in the build, or the user picked the combined shade on the Shade panels page in Settings (`adb shell settings put secure dual_shade 1` switches back). |
 
 ## Removing it
 

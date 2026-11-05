@@ -1,7 +1,8 @@
-From 5ceeedff2a4ba4ec50c4d583d6a1ab85514ea904 Mon Sep 17 00:00:00 2001
+From 023fcf52d690d0f0b8c3cd9ab41da696bef602f9 Mon Sep 17 00:00:00 2001
 From: Jon West <electrikjesus@gmail.com>
 Date: Wed, 4 Nov 2026 19:42:16 -0500
-Subject: [PATCH] SystemUI: Use the theme pack's shade panel and accent colors
+Subject: [PATCH 5/5] SystemUI: Use the theme pack's shade panel and accent
+ colors
 
 retro-style theme packs can set a shade panel background and, for the
 KitKat skin, an accent color. The RetroStyle app writes them to

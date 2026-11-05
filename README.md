@@ -26,7 +26,8 @@ What you get, all switchable at runtime in **Settings > System > UI style**:
   the middle, and a tray with notifications, status icons, network, battery, volume and the clock
   on the right. Works with every pack.
 - **Dual Shade panels:** Notifications and Quick Settings as floating panels that open from the
-  top right or from the tray at the bottom right.
+  top right or from the tray at the bottom right. Dual Shade itself comes from
+  [vendor/dual-shade](../dual-shade), which retro-style requires.
 - **Session kept:** changing a style restarts SystemUI; your open desktop windows come back where
   they were.
 
@@ -34,21 +35,23 @@ It is meant for large screens (tablets, desktops, x86 PCs) with desktop windowin
 a target.
 
 This repo is also meant as a worked example of how to extend an Android ROM: runtime resource
-overlays, aconfig flags set at build time, a privileged platform app, and patch series for
-frameworks/base and Launcher3. The docs explain each piece as they go.
+overlays, a privileged platform app, and patch series for frameworks/base and Launcher3
+(dual-shade adds aconfig flags set at build time). The docs explain each piece as they go.
 
 ## Requirements
 
 - A LineageOS 23.2 tree (Android 16 QPR2, release `bp4a`). Other AOSP-based Android 16 trees work
   too if their `frameworks/base` and `Launcher3` match closely enough for the patches.
+- [vendor/dual-shade](../dual-shade), for the floating panels.
 - A large-screen device (smallest width 600dp or more), ideally with desktop windowing on.
 - The device's platform key (the build signs RetroStyle with it).
 
 ## Quick start
 
-1. Put this repo at `vendor/retro-style` ([docs/INSTALL.md](docs/INSTALL.md#1-get-the-repo)).
-2. Apply the patches: `vendor/retro-style/tools/apply-patches.sh apply`
-   ([what they do](docs/PATCHES.md)).
+1. Put this repo at `vendor/retro-style` and dual-shade at `vendor/dual-shade`
+   ([docs/INSTALL.md](docs/INSTALL.md#1-get-the-repo)).
+2. Apply both repos' patches: `vendor/dual-shade/tools/apply-patches.sh apply` and
+   `vendor/retro-style/tools/apply-patches.sh apply` ([what they do](docs/PATCHES.md)).
 3. Inherit the product makefile in your device makefile:
    ```make
    RETRO_STYLE_TYPE := kitkat   # optional default pack: any id in themes/ (default: material)
@@ -66,8 +69,7 @@ frameworks/base and Launcher3. The docs explain each piece as they go.
 | `retro_style.mk` | Product makefile to inherit; build defaults and the packages to install |
 | `RetroStyle/` | The UI style page and the code that applies a style (system app; Soong and Gradle builds) |
 | `themes/` | Theme packs (`themes/<id>/theme.json` and their overlays), the template, the JSON Schema and the generated `themes.mk` |
-| `overlays/` | Layout overlays: the tablet system bar and the Dual Shade config |
-| `config/aconfig/` | Build-time aconfig values that turn on Dual Shade, and the release config map that adds them |
+| `overlays/` | Layout overlay: the tablet system bar |
 | `patches/` | `git format-patch` series for `frameworks/base` (SystemUI) and `packages/apps/Launcher3` |
 | `tools/` | `theme_tool.py` (create, generate and check packs), `apply-patches.sh`, an overlay test builder |
 | `tests/` | `retro_style_matrix.sh`, an on-device bug hunt over every option combination and pack |

@@ -100,11 +100,11 @@ PRODUCT_PACKAGES += \
 PRODUCT_PACKAGES += \
     RetroStyleSystemBarFramework
 
-# Dual Shade layout for SystemUI (always on).
-PRODUCT_PACKAGES += \
-    RetroStyleDualShadeSystemUI
+# --- Dual Shade (vendor/dual-shade) -------------------------------------------------------------
 
-# --- Dual Shade aconfig flags (config/aconfig) -------------------------------------------------
-
-PRODUCT_RELEASE_CONFIG_MAPS += \
-    $(RETRO_STYLE_DIR)/config/aconfig/release_config_map.textproto
+# The floating Notifications and Quick Settings panels that the tray opens come from
+# vendor/dual-shade: its flags, overlay and SystemUI fixes. Its patches must be applied too.
+ifeq ($(wildcard vendor/dual-shade/dual_shade.mk),)
+$(error retro-style needs vendor/dual-shade (Dual Shade); see vendor/retro-style/docs/INSTALL.md)
+endif
+$(call inherit-product, vendor/dual-shade/dual_shade.mk)

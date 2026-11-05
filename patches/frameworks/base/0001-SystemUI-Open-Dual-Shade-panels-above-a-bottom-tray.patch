@@ -1,7 +1,7 @@
-From a1f2e6df82bf9d1d7f9b741b44267e23ddc237f3 Mon Sep 17 00:00:00 2001
+From c53cf2e1bfdf2ca43d9c2747580d798418f24bf9 Mon Sep 17 00:00:00 2001
 From: Jon West <electrikjesus@gmail.com>
 Date: Tue, 3 Nov 2026 15:36:00 -0500
-Subject: [PATCH 1/8] SystemUI: Open Dual Shade panels above a bottom tray
+Subject: [PATCH 1/5] SystemUI: Open Dual Shade panels above a bottom tray
 
 With persist.retro.panel_anchor=bottom_end the floating notification and
 quick settings panels anchor to the bottom of the screen, above a taskbar

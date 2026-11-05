@@ -1,9 +1,0 @@
-<?xml version="1.0" encoding="utf-8"?>
-<resources>
-    <!-- Notifications open on the right, next to Quick Settings, like the tray. -->
-    <bool name="config_notificationShadeOnTopEnd">true</bool>
-    <!-- Desktop status bar: clock left, notification and Quick Settings chips right. -->
-    <bool name="config_useDesktopStatusBar">true</bool>
-    <!-- Volume slider in the Quick Settings panel (the volume dialog stays hidden while it shows). -->
-    <bool name="config_enableDesktopAudioTileDetailsView">true</bool>
-</resources>

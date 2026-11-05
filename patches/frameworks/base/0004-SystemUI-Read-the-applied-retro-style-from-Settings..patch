@@ -1,7 +1,7 @@
-From e61b8eba7f609391eb53f9fd33af7981ad6fa4c6 Mon Sep 17 00:00:00 2001
+From 29f081893ac13c1de529bfdd876bc74b4ccdf107 Mon Sep 17 00:00:00 2001
 From: Jon West <electrikjesus@gmail.com>
 Date: Wed, 4 Nov 2026 15:53:03 -0500
-Subject: [PATCH 8/8] SystemUI: Read the applied retro style from
+Subject: [PATCH 4/5] SystemUI: Read the applied retro style from
  Settings.Secure
 
 The RetroStyle app runs as a system app on SELinux-enforcing builds,

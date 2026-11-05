@@ -1,7 +1,7 @@
-From 78c4cde3ec36cf6f1627282040ea914e30843d41 Mon Sep 17 00:00:00 2001
+From 155144f4798d38b938f624836c5e5c32b18a6293 Mon Sep 17 00:00:00 2001
 From: Jon West <electrikjesus@gmail.com>
 Date: Tue, 3 Nov 2026 16:19:21 -0500
-Subject: [PATCH 3/8] SystemUI: Send status bar icons to the launcher tray
+Subject: [PATCH 3/5] SystemUI: Send status bar icons to the launcher tray
 
 With persist.retro.ui_layout=system_bar, SystemUI sends the visible status
 bar slot icons (Bluetooth, alarm, Do Not Disturb, location, hotspot, VPN,

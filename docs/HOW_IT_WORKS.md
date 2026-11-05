@@ -6,7 +6,8 @@ Android mechanisms, and each one is worth knowing on its own:
 1. **Runtime resource overlays (RROs)** replace resources (styles, dimensions, drawables,
    colors) in other packages without touching their code.
 2. **SystemUI's theme JSON** turns a seed color, a font and icon packs into overlays for every app.
-3. **aconfig flags set at build time** turn on SystemUI features that are off in the release.
+3. **Dual Shade**, SystemUI's floating panels, switched on and fixed by
+   [vendor/dual-shade](../../dual-shade) (aconfig flags set at build time and a few patches).
 4. **A privileged platform app** stores the user's choices and switches all of the above.
 5. **Small patch series** add what resources alone can't: new layouts in SystemUI and the
    taskbar.
@@ -58,7 +59,7 @@ Two rules decide what an overlay may touch:
   overlay from a system partition or signed with the same key. That's why these overlays only
   work when built into the image; installing them later with `adb install` fails for Launcher3.
 
-Overlays with `android:isStatic="true"` (the Dual Shade config) are always on. The others start
+Overlays with `android:isStatic="true"` (dual-shade's config) are always on. The others start
 disabled. RetroStyle turns on the chosen pack's `org.retro.theme` overlays and turns off every
 other pack's through `OverlayManager`; SystemUI switches the font and icon pack overlays (next
 section).
@@ -93,26 +94,14 @@ overrides the pack's choice once the user flips it; until then a build default
 `retro_ui_style_saved_night` and `retro_ui_style_saved_black` and puts them back when the user
 picks a pack that leaves them alone.
 
-## 3. Dual Shade and aconfig
+## 3. Dual Shade
 
-Dual Shade (separate floating Notifications and Quick Settings panels) is SystemUI's newer shade,
-built on its "scene container". It's behind two aconfig flags, `scene_container` and
-`status_bar_for_desktop`, which are off in the `bp4a` release.
-
-aconfig flags get their values from the release config. `config/aconfig/` sets both flags:
-
-- `*_flag_values.textproto`: one value per flag
-- `Android.bp`: `aconfig_values` and an `aconfig_value_set` that groups them
-- `release_config_map.textproto` and `release_configs/bp4a.textproto`: add the value set to the
-  `bp4a` release
-- `retro_style.mk`: `PRODUCT_RELEASE_CONFIG_MAPS` adds the map to your product
-
-Values set at build time work everywhere. On-device overrides (`aflags`, `device_config`) need
-the `aconfigd` service and a `/metadata` partition, which not every device has (x86 images don't).
-
-Turning on the scene container exposes some unfinished parts of AOSP. Patches 0004, 0005 and 0007
-fix the ones we hit: stuck heads-up notifications, the shade window swallowing taps, and a
-lockscreen crash loop ([PATCHES.md](PATCHES.md)).
+The floating Notifications and Quick Settings panels are SystemUI's Dual Shade. It comes from a
+separate repo, [vendor/dual-shade](../../dual-shade), because other builds want the panels too:
+it sets the two aconfig flags Dual Shade needs at build time, adds an overlay that makes Dual
+Shade the default, and patches the AOSP bugs that show up once it's on. Its README explains each
+part. `retro_style.mk` inherits `vendor/dual-shade/dual_shade.mk`, and retro-style's own SystemUI
+patches build on Dual Shade: opening the panels above the tray, the KitKat skin, the pack colors.
 
 ## 4. The RetroStyle app
 

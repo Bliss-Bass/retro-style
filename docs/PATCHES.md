@@ -19,15 +19,13 @@ library, so it won't compile without the SystemUI series.
 | 0001 | Open Dual Shade panels above a bottom tray | Adds `ShadePanelAnchor` (`anchor=bottom_end`): the floating panels open from the bottom right above a tray, and swiping down closes them. Adds `ISystemUiProxy` calls so the taskbar tray can open each panel on its own display. |
 | 0002 | Add a KitKat skin for the Dual Shade panels | With `style=kitkat`: Quick Settings becomes a KitKat-style list of rows with Holo switches under a big blue clock, and the panels get Holo colors (`RetroUiStyle`, `KitKatTileList`). |
 | 0003 | Send status bar icons to the launcher tray | Forwards the status bar's icons (Bluetooth, alarm, Do Not Disturb, ...) to the launcher over `ILauncherProxy`, so the tray can show them when the top status bar is hidden. |
-| 0004 | Leave the boot lockscreen state when idle off Lockscreen | Scene-container fix: when SystemUI starts on a scene other than the lockscreen (no lockscreen, or during setup), the keyguard state stayed "lockscreen" forever, so heads-up notifications never timed out. |
-| 0005 | Keep the desktop shade window untouchable over Gone | Scene-container fix: with the desktop status bar, a heads-up made the whole screen below the status bar touchable, so taps never reached apps until it left. |
-| 0006 | Show the Quick Settings volume slider without tile details | The Dual Shade Quick Settings volume slider only appeared with the unfinished tile-details flag on. Shows it whenever `config_enableDesktopAudioTileDetailsView` is true (the Dual Shade overlay sets it). |
-| 0007 | Keep a slot for missing lockscreen elements | Scene-container fix: the lockscreen layout expects six elements, but AOSP has no provider for the ambient indication area, so SystemUI crashed whenever the lockscreen showed. |
-| 0008 | Read the applied retro style from Settings.Secure | Switches `RetroUiStyle` and `ShadePanelAnchor` from system properties to the `retro_ui_applied` secure setting RetroStyle writes ([why](HOW_IT_WORKS.md#why-a-secure-setting-and-not-system-properties)). |
-| 0009 | Use the theme pack's shade panel and accent colors | Reads `panel_color` (the shade panels' background, both skins) and `accent` (the KitKat skin's clock and switches) from `retro_ui_applied`, so theme packs can color the shell ([THEME_SPEC.md](THEME_SPEC.md#shell)). |
+| 0004 | Read the applied retro style from Settings.Secure | Switches `RetroUiStyle` and `ShadePanelAnchor` from system properties to the `retro_ui_applied` secure setting RetroStyle writes ([why](HOW_IT_WORKS.md#why-a-secure-setting-and-not-system-properties)). |
+| 0005 | Use the theme pack's shade panel and accent colors | Reads `panel_color` (the shade panels' background, both skins) and `accent` (the KitKat skin's clock and switches) from `retro_ui_applied`, so theme packs can color the shell ([THEME_SPEC.md](THEME_SPEC.md#shell)). |
 
-0004, 0005 and 0007 fix AOSP bugs anyone turning on Dual Shade will hit. They don't depend on the
-rest of retro-style.
+The Dual Shade fixes (stuck heads-up notifications, the shade swallowing taps, the lockscreen
+crash, the Quick Settings volume slider) live in [vendor/dual-shade](../../dual-shade), which
+retro-style requires. Its `frameworks/base` series is independent of this one: either can be
+applied first.
 
 ## packages/apps/Launcher3 (the taskbar)
 

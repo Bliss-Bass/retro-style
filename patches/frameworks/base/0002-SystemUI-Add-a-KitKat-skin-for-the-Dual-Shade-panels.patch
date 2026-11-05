@@ -1,7 +1,7 @@
-From 3f966406d359075aa6e043f65a25a58c0eb785e6 Mon Sep 17 00:00:00 2001
+From 50f96a89d657499711f42636c84733cce9a1887b Mon Sep 17 00:00:00 2001
 From: Jon West <electrikjesus@gmail.com>
 Date: Tue, 3 Nov 2026 15:47:53 -0500
-Subject: [PATCH 2/8] SystemUI: Add a KitKat skin for the Dual Shade panels
+Subject: [PATCH 2/5] SystemUI: Add a KitKat skin for the Dual Shade panels
 
 With persist.retro.ui_style=kitkat the quick settings panel shows the
 KitKat tablet layout: a large Holo-blue clock header and one row per tile
@@ -18,7 +18,7 @@ Both panels use Holo colors, black or navy per persist.retro.ui_style_variant.
  create mode 100644 packages/SystemUI/src/com/android/systemui/shade/shared/model/RetroUiStyle.kt
 
 diff --git a/packages/SystemUI/compose/features/src/com/android/systemui/qs/ui/composable/QuickSettingsShadeOverlay.kt b/packages/SystemUI/compose/features/src/com/android/systemui/qs/ui/composable/QuickSettingsShadeOverlay.kt
-index 10dce56fd1f5..9e59bc4a1d9c 100644
+index ff7ce4b91aaf..bcfb46970bb2 100644
 --- a/packages/SystemUI/compose/features/src/com/android/systemui/qs/ui/composable/QuickSettingsShadeOverlay.kt
 +++ b/packages/SystemUI/compose/features/src/com/android/systemui/qs/ui/composable/QuickSettingsShadeOverlay.kt
 @@ -88,6 +88,8 @@ import com.android.systemui.notifications.ui.composable.headsUpTopInset
@@ -64,7 +64,7 @@ index 10dce56fd1f5..9e59bc4a1d9c 100644
  
          VerticalSeparator(QuickSettingsShade.Dimensions.ShortPadding)
  
-@@ -455,11 +464,27 @@ private fun ContentScope.QuickSettingsLayout(
+@@ -459,11 +468,27 @@ private fun ContentScope.QuickSettingsLayout(
              VerticalSeparator(QuickSettingsShade.Dimensions.Padding)
  
              GridAnchor()

@@ -42,7 +42,6 @@ object StyleApplier {
     private const val SAVED_THEME_SETTING = "retro_ui_style_saved_theme"
     private const val SAVED_NIGHT_SETTING = "retro_ui_style_saved_night"
     private const val SAVED_BLACK_SETTING = "retro_ui_style_saved_black"
-    private const val DUAL_SHADE_SETTING = "dual_shade"
     private const val SETUP_COMPLETE_SETTING = "user_setup_complete"
     private const val SETTLE_BEFORE_RESTART_MS = 2_000L
     private const val DISMISS_TRIES = 5
@@ -83,20 +82,9 @@ object StyleApplier {
         apply(context, restoreWindows = false)
     }
 
-    /**
-     * Dual Shade panels unless the user already chose the single shade. SystemUI treats an unset
-     * `dual_shade` as off while Settings shows it as on, so it must be written, not left unset.
-     */
-    private fun ensureDualShade(cr: ContentResolver) {
-        if (Settings.Secure.getString(cr, DUAL_SHADE_SETTING) == null) {
-            Settings.Secure.putInt(cr, DUAL_SHADE_SETTING, 1)
-        }
-    }
-
     @Synchronized
     fun apply(context: Context, restoreWindows: Boolean = true) {
         val cr = context.contentResolver
-        ensureDualShade(cr)
         val setupComplete = Settings.Secure.getInt(cr, SETUP_COMPLETE_SETTING, 0) == 1
         val pack = StyleSettings.pack(cr)
         val layout = StyleSettings.layout(cr)
