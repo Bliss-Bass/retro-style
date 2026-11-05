@@ -1,0 +1,192 @@
+From 4a2d749b4c74bcf26c941539f65fba435e2c81ea Mon Sep 17 00:00:00 2001
+From: Jon West <electrikjesus@gmail.com>
+Date: Thu, 5 Nov 2026 10:27:24 -0500
+Subject: [PATCH] Taskbar: Let the system bar pick its home screen background
+
+The tablet system bar on the home screen showed whatever the stock
+taskbar drew there: nothing when the bar lined up with the hotseat or a
+product turned the nav bar scrim off, a tinted band otherwise. With
+bar_background in retro_ui_applied it draws its own instead: solid (the
+bar color), gradient (a shadow fading to dark at the bottom, as Android
+4.x drew behind its navigation buttons), translucent (half-opaque bar
+color) or transparent (nothing). Apps keep the stock background.
+
+Change-Id: I8ee8ecb0217d5d6eee596d9bf544932ac386d546
+---
+ .../launcher3/taskbar/RetroBarBackground.kt   | 98 +++++++++++++++++++
+ .../launcher3/taskbar/TaskbarDragLayer.java   |  8 +-
+ .../TaskbarLauncherStateController.java       |  4 +-
+ .../taskbar/TaskbarStashController.java       |  4 +
+ 4 files changed, 112 insertions(+), 2 deletions(-)
+ create mode 100644 quickstep/src/com/android/launcher3/taskbar/RetroBarBackground.kt
+
+diff --git a/quickstep/src/com/android/launcher3/taskbar/RetroBarBackground.kt b/quickstep/src/com/android/launcher3/taskbar/RetroBarBackground.kt
+new file mode 100644
+index 00000000000..add6de60954
+--- /dev/null
++++ b/quickstep/src/com/android/launcher3/taskbar/RetroBarBackground.kt
+@@ -0,0 +1,98 @@
++/*
++ * Copyright (C) 2026 Navotpala Tech (Bliss Co-Labs Inc.)
++ *
++ * SPDX-License-Identifier: AGPL-3.0-only OR LicenseRef-Navotpala-Commercial
++ * Part of retro-style (vendor/retro-style). Licensed under the GNU Affero General Public
++ * License v3.0, or under a commercial license from Navotpala Tech (info@navotpala.tech).
++ * See LICENSE and LICENSE_COMMERCIAL in vendor/retro-style.
++ */
++
++package com.android.launcher3.taskbar
++
++import android.graphics.Canvas
++import android.graphics.Color
++import android.graphics.LinearGradient
++import android.graphics.Paint
++import android.graphics.Shader
++import com.android.launcher3.R
++
++/**
++ * The tablet system bar's background on the home screen, from `bar_background` in
++ * [RetroUiApplied]:
++ * - `solid`: the bar color (`taskbar_background`, which theme packs recolor), opaque.
++ * - `gradient`: a shadow that fades from clear at the top of the bar to dark at the bottom, as the
++ *   Android 4.x home screen drew behind its navigation buttons.
++ * - `translucent`: the bar color at half opacity, so the wallpaper shows through.
++ * - `transparent`: no background at all; only the wallpaper behind the buttons and tray.
++ *
++ * Unset (or any other value) keeps the stock background, and so does every app: in apps the bar
++ * looks the way it always has.
++ */
++class RetroBarBackground(private val context: TaskbarActivityContext) {
++    private val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply { style = Paint.Style.FILL }
++    private val barColor = context.getColor(R.color.taskbar_background)
++    private var gradientHeight = -1f
++
++    /**
++     * Draws the home screen background into the bottom [height] pixels of [canvas], at
++     * [alpha] (0 to 255, the stock background's current alpha). Returns false when the stock
++     * background should be drawn instead.
++     */
++    fun draw(canvas: Canvas, height: Float, alpha: Int): Boolean {
++        val mode = mode ?: return false
++        if (context.controllers.taskbarStashController.isInApp) return false
++        if (mode == MODE_TRANSPARENT || height <= 0f || alpha == 0) return true
++        val top = canvas.height - height
++        when (mode) {
++            MODE_SOLID -> {
++                paint.shader = null
++                paint.color = withAlpha(barColor, 255)
++            }
++            MODE_TRANSLUCENT -> {
++                paint.shader = null
++                paint.color = withAlpha(barColor, TRANSLUCENT_ALPHA)
++            }
++            else -> {
++                if (gradientHeight != height || paint.shader == null) {
++                    gradientHeight = height
++                    paint.shader =
++                        LinearGradient(
++                            0f,
++                            top,
++                            0f,
++                            canvas.height.toFloat(),
++                            Color.TRANSPARENT,
++                            withAlpha(Color.BLACK, GRADIENT_ALPHA),
++                            Shader.TileMode.CLAMP,
++                        )
++                }
++                paint.color = Color.BLACK
++            }
++        }
++        paint.alpha = paint.alpha * alpha / 255
++        canvas.drawRect(0f, top, canvas.width.toFloat(), canvas.height.toFloat(), paint)
++        return true
++    }
++
++    private fun withAlpha(color: Int, alpha: Int) = (color and 0x00FFFFFF) or (alpha shl 24)
++
++    companion object {
++        const val MODE_SOLID = "solid"
++        const val MODE_GRADIENT = "gradient"
++        const val MODE_TRANSLUCENT = "translucent"
++        const val MODE_TRANSPARENT = "transparent"
++        private val MODES = setOf(MODE_SOLID, MODE_GRADIENT, MODE_TRANSLUCENT, MODE_TRANSPARENT)
++
++        private const val TRANSLUCENT_ALPHA = 0x80
++        private const val GRADIENT_ALPHA = 0xB3
++
++        /** The home screen background mode, or null for the stock one. */
++        @JvmStatic
++        val mode: String? by lazy {
++            RetroUiApplied["bar_background"]?.takeIf { RetroSystemBar.isEnabled && it in MODES }
++        }
++
++        /** Whether the system bar draws its own home screen background. */
++        @JvmStatic val isActive: Boolean get() = mode != null
++    }
++}
+diff --git a/quickstep/src/com/android/launcher3/taskbar/TaskbarDragLayer.java b/quickstep/src/com/android/launcher3/taskbar/TaskbarDragLayer.java
+index b5fc76ee6f5..0d9bf7a1447 100644
+--- a/quickstep/src/com/android/launcher3/taskbar/TaskbarDragLayer.java
++++ b/quickstep/src/com/android/launcher3/taskbar/TaskbarDragLayer.java
+@@ -69,6 +69,7 @@ public class TaskbarDragLayer extends BaseDragLayer<TaskbarActivityContext> {
+ 
+ 
+     private final TaskbarBackgroundRenderer mBackgroundRenderer;
++    private final RetroBarBackground mRetroBarBackground;
+     private final ViewTreeObserver.OnComputeInternalInsetsListener mTaskbarInsetsComputer =
+             this::onComputeTaskbarInsets;
+ 
+@@ -99,6 +100,7 @@ public class TaskbarDragLayer extends BaseDragLayer<TaskbarActivityContext> {
+             int defStyleAttr, int defStyleRes) {
+         super(context, attrs, 1 /* alphaChannelCount */);
+         mBackgroundRenderer = new TaskbarBackgroundRenderer(mContainer);
++        mRetroBarBackground = new RetroBarBackground(mContainer);
+ 
+         mTaskbarBackgroundAlpha = new MultiPropertyFactory<>(this, BG_ALPHA, INDEX_COUNT,
+                 (a, b) -> a * b, 1f);
+@@ -191,7 +193,11 @@ public class TaskbarDragLayer extends BaseDragLayer<TaskbarActivityContext> {
+                 * (1f - mTaskbarBackgroundOffset);
+         mBackgroundRenderer.setBackgroundHeight(backgroundHeight);
+         mBackgroundRenderer.setBackgroundProgress(mTaskbarBackgroundProgress);
+-        mBackgroundRenderer.draw(canvas);
++        // The tablet system bar may draw its own home screen background (retro-style).
++        if (!mRetroBarBackground.draw(canvas, backgroundHeight,
++                mBackgroundRenderer.getPaint().getAlpha())) {
++            mBackgroundRenderer.draw(canvas);
++        }
+         super.dispatchDraw(canvas);
+         mControllerCallbacks.drawDebugUi(canvas);
+     }
+diff --git a/quickstep/src/com/android/launcher3/taskbar/TaskbarLauncherStateController.java b/quickstep/src/com/android/launcher3/taskbar/TaskbarLauncherStateController.java
+index 61540f07bcf..5ae8bed90ac 100644
+--- a/quickstep/src/com/android/launcher3/taskbar/TaskbarLauncherStateController.java
++++ b/quickstep/src/com/android/launcher3/taskbar/TaskbarLauncherStateController.java
+@@ -674,7 +674,9 @@ public class TaskbarLauncherStateController {
+             animatorSet.play(taskbarVisibility);
+         }
+ 
+-        float backgroundAlpha = isInLauncher && isTaskbarAlignedWithHotseat() ? 0 : 1;
++        // The tablet system bar keeps a background on home when it draws its own (retro-style).
++        float backgroundAlpha = isInLauncher && isTaskbarAlignedWithHotseat()
++                && !RetroBarBackground.isActive() ? 0 : 1;
+         AnimatedFloat taskbarBgOffset =
+                 mControllers.taskbarDragLayerController.getTaskbarBackgroundOffset();
+         boolean showTaskbar = shouldShowTaskbar(mControllers.taskbarActivityContext, isInLauncher,
+diff --git a/quickstep/src/com/android/launcher3/taskbar/TaskbarStashController.java b/quickstep/src/com/android/launcher3/taskbar/TaskbarStashController.java
+index d6196688bf2..d0f9cc1c811 100644
+--- a/quickstep/src/com/android/launcher3/taskbar/TaskbarStashController.java
++++ b/quickstep/src/com/android/launcher3/taskbar/TaskbarStashController.java
+@@ -1243,6 +1243,10 @@ public class TaskbarStashController implements TaskbarControllers.LoggableTaskba
+     }
+ 
+     private void applyState(long duration, @Nullable Runnable postApplyAction) {
++        if (RetroBarBackground.isActive()) {
++            // Home and apps get different system bar backgrounds; redraw on the switch.
++            mActivity.getDragLayer().invalidate();
++        }
+         Animator animator = createApplyStateAnimator(duration);
+         if (animator != null) {
+             if (postApplyAction != null) {
+-- 
+2.43.0
+

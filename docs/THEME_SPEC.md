@@ -78,7 +78,8 @@ behave exactly like ThemePicker's.
   "widgets": "holo",
   "shape": { "corner": "2dp", "progress": "0dp" },
   "shell": { "skin": "kitkat", "accent": "#FF33B5E5", "bar": "#FF000000",
-             "layout": "system_bar", "bar_apps": false }
+             "layout": "system_bar", "bar_apps": false,
+             "bar_home": "gradient" }
 }
 ```
 
@@ -209,6 +210,10 @@ pack chooses from what they offer:
 - `layout`: the bottom bar the pack suggests, `stock` or `system_bar`. Builds use it as the
   default when they don't set one; users can always change it.
 - `bar_apps`: whether app icons show on the tablet system bar by default.
+- `bar_home`: the tablet system bar's background on the home screen: `solid` (the `bar` color),
+  `gradient` (a shadow fading to dark at the bottom, as Android 4.x drew behind its navigation
+  buttons), `translucent` (the `bar` color at half opacity) or `transparent` (none). Leave it out
+  for the launcher's own. Apps always keep the launcher's own background.
 
 A new skin (a Gingerbread-style shade, say) is code, not a theme: it needs a patch. Packs can
 only pick skins that exist.

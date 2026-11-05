@@ -65,6 +65,10 @@ The tablet system bar works with every style.
   others, until you change it.
 - **Apps on the tablet system bar**: right after the buttons, centered (default), or just before
   the tray. They never cover the buttons or the tray.
+- **Background on the home screen**: **Stock** (as the launcher draws it), **Solid**, **Shadow
+  gradient** (the Android 4.x look: clear at the top, dark at the bottom), **Semi-transparent** or
+  **Transparent**. Some styles pick one for you (KitKat the gradient, for example) until you
+  choose. In apps the bar keeps its usual background.
 - **Extra buttons**: volume down, volume up, screenshot and sleep (hold it for the power menu),
   each with its own switch. All off at first.
 

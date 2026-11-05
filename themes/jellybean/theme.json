@@ -28,6 +28,7 @@
     "accent": "#FF33B5E5",
     "bar": "#FF000000",
     "layout": "system_bar",
-    "bar_apps": false
+    "bar_apps": false,
+    "bar_home": "solid"
   }
 }

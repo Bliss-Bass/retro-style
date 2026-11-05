@@ -113,6 +113,8 @@ object StyleApplier {
                 "bar_apps_gravity" to StyleSettings.appsGravity(cr),
                 "bar_buttons" to StyleSettings.barButtons(cr).joinToString(","),
                 "clock_seconds" to if (StyleSettings.clockSeconds(cr)) "1" else "0",
+                "bar_background" to
+                    StyleSettings.barBackground(cr).takeIf { it != StyleSettings.BAR_BG_STOCK }.orEmpty(),
                 "panel_color" to pack.panel?.let(::hex).orEmpty(),
                 "accent" to pack.accent?.let(::hex).orEmpty(),
             )
@@ -343,6 +345,7 @@ object StyleApplier {
             applied["bar_apps_gravity"] ?: StyleSettings.GRAVITY_CENTER,
             applied["bar_buttons"].orEmpty(),
             applied["clock_seconds"] ?: "0",
+            applied["bar_background"].orEmpty(),
         )
     }
 

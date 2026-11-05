@@ -41,6 +41,7 @@ rest of retro-style.
 | 0006 | Keep the system bar tray touchable without app icons | With no app icons showing, the taskbar only took touches over the nav buttons, so taps on the tray fell through. |
 | 0007 | Keep the whole system bar in front of the shade | Opening a panel faded the app icons behind the shade's blur while the buttons stayed on top; on the system bar the whole bar stays in front. |
 | 0008 | Read the applied retro style from Settings.Secure | Switches `RetroSystemBar` from system properties to `retro_ui_applied`. |
+| 0009 | Let the system bar pick its home screen background | `RetroBarBackground`: with `bar_background` set, the system bar draws its own background on the home screen (solid, a 4.x shadow gradient, semi-transparent or transparent) instead of whatever the stock taskbar draws there. Apps keep the stock background. |
 
 ## Maintaining the series
 

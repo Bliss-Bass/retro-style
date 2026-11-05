@@ -26,6 +26,11 @@ object StyleSettings {
     const val KEY_BAR_APPS_GRAVITY = "retro_ui_bar_apps_gravity"
     const val KEY_BAR_BUTTONS = "retro_ui_bar_buttons"
     const val KEY_CLOCK_SECONDS = "retro_ui_bar_clock_seconds"
+    const val KEY_BAR_BACKGROUND = "retro_ui_bar_background"
+
+    /** System bar background on the home screen; stock leaves it to the launcher. */
+    const val BAR_BG_STOCK = "stock"
+    val BAR_BACKGROUNDS = listOf(BAR_BG_STOCK, "solid", "gradient", "translucent", "transparent")
 
     /** The pack used when the chosen and build default packs aren't installed. */
     const val STYLE_MATERIAL = "material"
@@ -105,4 +110,10 @@ object StyleSettings {
     }
 
     fun clockSeconds(cr: ContentResolver): Boolean = get(cr, KEY_CLOCK_SECONDS) == "1"
+
+    /** The system bar's home screen background: the user's, else the pack's (shell.bar_home). */
+    fun barBackground(cr: ContentResolver): String =
+        get(cr, KEY_BAR_BACKGROUND)?.takeIf { it in BAR_BACKGROUNDS }
+            ?: pack(cr).barHome?.takeIf { it in BAR_BACKGROUNDS }
+            ?: BAR_BG_STOCK
 }

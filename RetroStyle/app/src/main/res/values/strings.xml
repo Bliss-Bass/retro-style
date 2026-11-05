@@ -23,6 +23,13 @@
     <string name="apps_gravity_center">Centered</string>
     <string name="apps_gravity_end">Before the tray</string>
 
+    <string name="section_bar_background">Tablet system bar background on the home screen</string>
+    <string name="bar_background_stock">Stock (as the launcher draws it)</string>
+    <string name="bar_background_solid">Solid</string>
+    <string name="bar_background_gradient">Shadow gradient (Android 4.x)</string>
+    <string name="bar_background_translucent">Semi-transparent</string>
+    <string name="bar_background_transparent">Transparent</string>
+
     <string name="section_bar_buttons">Extra buttons on the tablet system bar</string>
     <string name="bar_button_vol_down">Volume down</string>
     <string name="bar_button_vol_up">Volume up</string>

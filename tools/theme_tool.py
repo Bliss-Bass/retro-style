@@ -107,7 +107,9 @@ KEYS = {
     "$schema", "schema", "id", "name", "summary", "category", "order", "authors", "palette",
     "night", "black", "font", "widgets", "shape", "shell",
 }
-SHELL_KEYS = {"skin", "panel", "accent", "bar", "layout", "bar_apps"}
+SHELL_KEYS = {"skin", "panel", "accent", "bar", "layout", "bar_apps", "bar_home"}
+# The tablet system bar's home screen background (Launcher3 patch 0009).
+BAR_HOME = ["solid", "gradient", "translucent", "transparent"]
 SHAPE_KEYS = {"corner", "progress"}
 FONT_KEYS = {"body", "body_medium", "headline", "headline_medium"}
 
@@ -325,6 +327,7 @@ def validate(pack):
     need(shell.get("skin", "stock") in SKINS, f"shell.skin: one of {SKINS}")
     need(shell.get("layout", "stock") in LAYOUTS, f"shell.layout: one of {LAYOUTS}")
     need(isinstance(shell.get("bar_apps", True), bool), "shell.bar_apps: true or false")
+    need(shell.get("bar_home", "solid") in BAR_HOME, f"shell.bar_home: one of {BAR_HOME}")
     for key in ("panel", "accent", "bar"):
         if key in shell:
             need(COLOR_RE.match(str(shell[key])), f"shell.{key}: #RRGGBB or #AARRGGBB")

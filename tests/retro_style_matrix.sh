@@ -37,7 +37,7 @@ if ! pm path org.retro.style >/dev/null 2>&1; then
 fi
 
 UI_NIGHT=$(cmd uimode night 2>/dev/null)
-KEYS="retro_ui_style retro_ui_layout retro_panel_anchor retro_ui_style_variant retro_ui_hide_status_bar retro_ui_bar_apps retro_ui_bar_apps_gravity retro_ui_bar_buttons"
+KEYS="retro_ui_style retro_ui_layout retro_panel_anchor retro_ui_style_variant retro_ui_hide_status_bar retro_ui_bar_apps retro_ui_bar_apps_gravity retro_ui_bar_buttons retro_ui_bar_background"
 SAVED=""
 for k in $KEYS; do SAVED="$SAVED $k=$(secure "$k")"; done
 
@@ -203,14 +203,24 @@ for style in $STYLES; do
 	run_combo "$style" system_bar "" "" 0 0 "" screenshot
 done
 
-# 4. Every installed pack, on the system bar (where the most shell options apply).
+# 4. System bar backgrounds on the home screen.
+for bg in solid gradient translucent transparent stock; do
+	put retro_ui_bar_background "$bg"
+	run_combo kitkat system_bar "" "" 0 "" "" ""
+	want_bg=$bg
+	[ "$bg" = stock ] && want_bg=""
+	[ "$(applied bar_background)" = "$want_bg" ] || echo "[$n] note: applied bar_background=$(applied bar_background), want $want_bg"
+done
+put retro_ui_bar_background ""
+
+# 5. Every installed pack, on the system bar (where the most shell options apply).
 if [ "$MODE" != quick ]; then
 	for pack in $PACKS; do
 		run_combo "$pack" system_bar "" "" 0 "" "" ""
 	done
 fi
 
-# 5. Rapid switching (no settle between applies).
+# 6. Rapid switching (no settle between applies).
 SETTLE_SAVED=$SETTLE
 SETTLE=0
 for style in kitkat material kitkat m3; do

@@ -29,6 +29,8 @@ data class ThemePack(
     val panel: Int?,
     val accent: Int?,
     val barApps: Boolean,
+    /** The system bar's home screen background (shell.bar_home), or null for stock. */
+    val barHome: String? = null,
 ) {
     /** Overlay package for one of [ThemeCatalog.TARGETS], whether or not the pack ships it. */
     fun overlay(target: String): String = "org.retro.theme.$id.${target.replace('_', '.')}"
@@ -65,6 +67,7 @@ data class ThemePack(
                 panel = color(shell.optString("panel")),
                 accent = color(shell.optString("accent")),
                 barApps = shell.optBoolean("bar_apps", true),
+                barHome = shell.optString("bar_home").ifEmpty { null },
             )
         }
 

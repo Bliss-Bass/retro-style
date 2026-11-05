@@ -118,6 +118,7 @@ class StyleActivity : AppCompatActivity() {
             StyleSettings.style(cr),
             styleIds,
             onChanged = {
+                // The pack may bring its own system bar defaults (apps, home background).
                 bindSystemBarOptions()
                 bindVariant()
                 if (pageTheme(StyleSettings.pack(contentResolver)) != pageTheme) recreate()
@@ -196,6 +197,21 @@ class StyleActivity : AppCompatActivity() {
         )
         val group = findViewById<RadioGroup>(R.id.apps_gravity_group)
         for (i in 0 until group.childCount) group.getChildAt(i).isEnabled = systemBar && apps
+
+        bindGroup(
+            R.id.bar_background_group,
+            StyleSettings.KEY_BAR_BACKGROUND,
+            StyleSettings.barBackground(cr),
+            mapOf(
+                R.id.bar_background_stock to "stock",
+                R.id.bar_background_solid to "solid",
+                R.id.bar_background_gradient to "gradient",
+                R.id.bar_background_translucent to "translucent",
+                R.id.bar_background_transparent to "transparent",
+            ),
+        )
+        val backgrounds = findViewById<RadioGroup>(R.id.bar_background_group)
+        for (i in 0 until backgrounds.childCount) backgrounds.getChildAt(i).isEnabled = systemBar
 
         val buttons = StyleSettings.barButtons(cr)
         mapOf(

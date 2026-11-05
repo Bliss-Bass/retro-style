@@ -111,6 +111,41 @@
 
             <TextView
                 style="@style/RetroStyle.Section"
+                android:text="@string/section_bar_background" />
+
+            <RadioGroup
+                android:id="@+id/bar_background_group"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content">
+
+                <com.google.android.material.radiobutton.MaterialRadioButton
+                    android:id="@+id/bar_background_stock"
+                    style="@style/RetroStyle.Choice"
+                    android:text="@string/bar_background_stock" />
+
+                <com.google.android.material.radiobutton.MaterialRadioButton
+                    android:id="@+id/bar_background_solid"
+                    style="@style/RetroStyle.Choice"
+                    android:text="@string/bar_background_solid" />
+
+                <com.google.android.material.radiobutton.MaterialRadioButton
+                    android:id="@+id/bar_background_gradient"
+                    style="@style/RetroStyle.Choice"
+                    android:text="@string/bar_background_gradient" />
+
+                <com.google.android.material.radiobutton.MaterialRadioButton
+                    android:id="@+id/bar_background_translucent"
+                    style="@style/RetroStyle.Choice"
+                    android:text="@string/bar_background_translucent" />
+
+                <com.google.android.material.radiobutton.MaterialRadioButton
+                    android:id="@+id/bar_background_transparent"
+                    style="@style/RetroStyle.Choice"
+                    android:text="@string/bar_background_transparent" />
+            </RadioGroup>
+
+            <TextView
+                style="@style/RetroStyle.Section"
                 android:text="@string/section_bar_buttons" />
 
             <com.google.android.material.materialswitch.MaterialSwitch

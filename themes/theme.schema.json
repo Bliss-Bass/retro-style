@@ -83,7 +83,11 @@
         "accent": { "$ref": "#/$defs/argb", "description": "Clock and tile highlight of the kitkat skin." },
         "bar": { "$ref": "#/$defs/argb", "description": "Taskbar and system bar background." },
         "layout": { "enum": ["stock", "system_bar"], "description": "Bottom bar the pack suggests as a build default." },
-        "bar_apps": { "type": "boolean", "description": "Default for app icons on the system bar." }
+        "bar_apps": { "type": "boolean", "description": "Default for app icons on the system bar." },
+        "bar_home": {
+          "enum": ["solid", "gradient", "translucent", "transparent"],
+          "description": "Default system bar background on the home screen (leave it out for the launcher's own)."
+        }
       }
     }
   },

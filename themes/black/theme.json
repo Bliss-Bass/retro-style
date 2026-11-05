@@ -13,6 +13,7 @@
   "black": true,
   "shell": {
     "panel": "#F5000000",
-    "bar": "#FF000000"
+    "bar": "#FF000000",
+    "bar_home": "solid"
   }
 }

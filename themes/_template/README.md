@@ -66,4 +66,5 @@ page is the short version.
 - `shape.corner`: one radius for dialogs, buttons, cards, notifications and the shade.
 - `shell`: SystemUI and system bar looks from the retro-style patches: `skin` (`stock` or the
   `kitkat` tablet panels), `panel` and `bar` background colors, the kitkat skin's `accent`, the
-  `layout` suggested for builds and the `bar_apps` default.
+  `layout` suggested for builds, the `bar_apps` default and the home screen bar background
+  (`bar_home`).

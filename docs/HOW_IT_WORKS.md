@@ -136,7 +136,7 @@ be the obvious channel, but on SELinux-enforcing builds an app can't set a custo
 property without new SELinux policy. Secure settings need no policy: RetroStyle writes the
 resolved style to one setting, `retro_ui_applied`
 (`style=kitkat;theme=jellybean;variant=kitkat_stock;layout=system_bar;anchor=bottom_end;`
-`bar_apps=0;panel_color=;accent=#FF33B5E5;...`), and SystemUI and Launcher3 each read it once
+`bar_apps=0;bar_background=gradient;panel_color=;accent=#FF33B5E5;...`), and SystemUI and Launcher3 each read it once
 through a small `RetroUiApplied` helper the patches add. `style` is the shell skin the patches
 draw (`kitkat`, or anything else for stock) and `theme` the pack it came from; `panel_color` and
 `accent` are the pack's shell colors.

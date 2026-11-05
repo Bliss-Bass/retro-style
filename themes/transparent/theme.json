@@ -12,6 +12,7 @@
   "night": "dark",
   "shell": {
     "panel": "#8C000000",
-    "bar": "#66000000"
+    "bar": "#66000000",
+    "bar_home": "translucent"
   }
 }
