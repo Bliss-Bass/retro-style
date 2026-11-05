@@ -9,6 +9,8 @@
     <string name="category_android">Android through the years</string>
     <string name="category_community">ROM and community classics</string>
 
+    <string name="black_theme">Pure black in dark mode: black and grey backgrounds instead of tinted ones, accents keep their color</string>
+
     <string name="section_variant">KitKat panels</string>
     <string name="variant_kitkat_stock">KitKat stock (black)</string>
     <string name="variant_holo_unified">Holo unified (navy)</string>

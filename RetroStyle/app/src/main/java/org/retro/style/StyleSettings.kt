@@ -27,6 +27,7 @@ object StyleSettings {
     const val KEY_BAR_BUTTONS = "retro_ui_bar_buttons"
     const val KEY_CLOCK_SECONDS = "retro_ui_bar_clock_seconds"
     const val KEY_BAR_BACKGROUND = "retro_ui_bar_background"
+    const val KEY_BLACK = "retro_ui_black"
 
     /** System bar background on the home screen; stock leaves it to the launcher. */
     const val BAR_BG_STOCK = "stock"
@@ -110,6 +111,14 @@ object StyleSettings {
     }
 
     fun clockSeconds(cr: ContentResolver): Boolean = get(cr, KEY_CLOCK_SECONDS) == "1"
+
+    /** Pure black dark mode (LineageOS black theme): the user's choice, else the pack's `black`. */
+    fun black(cr: ContentResolver): Boolean =
+        when (get(cr, KEY_BLACK)) {
+            "1" -> true
+            "0" -> false
+            else -> pack(cr).black
+        }
 
     /** The system bar's home screen background: the user's, else the pack's (shell.bar_home). */
     fun barBackground(cr: ContentResolver): String =

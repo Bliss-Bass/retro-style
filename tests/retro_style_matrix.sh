@@ -37,7 +37,7 @@ if ! pm path org.retro.style >/dev/null 2>&1; then
 fi
 
 UI_NIGHT=$(cmd uimode night 2>/dev/null)
-KEYS="retro_ui_style retro_ui_layout retro_panel_anchor retro_ui_style_variant retro_ui_hide_status_bar retro_ui_bar_apps retro_ui_bar_apps_gravity retro_ui_bar_buttons retro_ui_bar_background"
+KEYS="retro_ui_style retro_ui_layout retro_panel_anchor retro_ui_style_variant retro_ui_hide_status_bar retro_ui_bar_apps retro_ui_bar_apps_gravity retro_ui_bar_buttons retro_ui_bar_background retro_ui_black"
 SAVED=""
 for k in $KEYS; do SAVED="$SAVED $k=$(secure "$k")"; done
 
@@ -213,14 +213,28 @@ for bg in solid gradient translucent transparent stock; do
 done
 put retro_ui_bar_background ""
 
-# 5. Every installed pack, on the system bar (where the most shell options apply).
+# 5. Pure black on and off over a pack that doesn't ask for it (LineageOS only).
+if content call --uri content://lineagesettings --method GET_secure --arg berry_black_theme >/dev/null 2>&1; then
+	for black in 1 0; do
+		put retro_ui_black "$black"
+		run_combo material stock "" "" 0 "" "" ""
+		got=$(content call --uri content://lineagesettings --method GET_secure --arg berry_black_theme | sed -n 's/.*value=\([0-9]*\).*/\1/p')
+		if [ "$got" != "$black" ]; then
+			echo "[$n] FAIL: berry_black_theme=$got, want $black"
+			fails=$((fails + 1))
+		fi
+	done
+	put retro_ui_black ""
+fi
+
+# 6. Every installed pack, on the system bar (where the most shell options apply).
 if [ "$MODE" != quick ]; then
 	for pack in $PACKS; do
 		run_combo "$pack" system_bar "" "" 0 "" "" ""
 	done
 fi
 
-# 6. Rapid switching (no settle between applies).
+# 7. Rapid switching (no settle between applies).
 SETTLE_SAVED=$SETTLE
 SETTLE=0
 for style in kitkat material kitkat m3; do

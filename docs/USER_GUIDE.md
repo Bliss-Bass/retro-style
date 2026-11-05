@@ -40,6 +40,10 @@ Some styles turn dark mode on (the Holo and classic ones, and most community sty
 (Holo Light, Lollipop). Styles that leave it alone, like Material You, give you your own dark
 mode setting back.
 
+**Pure black in dark mode** (LineageOS builds) swaps tinted dark backgrounds for black and grey;
+accent colors stay. It follows the style (on for KitKat and Jelly Bean) until you flip it, and
+then your choice holds for every style.
+
 **KitKat panels** picks the panel color for the styles with KitKat panels that don't set their
 own: **KitKat stock** (black) or **Holo unified** (navy).
 

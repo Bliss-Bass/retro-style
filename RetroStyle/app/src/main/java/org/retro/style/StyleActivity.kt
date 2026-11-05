@@ -118,13 +118,15 @@ class StyleActivity : AppCompatActivity() {
             StyleSettings.style(cr),
             styleIds,
             onChanged = {
-                // The pack may bring its own system bar defaults (apps, home background).
+                // The pack may bring its own defaults (black, apps, home background).
+                bindBlack()
                 bindSystemBarOptions()
                 bindVariant()
                 if (pageTheme(StyleSettings.pack(contentResolver)) != pageTheme) recreate()
             },
         )
         bindVariant()
+        bindBlack()
         bindGroup(
             R.id.variant_group,
             StyleSettings.KEY_VARIANT,
@@ -159,6 +161,19 @@ class StyleActivity : AppCompatActivity() {
             isChecked = StyleSettings.hideStatusBar(cr)
             setOnCheckedChangeListener { _, checked ->
                 save(StyleSettings.KEY_HIDE_STATUS_BAR, if (checked) "1" else "0")
+            }
+        }
+    }
+
+    /** Pure black follows the pack until the user flips it; only on builds with the black theme. */
+    private fun bindBlack() {
+        val cr = contentResolver
+        findViewById<MaterialSwitch>(R.id.black_theme).apply {
+            visibility = if (StyleApplier.hasBlackTheme(cr)) View.VISIBLE else View.GONE
+            setOnCheckedChangeListener(null)
+            isChecked = StyleSettings.black(cr)
+            setOnCheckedChangeListener { _, checked ->
+                save(StyleSettings.KEY_BLACK, if (checked) "1" else "0")
             }
         }
     }

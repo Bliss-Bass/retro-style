@@ -293,12 +293,19 @@ object StyleApplier {
         }
     }
 
-    /** LineageOS's black theme for packs with `black`; elsewhere the user's own value. */
+    /**
+     * LineageOS's black theme: the choice on the UI style page when the user made one; else on
+     * for packs with `black`, and the user's own value for the others.
+     */
     private fun applyBlack(cr: ContentResolver, pack: ThemePack) {
         val saved = Settings.Secure.getString(cr, SAVED_BLACK_SETTING)
+        val chosen = Settings.Secure.getString(cr, StyleSettings.KEY_BLACK)?.takeIf { it == "0" || it == "1" }
         try {
             val current = lineageSecure(cr, LINEAGE_BLACK) ?: return
-            if (pack.black) {
+            if (chosen != null) {
+                if (current != chosen) putLineageSecure(cr, LINEAGE_BLACK, chosen)
+                if (saved != null) Settings.Secure.putString(cr, SAVED_BLACK_SETTING, null)
+            } else if (pack.black) {
                 if (saved == null) Settings.Secure.putString(cr, SAVED_BLACK_SETTING, current)
                 if (current != "1") putLineageSecure(cr, LINEAGE_BLACK, "1")
             } else if (saved != null) {
@@ -310,6 +317,14 @@ object StyleApplier {
             Log.i(TAG, "no LineageOS black theme here: ${e.message}")
         }
     }
+
+    /** Whether this build has LineageOS's black theme (the UI style page shows its switch). */
+    fun hasBlackTheme(cr: ContentResolver): Boolean =
+        try {
+            lineageSecure(cr, LINEAGE_BLACK) != null
+        } catch (e: Exception) {
+            false
+        }
 
     /** Null when the provider is missing; "0" when the setting was never written. */
     private fun lineageSecure(cr: ContentResolver, key: String): String? {

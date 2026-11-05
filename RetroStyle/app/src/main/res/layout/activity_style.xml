@@ -35,6 +35,15 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content" />
 
+            <!-- LineageOS black theme; hidden on builds without it. -->
+            <com.google.android.material.materialswitch.MaterialSwitch
+                android:id="@+id/black_theme"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:minHeight="56dp"
+                android:text="@string/black_theme" />
+
             <TextView
                 android:id="@+id/variant_section"
                 style="@style/RetroStyle.Section"
