@@ -4,11 +4,10 @@ A theme engine with styles from every Android era, plus a tablet system bar, for
 Android 16 builds (LineageOS 23.2), packaged as one `vendor/retro-style` repo you can drop into a
 source tree.
 
-| KitKat style, tablet system bar | KitKat Quick Settings |
-|---|---|
-| ![KitKat system bar](docs/images/kitkat-system-bar.png) | ![KitKat Quick Settings](docs/images/kitkat-quick-settings.png) |
-| **Material You, tablet system bar** | **Material You notifications** |
-| ![Material system bar](docs/images/material-system-bar.png) | ![Material notifications](docs/images/material-notifications.png) |
+![Material You with the tablet system bar](docs/images/material-system-bar.png)
+
+*Material You with the tablet system bar: back, home and recents on the left, apps in the middle,
+the tray on the right. More in [Screenshots](#screenshots).*
 
 What you get, all switchable at runtime in **Settings > System > UI style**:
 
@@ -27,7 +26,7 @@ What you get, all switchable at runtime in **Settings > System > UI style**:
   on the right. Works with every pack.
 - **Dual Shade panels:** Notifications and Quick Settings as floating panels that open from the
   top right or from the tray at the bottom right. Dual Shade itself comes from
-  [dual-shade](https://github.com/Bliss-Bass/dual-shade), which retro-style requires.
+  [vendor/dual-shade](../dual-shade), which retro-style requires.
 - **Session kept:** changing a style restarts SystemUI; your open desktop windows come back where
   they were.
 
@@ -38,11 +37,43 @@ This repo is also meant as a worked example of how to extend an Android ROM: run
 overlays, a privileged platform app, and patch series for frameworks/base and Launcher3
 (dual-shade adds aconfig flags set at build time). The docs explain each piece as they go.
 
+## Screenshots
+
+**Theme packs.** Two of the 18: KitKat, with its list-style Quick Settings, and Dracula, which
+colors apps as well as the system.
+
+| KitKat | Dracula |
+|---|---|
+| ![KitKat with the tablet system bar](docs/images/kitkat-system-bar.png) | ![Dracula in Settings](docs/images/dracula-settings.png) |
+| ![KitKat Quick Settings](docs/images/kitkat-quick-settings.png) | ![Dracula Quick Settings](docs/images/dracula-quick-settings.png) |
+
+**Tablet system bar.** Apps after the buttons, centered or just before the tray, here with all
+four extra buttons on (volume down, volume up, screenshot, sleep):
+
+![Tablet system bar app positions](docs/images/bar-layouts.png)
+
+The five home screen backgrounds:
+
+![Tablet system bar backgrounds](docs/images/bar-backgrounds.png)
+
+**Notifications and Quick Settings panels.** From the tray at the bottom right, or from the top
+right under the status bar:
+
+| From the tray | From the top right |
+|---|---|
+| ![Notifications from the tray](docs/images/material-notifications.png) | ![Quick Settings from the top right](docs/images/dracula-quick-settings.png) |
+
+**The UI style page** in Settings > System:
+
+| Styles | Bottom bar and panel options |
+|---|---|
+| ![UI style page, styles](docs/images/ui-style-page.png) | ![UI style page, options](docs/images/ui-style-options.png) |
+
 ## Requirements
 
 - A LineageOS 23.2 tree (Android 16 QPR2, release `bp4a`). Other AOSP-based Android 16 trees work
   too if their `frameworks/base` and `Launcher3` match closely enough for the patches.
-- [dual-shade](https://github.com/Bliss-Bass/dual-shade), for the floating panels.
+- [vendor/dual-shade](../dual-shade), for the floating panels.
 - A large-screen device (smallest width 600dp or more), ideally with desktop windowing on.
 - The device's platform key (the build signs RetroStyle with it).
 
