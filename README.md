@@ -101,7 +101,7 @@ right under the status bar:
 | `RetroStyle/` | The UI style page and the code that applies a style (system app; Soong and Gradle builds) |
 | `themes/` | Theme packs (`themes/<id>/theme.json` and their overlays), the template, the JSON Schema and the generated `themes.mk` |
 | `overlays/` | Layout overlay: the tablet system bar |
-| `patches/` | `git format-patch` series for `frameworks/base` (SystemUI) and `packages/apps/Launcher3` |
+| `patches/` | `git format-patch` series for `frameworks/base` (SystemUI) and `packages/apps/Launcher3`, one set per Android API in `api-<level>/` |
 | `tools/` | `theme_tool.py` (create, generate and check packs), `apply-patches.sh`, an overlay test builder |
 | `tests/` | `retro_style_matrix.sh`, an on-device bug hunt over every option combination and pack |
 | `assets/` | The AOSP 4.x artwork and fonts the Holo packs use, with their sources |

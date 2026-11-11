@@ -1,10 +1,11 @@
 # The patches
 
-`patches/<project>/NNNN-*.patch` are `git format-patch` files, one folder per git project in the
+`patches/api-<level>/<project>/NNNN-*.patch` are `git format-patch` files: one set per Android API
+level (`api-36` for Android 16, `api-37` for Android 17), one folder per git project in the
 source tree. `tools/apply-patches.sh` applies them with `git am`; [INSTALL.md](INSTALL.md#2-apply-the-patches)
 shows how.
 
-They were made against LineageOS `lineage-23.2` and apply cleanly to its current tips of
+The `api-36` set was made against LineageOS `lineage-23.2` and applies cleanly to its current tips of
 `android_frameworks_base` and `android_packages_apps_Launcher3`.
 
 **Apply both series together.** The two projects talk over AIDL interfaces that SystemUI owns:
@@ -64,8 +65,8 @@ Then regenerate the whole series into this repo (it renumbers from 0001):
 
 ```sh
 base=$(git merge-base HEAD m/lineage-23.2)   # or the upstream commit the series sits on
-rm ../../vendor/retro-style/patches/frameworks/base/*.patch
-git format-patch -o ../../vendor/retro-style/patches/frameworks/base "$base"..HEAD
+rm ../../vendor/retro-style/patches/api-36/frameworks/base/*.patch
+git format-patch -o ../../vendor/retro-style/patches/api-36/frameworks/base "$base"..HEAD
 ```
 
 ### Adding a patch

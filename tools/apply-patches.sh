@@ -4,8 +4,9 @@
 #
 # Apply retro-style's patches to the projects they change.
 #
-# The patches live in patches/<project path>/NNNN-*.patch, one folder per git project in your
-# tree (for example patches/frameworks/base -> <tree>/frameworks/base). They are `git
+# The patches live in patches/api-<API>/<project path>/NNNN-*.patch: one set per Android API
+# level (api-36 is Android 16, api-37 is Android 17), one folder per git project in your tree
+# (for example patches/api-37/frameworks/base -> <tree>/frameworks/base). They are `git
 # format-patch` output, so `git am` turns each one back into a commit with its author, date and
 # message.
 #
@@ -18,11 +19,22 @@
 #   repo start retro-style frameworks/base packages/apps/Launcher3
 #
 # Environment: TOP=<tree root> (default: two levels above this repo, i.e. vendor/retro-style).
+#              API=<level> picks the patch set (default: the only api-* set, if there is one).
 set -euo pipefail
 
 here="$(cd "$(dirname "$0")/.." && pwd)"
 TOP="${TOP:-$(cd "$here/../.." && pwd)}"
-patches="$here/patches"
+if [ -n "${API:-}" ]; then
+	patches="$here/patches/api-$API"
+else
+	sets=("$here"/patches/api-*/)
+	if [ "${#sets[@]}" -ne 1 ] || [ ! -d "${sets[0]}" ]; then
+		echo "Set API=<level> to pick a patch set: $(cd "$here/patches" && echo api-*)" >&2
+		exit 2
+	fi
+	patches="${sets[0]%/}"
+fi
+[ -d "$patches" ] || { echo "No patch set at $patches" >&2; exit 2; }
 cmd="${1:-status}"
 
 say() { printf '%s\n' "$*"; }
