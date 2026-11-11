@@ -7,7 +7,7 @@ Android mechanisms, and each one is worth knowing on its own:
    colors) in other packages without touching their code.
 2. **SystemUI's theme JSON** turns a seed color, a font and icon packs into overlays for every app.
 3. **Dual Shade**, SystemUI's floating panels, switched on and fixed by
-   [vendor/dual-shade](../../dual-shade) (aconfig flags set at build time and a few patches).
+   [dual-shade](https://github.com/Bliss-Bass/dual-shade) (aconfig flags set at build time and a few patches).
 4. **A privileged platform app** stores the user's choices and switches all of the above.
 5. **Small patch series** add what resources alone can't: new layouts in SystemUI and the
    taskbar.
@@ -97,7 +97,7 @@ picks a pack that leaves them alone.
 ## 3. Dual Shade
 
 The floating Notifications and Quick Settings panels are SystemUI's Dual Shade. It comes from a
-separate repo, [vendor/dual-shade](../../dual-shade), because other builds want the panels too:
+separate repo, [dual-shade](https://github.com/Bliss-Bass/dual-shade), because other builds want the panels too:
 it sets the two aconfig flags Dual Shade needs at build time, adds an overlay that makes Dual
 Shade the default, and patches the AOSP bugs that show up once it's on. Its README explains each
 part. `retro_style.mk` inherits `vendor/dual-shade/dual_shade.mk`, and retro-style's own SystemUI

@@ -21,7 +21,7 @@ that path.
 **Option A: clone it.**
 
 ```sh
-git clone <retro-style repo URL> vendor/retro-style
+git clone https://github.com/Bliss-Bass/retro-style vendor/retro-style
 ```
 
 **Option B: let `repo` manage it** (recommended if you sync often). Create
@@ -30,19 +30,19 @@ git clone <retro-style repo URL> vendor/retro-style
 ```xml
 <?xml version="1.0" encoding="UTF-8"?>
 <manifest>
-  <!-- Replace fetch and name with wherever you host retro-style. -->
-  <remote name="retro-style" fetch="https://github.com/<owner>" />
-  <project path="vendor/retro-style" name="retro-style" remote="retro-style" revision="main" />
+  <remote name="bliss-bass" fetch="https://github.com/Bliss-Bass" />
+  <project path="vendor/retro-style" name="retro-style" remote="bliss-bass" revision="main" />
+  <project path="vendor/dual-shade" name="dual-shade" remote="bliss-bass" revision="main" />
 </manifest>
 ```
 
-then run `repo sync vendor/retro-style`.
+then run `repo sync vendor/retro-style vendor/dual-shade`.
 
 **Also get vendor/dual-shade.** retro-style's panels are SystemUI's Dual Shade, which
-[dual-shade](../../dual-shade) switches on and fixes (build flags, an overlay, five SystemUI
-patches). Put it at `vendor/dual-shade` the same way (clone it, or add a second `<project>` to the
-local manifest). `retro_style.mk` inherits it and stops the build with a clear message if it's
-missing.
+[dual-shade](https://github.com/Bliss-Bass/dual-shade) switches on and fixes (build flags, an
+overlay, five SystemUI patches). The manifest above already includes it; with option A, clone it
+too: `git clone https://github.com/Bliss-Bass/dual-shade vendor/dual-shade`. `retro_style.mk`
+inherits it and stops the build with a clear message if it's missing.
 
 **Check:** `ls vendor/retro-style/retro_style.mk vendor/dual-shade/dual_shade.mk` prints both
 files.

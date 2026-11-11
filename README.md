@@ -27,7 +27,7 @@ What you get, all switchable at runtime in **Settings > System > UI style**:
   on the right. Works with every pack.
 - **Dual Shade panels:** Notifications and Quick Settings as floating panels that open from the
   top right or from the tray at the bottom right. Dual Shade itself comes from
-  [vendor/dual-shade](../dual-shade), which retro-style requires.
+  [dual-shade](https://github.com/Bliss-Bass/dual-shade), which retro-style requires.
 - **Session kept:** changing a style restarts SystemUI; your open desktop windows come back where
   they were.
 
@@ -42,7 +42,7 @@ overlays, a privileged platform app, and patch series for frameworks/base and La
 
 - A LineageOS 23.2 tree (Android 16 QPR2, release `bp4a`). Other AOSP-based Android 16 trees work
   too if their `frameworks/base` and `Launcher3` match closely enough for the patches.
-- [vendor/dual-shade](../dual-shade), for the floating panels.
+- [dual-shade](https://github.com/Bliss-Bass/dual-shade), for the floating panels.
 - A large-screen device (smallest width 600dp or more), ideally with desktop windowing on.
 - The device's platform key (the build signs RetroStyle with it).
 
