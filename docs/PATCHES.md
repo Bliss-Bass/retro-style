@@ -6,7 +6,17 @@ source tree. `tools/apply-patches.sh` applies them with `git am`; [INSTALL.md](I
 shows how.
 
 The `api-36` set was made against LineageOS `lineage-23.2` and applies cleanly to its current tips of
-`android_frameworks_base` and `android_packages_apps_Launcher3`.
+`android_frameworks_base` and `android_packages_apps_Launcher3`. The `api-37` set is the same series
+ported to LineageOS `lineage-24.0`, and applies to its tips the same way. What changed for Android 17:
+
+- The AIDL calls got new ids, because Android 17 took the old ones: `ISystemUiProxy`
+  `toggleNotificationPanelOnDisplay` / `toggleQuickSettingsPanelOnDisplay` are 64 / 65, and
+  `ILauncherProxy.onStatusBarIconsChanged` is 41.
+- SystemUI 0001 asks `ShadeExpansionTargetDisplayInteractor` which display a tray tap targets, and
+  sets the bottom-anchor swipe actions on Android 17's panel action view models.
+- SystemUI 0002 reads Android 17's `TileUiState` (`visualState`, `handlesToggleClick`).
+- Launcher3 0001 keeps Android 17's More options button next to the system bar's extra buttons, and
+  0003 implements the `ILauncherProxy` callback in `sysuiconnection/TISBinder.kt`.
 
 **Apply both series together.** The two projects talk over AIDL interfaces that SystemUI owns:
 Launcher3 0001 calls methods SystemUI 0001 adds to `ISystemUiProxy`, and Launcher3 0003 implements
@@ -26,7 +36,7 @@ library, so it won't compile without the SystemUI series.
 The Dual Shade fixes (stuck heads-up notifications, the shade swallowing taps, the lockscreen
 crash, the Quick Settings volume slider) live in [dual-shade](https://github.com/Bliss-Bass/dual-shade), which
 retro-style requires. Its `frameworks/base` series is independent of this one: either can be
-applied first.
+applied first. On Android 17 Dual Shade is upstream and dual-shade has no `frameworks/base` series.
 
 ## packages/apps/Launcher3 (the taskbar)
 
@@ -64,9 +74,9 @@ GIT_SEQUENCE_EDITOR=: git rebase -i --autosquash <sha of 0001>
 Then regenerate the whole series into this repo (it renumbers from 0001):
 
 ```sh
-base=$(git merge-base HEAD m/lineage-23.2)   # or the upstream commit the series sits on
-rm ../../vendor/retro-style/patches/api-36/frameworks/base/*.patch
-git format-patch -o ../../vendor/retro-style/patches/api-36/frameworks/base "$base"..HEAD
+base=$(git merge-base HEAD m/lineage-24.0)   # or the upstream commit the series sits on
+rm ../../vendor/retro-style/patches/api-37/frameworks/base/*.patch
+git format-patch -o ../../vendor/retro-style/patches/api-37/frameworks/base "$base"..HEAD
 ```
 
 ### Adding a patch

@@ -1,0 +1,47 @@
+From d754d45ce946c46221d2789568978e994154e00d Mon Sep 17 00:00:00 2001
+From: Jon West <electrikjesus@gmail.com>
+Date: Wed, 4 Nov 2026 14:49:26 -0500
+Subject: [PATCH 07/10] Taskbar: Keep the whole system bar in front of the
+ shade
+
+With the taskbar-behind-shade behavior, opening Quick Settings or the
+notifications faded the app icons and bar background and showed a
+snapshot of them behind the shade blur, while the nav buttons and the
+tray stayed on top. On the tablet system bar, which opens those panels
+from its tray, keep the icons and background in front as well.
+
+Change-Id: Iedcbd166ef48539a14a408181c781111f3fb843f
+---
+ .../launcher3/taskbar/TaskbarActivityContext.java        | 9 +++++++--
+ 1 file changed, 7 insertions(+), 2 deletions(-)
+
+diff --git a/quickstep/src/com/android/launcher3/taskbar/TaskbarActivityContext.java b/quickstep/src/com/android/launcher3/taskbar/TaskbarActivityContext.java
+index ee8a24d325..64375e2407 100644
+--- a/quickstep/src/com/android/launcher3/taskbar/TaskbarActivityContext.java
++++ b/quickstep/src/com/android/launcher3/taskbar/TaskbarActivityContext.java
+@@ -1373,7 +1373,10 @@ public class TaskbarActivityContext extends BaseTaskbarContext {
+             return;
+         }
+ 
+-        float alpha = isExpanded ? 0 : 1;
++        // The tablet system bar opens the shade panels from its tray, so the whole bar (icons and
++        // background too) stays in front of the shade instead of moving behind it.
++        boolean keepBarOverShade = RetroSystemBar.isEnabled() && !isPhoneMode();
++        float alpha = isExpanded && !keepBarOverShade ? 0 : 1;
+         AnimatorSet anim = new AnimatorSet();
+         anim.play(mControllers.taskbarViewController.getTaskbarIconAlpha().get(
+                 TaskbarViewController.ALPHA_INDEX_NOTIFICATION_EXPANDED).animateToValue(alpha));
+@@ -1404,7 +1407,9 @@ public class TaskbarActivityContext extends BaseTaskbarContext {
+             anim.end();
+         }
+ 
+-        updateTaskbarSnapshot(anim, isExpanded);
++        if (!keepBarOverShade) {
++            updateTaskbarSnapshot(anim, isExpanded);
++        }
+     }
+ 
+     private void updateTaskbarSnapshot(AnimatorSet anim, boolean isExpanded) {
+-- 
+2.43.0
+
