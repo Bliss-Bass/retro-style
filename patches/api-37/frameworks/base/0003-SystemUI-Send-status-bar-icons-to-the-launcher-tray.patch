@@ -1,4 +1,4 @@
-From bdeaa2b5ab95a8561ccb61782cf1dd7ca578aa1f Mon Sep 17 00:00:00 2001
+From f2561c4f4141f1e847e688209120f413e1abda14 Mon Sep 17 00:00:00 2001
 From: Jon West <electrikjesus@gmail.com>
 Date: Tue, 3 Nov 2026 16:19:21 -0500
 Subject: [PATCH 3/5] SystemUI: Send status bar icons to the launcher tray

@@ -1,4 +1,4 @@
-From 91c782c7ad718ab8d36d99e5f8d10d3b1f590f1b Mon Sep 17 00:00:00 2001
+From 239bcf5f75deb30f3aec6882827380a65150c915 Mon Sep 17 00:00:00 2001
 From: Jon West <electrikjesus@gmail.com>
 Date: Wed, 4 Nov 2026 19:42:16 -0500
 Subject: [PATCH 5/5] SystemUI: Use the theme pack's shade panel and accent

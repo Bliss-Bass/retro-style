@@ -1,4 +1,4 @@
-From aab1ab7035b3bcdf145d963734addcfb219007e2 Mon Sep 17 00:00:00 2001
+From d2848b59222ecff11d889a14f6ced9312db0bbcb Mon Sep 17 00:00:00 2001
 From: Jon West <electrikjesus@gmail.com>
 Date: Tue, 3 Nov 2026 15:36:00 -0500
 Subject: [PATCH 1/5] SystemUI: Open Dual Shade panels above a bottom tray
@@ -11,13 +11,13 @@ was tapped.
 ---
  .../shade/ui/composable/OverlayShade.kt       |  7 +++-
  .../shared/recents/ISystemUiProxy.aidl        | 12 +++++-
- .../systemui/LauncherProxyService.java        | 21 ++++++++++
+ .../systemui/LauncherProxyService.java        | 17 ++++++++
  ...tificationsShadeOverlayActionsViewModel.kt | 40 +++++++++++++------
  ...ickSettingsShadeOverlayActionsViewModel.kt | 18 +++++++--
  .../shade/shared/model/ShadePanelAnchor.kt    | 24 +++++++++++
  ...tingsShadeOverlayActionsViewModelKosmos.kt |  7 +++-
  ...tionsShadeOverlayActionsViewModelKosmos.kt |  3 +-
- 8 files changed, 109 insertions(+), 23 deletions(-)
+ 8 files changed, 105 insertions(+), 23 deletions(-)
  create mode 100644 packages/SystemUI/src/com/android/systemui/shade/shared/model/ShadePanelAnchor.kt
 
 diff --git a/packages/SystemUI/compose/features/src/com/android/systemui/shade/ui/composable/OverlayShade.kt b/packages/SystemUI/compose/features/src/com/android/systemui/shade/ui/composable/OverlayShade.kt
@@ -70,20 +70,18 @@ index 0f370f71f394..f7c5e02c1d76 100644
 +    // Next id = 66
  }
 diff --git a/packages/SystemUI/src/com/android/systemui/LauncherProxyService.java b/packages/SystemUI/src/com/android/systemui/LauncherProxyService.java
-index 3ea5bb0ee46d..919a8c5838ee 100644
+index 3ea5bb0ee46d..f7623b570b59 100644
 --- a/packages/SystemUI/src/com/android/systemui/LauncherProxyService.java
 +++ b/packages/SystemUI/src/com/android/systemui/LauncherProxyService.java
-@@ -515,6 +515,27 @@ public class LauncherProxyService implements CallbackController<LauncherProxyLis
+@@ -515,6 +515,23 @@ public class LauncherProxyService implements CallbackController<LauncherProxyLis
                      mCommandQueue.toggleQuickSettingsPanel());
          }
  
 +        @Override
 +        public void toggleNotificationPanelOnDisplay(int displayId) {
 +            verifyCallerAndClearCallingIdentityPostMain("toggleNotificationPanelOnDisplay", () -> {
-+                if (ShadeWindowGoesAround.isEnabled()) {
-+                    mShadeExpansionTargetDisplayInteractor.setExpansionIntentForNotificationElement(
-+                            displayId);
-+                }
++                mShadeExpansionTargetDisplayInteractor.setExpansionIntentForNotificationElement(
++                        displayId);
 +                mCommandQueue.toggleNotificationsPanel();
 +            });
 +        }
@@ -91,9 +89,7 @@ index 3ea5bb0ee46d..919a8c5838ee 100644
 +        @Override
 +        public void toggleQuickSettingsPanelOnDisplay(int displayId) {
 +            verifyCallerAndClearCallingIdentityPostMain("toggleQuickSettingsPanelOnDisplay", () -> {
-+                if (ShadeWindowGoesAround.isEnabled()) {
-+                    mShadeExpansionTargetDisplayInteractor.setExpansionIntentForQsElement(displayId);
-+                }
++                mShadeExpansionTargetDisplayInteractor.setExpansionIntentForQsElement(displayId);
 +                mCommandQueue.toggleQuickSettingsPanel();
 +            });
 +        }
