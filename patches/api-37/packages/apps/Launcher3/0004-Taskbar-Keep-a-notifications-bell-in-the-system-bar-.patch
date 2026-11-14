@@ -1,4 +1,4 @@
-From 98a066831548330600acb64efeb851ee6ec1a28b Mon Sep 17 00:00:00 2001
+From 7e11cde0bed5cf01fc2e42705f93a31d78b684a7 Mon Sep 17 00:00:00 2001
 From: Jon West <electrikjesus@gmail.com>
 Date: Wed, 4 Nov 2026 11:33:49 -0500
 Subject: [PATCH 04/10] Taskbar: Keep a notifications bell in the system bar

@@ -1,4 +1,4 @@
-From c1a92ab24900c6c69c49f1a46b3a4a84e1211e3d Mon Sep 17 00:00:00 2001
+From c139b89335647c8337e08a0ed059fffa834502a3 Mon Sep 17 00:00:00 2001
 From: Jon West <electrikjesus@gmail.com>
 Date: Thu, 5 Nov 2026 10:27:24 -0500
 Subject: [PATCH 09/10] Taskbar: Let the system bar pick its home screen

@@ -1,4 +1,4 @@
-From 0a41d6f94c3989ae12d7d644df2885bd51fbd880 Mon Sep 17 00:00:00 2001
+From 4d2552629e881fe70f94e373ac88a339be117795 Mon Sep 17 00:00:00 2001
 From: Jon West <electrikjesus@gmail.com>
 Date: Tue, 3 Nov 2026 16:11:23 -0500
 Subject: [PATCH 01/10] Taskbar: Add the tablet system bar layout
@@ -29,11 +29,11 @@ Change-Id: Ic6565db4f92aaf71293dd5f1c2eaf5e4524ce0c1
  .../taskbar/TaskbarNavButtonController.java   |  38 ++-
  .../taskbar/TaskbarSystemTrayView.kt          | 296 ++++++++++++++++++
  .../taskbar/TaskbarViewController.java        |  11 +-
- .../navbutton/NavButtonLayoutFactory.kt       |  11 +
- .../navbutton/SystemBarNavLayoutter.kt        |  82 +++++
+ .../navbutton/NavButtonLayoutFactory.kt       |  12 +
+ .../navbutton/SystemBarNavLayoutter.kt        |  84 +++++
  .../com/android/quickstep/SystemUiProxy.kt    |  12 +
  .../notification/NotificationListener.java    |  44 +++
- 19 files changed, 764 insertions(+), 4 deletions(-)
+ 19 files changed, 767 insertions(+), 4 deletions(-)
  create mode 100644 quickstep/res/drawable/ic_retro_power.xml
  create mode 100644 quickstep/res/drawable/ic_retro_screenshot.xml
  create mode 100644 quickstep/res/drawable/ic_retro_tray_battery.xml
@@ -830,7 +830,7 @@ index d2823bfe4c..a752de7575 100644
          mModelCallbacks.dumpLogs(prefix + "\t", pw);
      }
 diff --git a/quickstep/src/com/android/launcher3/taskbar/navbutton/NavButtonLayoutFactory.kt b/quickstep/src/com/android/launcher3/taskbar/navbutton/NavButtonLayoutFactory.kt
-index 13a9e6da87..1e232d3224 100644
+index 13a9e6da87..bff6be11eb 100644
 --- a/quickstep/src/com/android/launcher3/taskbar/navbutton/NavButtonLayoutFactory.kt
 +++ b/quickstep/src/com/android/launcher3/taskbar/navbutton/NavButtonLayoutFactory.kt
 @@ -25,6 +25,7 @@ import android.widget.LinearLayout
@@ -841,7 +841,7 @@ index 13a9e6da87..1e232d3224 100644
  import com.android.launcher3.taskbar.TaskbarActivityContext
  import com.android.launcher3.taskbar.navbutton.LayoutResourceHelper.ID_END_CONTEXTUAL_BUTTONS
  import com.android.launcher3.taskbar.navbutton.LayoutResourceHelper.ID_END_NAV_BUTTONS
-@@ -177,6 +178,16 @@ class NavButtonLayoutFactory {
+@@ -177,6 +178,17 @@ class NavButtonLayoutFactory {
                                  recentsButton,
                              )
                          }
@@ -853,6 +853,7 @@ index 13a9e6da87..1e232d3224 100644
 +                                startContextualContainer,
 +                                imeSwitcher,
 +                                a11yButton,
++                                moreOptionsButton,
 +                                space,
 +                            )
                          else ->
@@ -860,10 +861,10 @@ index 13a9e6da87..1e232d3224 100644
                                  resources,
 diff --git a/quickstep/src/com/android/launcher3/taskbar/navbutton/SystemBarNavLayoutter.kt b/quickstep/src/com/android/launcher3/taskbar/navbutton/SystemBarNavLayoutter.kt
 new file mode 100644
-index 0000000000..779ddec7cc
+index 0000000000..1078a2790c
 --- /dev/null
 +++ b/quickstep/src/com/android/launcher3/taskbar/navbutton/SystemBarNavLayoutter.kt
-@@ -0,0 +1,82 @@
+@@ -0,0 +1,84 @@
 +/*
 + * Copyright (C) 2026 Navotpala Tech (Bliss Co-Labs Inc.)
 + *
@@ -898,6 +899,7 @@ index 0000000000..779ddec7cc
 +    startContextualContainer: ViewGroup,
 +    imeSwitcher: ImageView?,
 +    a11yButton: ImageView?,
++    moreOptionsButton: ImageView?,
 +    space: Space?,
 +) :
 +    AbstractNavButtonLayoutter(
@@ -907,6 +909,7 @@ index 0000000000..779ddec7cc
 +        startContextualContainer,
 +        imeSwitcher,
 +        a11yButton,
++        moreOptionsButton,
 +        space,
 +    ) {
 +
@@ -921,7 +924,7 @@ index 0000000000..779ddec7cc
 +
 +        endContextualContainer.removeAllViews()
 +        startContextualContainer.removeAllViews()
-+        listOfNotNull(imeSwitcher, a11yButton).forEach { button ->
++        listOfNotNull(imeSwitcher, a11yButton, moreOptionsButton).forEach { button ->
 +            (button.parent as? ViewGroup)?.removeView(button)
 +            navButtonContainer.addView(button)
 +        }

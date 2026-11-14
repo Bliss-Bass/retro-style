@@ -1,4 +1,4 @@
-From becbd164b77b3d999186f2e98514a1822322dc82 Mon Sep 17 00:00:00 2001
+From 65d8d3d87327956c9012a3b865d9bfc3540d442c Mon Sep 17 00:00:00 2001
 From: Jon West <electrikjesus@gmail.com>
 Date: Thu, 5 Nov 2026 16:54:56 -0500
 Subject: [PATCH 10/10] Taskbar: Keep the volume icon in the KitKat tray

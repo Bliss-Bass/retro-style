@@ -1,4 +1,4 @@
-From 74f789004ed07adc33b0083bc73a91024757c03a Mon Sep 17 00:00:00 2001
+From 3d4258ff88776f8c1f518e932794794165ee0da9 Mon Sep 17 00:00:00 2001
 From: Jon West <electrikjesus@gmail.com>
 Date: Wed, 4 Nov 2026 15:54:12 -0500
 Subject: [PATCH 08/10] Taskbar: Read the applied retro style from

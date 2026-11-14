@@ -1,4 +1,4 @@
-From dd824fdd89a926af6ae1899ad4e5275efc18eb36 Mon Sep 17 00:00:00 2001
+From f71f97c283fbb77818370d94dc8bf2be3ce0d3b1 Mon Sep 17 00:00:00 2001
 From: Jon West <electrikjesus@gmail.com>
 Date: Wed, 4 Nov 2026 11:48:00 -0500
 Subject: [PATCH 05/10] Taskbar: Keep system bar apps clear of the buttons and

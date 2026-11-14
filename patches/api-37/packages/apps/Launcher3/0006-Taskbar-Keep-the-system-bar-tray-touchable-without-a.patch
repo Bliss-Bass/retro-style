@@ -1,4 +1,4 @@
-From 331389005c019b6c859eaeb513aca3ea87e934f9 Mon Sep 17 00:00:00 2001
+From cc78c9f49c5946c01bcb3710557472afa065f16f Mon Sep 17 00:00:00 2001
 From: Jon West <electrikjesus@gmail.com>
 Date: Wed, 4 Nov 2026 11:51:14 -0500
 Subject: [PATCH 06/10] Taskbar: Keep the system bar tray touchable without app

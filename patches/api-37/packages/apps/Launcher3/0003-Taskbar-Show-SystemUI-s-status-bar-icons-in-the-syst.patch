@@ -1,4 +1,4 @@
-From d7009edb8c52081827e3b8a2b85c50550d60e776 Mon Sep 17 00:00:00 2001
+From c8ecb71a1c40d09cc0c61c5bb55cc883187509df Mon Sep 17 00:00:00 2001
 From: Jon West <electrikjesus@gmail.com>
 Date: Tue, 3 Nov 2026 16:21:02 -0500
 Subject: [PATCH 03/10] Taskbar: Show SystemUI's status bar icons in the system

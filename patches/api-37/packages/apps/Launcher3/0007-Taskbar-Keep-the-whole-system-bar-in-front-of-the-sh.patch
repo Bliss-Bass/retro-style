@@ -1,4 +1,4 @@
-From d754d45ce946c46221d2789568978e994154e00d Mon Sep 17 00:00:00 2001
+From 6d0d335f9c12dff84da6349bf7c70b5e9ffe711c Mon Sep 17 00:00:00 2001
 From: Jon West <electrikjesus@gmail.com>
 Date: Wed, 4 Nov 2026 14:49:26 -0500
 Subject: [PATCH 07/10] Taskbar: Keep the whole system bar in front of the
