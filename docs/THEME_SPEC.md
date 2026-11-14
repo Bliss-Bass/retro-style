@@ -273,6 +273,20 @@ tools/theme_tool.py check <id> --apks out/target/product/<device>   # also links
 count) and, with `--apks`, from the built APKs. With `--apks` it also compiles and links every
 overlay with aapt2 against the built framework, using the same flags as Soong.
 
+The generated widget styles (`"widgets"`) re-parent DeviceDefault styles to framework styles, and
+Android releases add and remove those. The committed files serve every release the packs build
+for, so generate with each release's framework values; a style is only re-parented when it exists
+in all of them:
+
+```sh
+tools/theme_tool.py \
+  --framework-values <android-16-tree>/frameworks/base/core/res/res/values \
+  --framework-values <android-17-tree>/frameworks/base/core/res/res/values \
+  gen
+```
+
+`RETRO_FRAMEWORK_VALUES` takes the same list, separated by `:`.
+
 Then try it on a device: build, flash, pick it in Settings, and run
 `tests/retro_style_matrix.sh` ([TESTING.md](TESTING.md)), which applies every installed pack and
 checks overlays, restarts and crashes.

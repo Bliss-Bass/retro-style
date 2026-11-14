@@ -203,13 +203,25 @@ def style_names(path, pattern):
         return re.findall(r'<style name="(%s)"' % pattern, f.read())
 
 
-def widget_styles(family, values_dir):
-    """`<style>` lines that re-parent DeviceDefault widget and text styles to [family]."""
-    device_default = style_names(
-        os.path.join(values_dir, "styles_device_defaults.xml"),
-        r"(?:Widget|TextAppearance|AlertDialog)\.DeviceDefault[^\"]*",
-    )
-    available = set(style_names(os.path.join(values_dir, FAMILY_FILES[family]), r"[^\"]*"))
+def widget_styles(family, values_dirs):
+    """`<style>` lines that re-parent DeviceDefault widget and text styles to [family].
+
+    With several framework trees (one per Android release the packs build for), a style is only
+    re-parented when it and its parent exist in every one, so one generated file links on all.
+    """
+    device_default = None
+    available = None
+    for values_dir in values_dirs:
+        names = style_names(
+            os.path.join(values_dir, "styles_device_defaults.xml"),
+            r"(?:Widget|TextAppearance|AlertDialog)\.DeviceDefault[^\"]*",
+        )
+        family_names = set(style_names(os.path.join(values_dir, FAMILY_FILES[family]), r"[^\"]*"))
+        if device_default is None:
+            device_default, available = names, family_names
+        else:
+            device_default = [n for n in device_default if n in set(names)]
+            available &= family_names
     lines = []
     for name in device_default:
         parent = family_parent(family, name)
@@ -247,7 +259,7 @@ class Pack:
     def module(self, target=None):
         return f"RetroTheme_{self.id}" + (f"_{target}" if target else "")
 
-    def tokens(self, target, values_dir):
+    def tokens(self, target, values_dirs):
         """Resource lines theme.json produces for [target] (empty: nothing generated)."""
         lines = []
         corner = self.get("shape", "corner")
@@ -257,7 +269,7 @@ class Pack:
                 progress = self.get("shape", "progress", default=corner)
                 lines.append(f'    <dimen name="{PROGRESS_CORNER}">{progress}</dimen>')
         if target == "android" and self.get("widgets", default="default") != "default":
-            lines += widget_styles(self.get("widgets"), values_dir)
+            lines += widget_styles(self.get("widgets"), values_dirs)
         if target == "font" and self.get("font"):
             for key, name in FONT_RESOURCES.items():
                 value = self.get("font", key)
@@ -270,9 +282,9 @@ class Pack:
             lines += [f'    <color name="{n}">{bar}</color>' for n in BAR_COLORS]
         return lines
 
-    def targets(self, values_dir):
+    def targets(self, values_dirs):
         """Targets this pack builds an overlay for, in TARGETS order."""
-        return [t for t in TARGETS if self.hand_res(t) or self.tokens(t, values_dir)]
+        return [t for t in TARGETS if self.hand_res(t) or self.tokens(t, values_dirs)]
 
 
 def pack_ids(include_template=False):
@@ -425,7 +437,7 @@ def generated_values(lines):
     ) + "\n"
 
 
-def android_bp(pack, targets, values_dir):
+def android_bp(pack, targets, values_dirs):
     aosp_assets = has_binary_assets(pack)
     license_module = (
         "vendor_retro-style_aosp_assets_license" if aosp_assets else "vendor_retro-style_license"
@@ -463,7 +475,7 @@ def android_bp(pack, targets, values_dir):
         dirs = []
         if pack.hand_res(target):
             dirs.append(f"{target}/res")
-        if pack.tokens(target, values_dir):
+        if pack.tokens(target, values_dirs):
             dirs.append(f"{target}/res_gen")
         out += [
             "",
@@ -504,17 +516,17 @@ def themes_mk(packs):
     return "\n".join(lines) + "\n"
 
 
-def expected_files(pack, values_dir):
+def expected_files(pack, values_dirs):
     """Every generated file for [pack], as {relative path: content}."""
     files = {}
-    targets = pack.targets(values_dir)
+    targets = pack.targets(values_dirs)
     for target in targets:
         files[f"{target}/AndroidManifest.xml"] = manifest(pack, target)
-        tokens = pack.tokens(target, values_dir)
+        tokens = pack.tokens(target, values_dirs)
         if tokens:
             for qualifier in GENERATED_QUALIFIERS.get(target, [""]):
                 files[f"{target}/res_gen/values{qualifier}/retro_generated.xml"] = generated_values(tokens)
-    files["Android.bp"] = android_bp(pack, targets, values_dir)
+    files["Android.bp"] = android_bp(pack, targets, values_dirs)
     return files
 
 
@@ -876,8 +888,9 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument(
         "--framework-values",
-        default=os.environ.get("RETRO_FRAMEWORK_VALUES", DEFAULT_FRAMEWORK_VALUES),
-        help="frameworks/base/core/res/res/values of your tree (for widget families)",
+        action="append",
+        help="frameworks/base/core/res/res/values of your tree (for widget families); repeat it "
+        "for each Android release the packs build for, so the generated styles link on all",
     )
     sub = parser.add_subparsers(dest="command", required=True)
     sub.add_parser("list")
@@ -901,11 +914,14 @@ def main():
         help="source tree root, for the targets' resource names (default: two levels up)",
     )
     args = parser.parse_args()
-    if args.command in ("gen", "check") and not os.path.isfile(
-        os.path.join(args.framework_values, "styles_device_defaults.xml")
-    ):
-        print(f"framework styles not found in {args.framework_values}; pass --framework-values")
-        return 2
+    if not args.framework_values:
+        env = os.environ.get("RETRO_FRAMEWORK_VALUES")
+        args.framework_values = env.split(os.pathsep) if env else [DEFAULT_FRAMEWORK_VALUES]
+    if args.command in ("gen", "check"):
+        for values_dir in args.framework_values:
+            if not os.path.isfile(os.path.join(values_dir, "styles_device_defaults.xml")):
+                print(f"framework styles not found in {values_dir}; pass --framework-values")
+                return 2
     commands = {
         "list": cmd_list, "new": cmd_new, "gen": cmd_gen, "check": cmd_check, "sources": cmd_sources,
     }

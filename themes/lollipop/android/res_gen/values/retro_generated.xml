@@ -176,7 +176,6 @@
     <style name="TextAppearance.DeviceDefault.SearchResult.Subtitle" parent="@*android:style/TextAppearance.Material.SearchResult.Subtitle" />
     <style name="TextAppearance.DeviceDefault.Notification" parent="@*android:style/TextAppearance.Material.Notification" />
     <style name="TextAppearance.DeviceDefault.Notification.Title" parent="@*android:style/TextAppearance.Material.Notification.Title" />
-    <style name="TextAppearance.DeviceDefault.Notification.BigTitle" parent="@*android:style/TextAppearance.Material.Notification.BigTitle" />
     <style name="TextAppearance.DeviceDefault.Notification.Reply" parent="@*android:style/TextAppearance.Material.Notification.Reply" />
     <style name="TextAppearance.DeviceDefault.Notification.Info" parent="@*android:style/TextAppearance.Material.Notification.Info" />
     <style name="TextAppearance.DeviceDefault.Notification.Time" parent="@*android:style/TextAppearance.Material.Notification.Time" />
