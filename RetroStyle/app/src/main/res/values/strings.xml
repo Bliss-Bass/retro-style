@@ -17,8 +17,13 @@
 
     <string name="section_layout">Bottom bar</string>
     <string name="layout_stock">Taskbar</string>
-    <string name="layout_system_bar">Tablet system bar (navigation left, clock and tray right)</string>
+    <string name="layout_system_bar">Tablet system bar (pinned bottom bar with nav, apps, and tray)</string>
     <string name="bar_apps">Show apps and running tasks on the tablet system bar</string>
+
+    <string name="section_nav_gravity">Navigation buttons on the tablet system bar</string>
+    <string name="nav_gravity_start">At the start</string>
+    <string name="nav_gravity_center">Centered</string>
+    <string name="nav_gravity_end">Before the tray</string>
 
     <string name="section_apps_gravity">Apps on the tablet system bar</string>
     <string name="apps_gravity_start">After the buttons</string>

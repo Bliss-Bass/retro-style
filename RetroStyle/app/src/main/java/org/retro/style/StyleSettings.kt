@@ -24,6 +24,7 @@ object StyleSettings {
     const val KEY_HIDE_STATUS_BAR = "retro_ui_hide_status_bar"
     const val KEY_BAR_APPS = "retro_ui_bar_apps"
     const val KEY_BAR_APPS_GRAVITY = "retro_ui_bar_apps_gravity"
+    const val KEY_BAR_NAV_GRAVITY = "retro_ui_bar_nav_gravity"
     const val KEY_BAR_BUTTONS = "retro_ui_bar_buttons"
     const val KEY_CLOCK_SECONDS = "retro_ui_bar_clock_seconds"
     const val KEY_BAR_BACKGROUND = "retro_ui_bar_background"
@@ -97,6 +98,11 @@ object StyleSettings {
     fun appsGravity(cr: ContentResolver): String =
         get(cr, KEY_BAR_APPS_GRAVITY)?.takeIf { it == GRAVITY_START || it == GRAVITY_END }
             ?: GRAVITY_CENTER
+
+    /** Nav buttons on the system bar; unset keeps them at the start (classic). */
+    fun navGravity(cr: ContentResolver): String =
+        get(cr, KEY_BAR_NAV_GRAVITY)?.takeIf { it == GRAVITY_CENTER || it == GRAVITY_END }
+            ?: GRAVITY_START
 
     /** Extra buttons on the system bar; none until the user turns them on. */
     fun barButtons(cr: ContentResolver): List<String> {

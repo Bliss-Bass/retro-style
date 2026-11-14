@@ -1,0 +1,191 @@
+From e529a1bc53451d003f426eb5f3a983867c0de84d Mon Sep 17 00:00:00 2001
+From: Jon West <electrikjesus@gmail.com>
+Date: Sat, 14 Nov 2026 17:01:41 -0500
+Subject: [PATCH] Taskbar: Pin the system bar and honor nav button gravity
+
+Keep the tablet system bar flush to the bottom (no floating corner chrome / start-align nudges) and place nav buttons from bar_nav_gravity like apps already use bar_apps_gravity.
+
+Change-Id: Ib90f26c3812b2f6ce56a9100be481078a7d6a694
+---
+ quickstep/res/values/retro_system_bar.xml     |  1 +
+ .../taskbar/NavbarButtonsViewController.java  |  4 ++
+ .../launcher3/taskbar/RetroSystemBar.kt       | 19 ++++++-
+ .../taskbar/TaskbarActivityContext.java       |  9 +++
+ .../navbutton/SystemBarNavLayoutter.kt        | 56 +++++++++++++++++--
+ 5 files changed, 81 insertions(+), 8 deletions(-)
+
+diff --git a/quickstep/res/values/retro_system_bar.xml b/quickstep/res/values/retro_system_bar.xml
+index ff29d000b2..ee280bd503 100644
+--- a/quickstep/res/values/retro_system_bar.xml
++++ b/quickstep/res/values/retro_system_bar.xml
+@@ -15,6 +15,7 @@
+     <item type="id" name="retro_power" />
+     <item type="id" name="retro_system_tray" />
+     <item type="id" name="retro_system_bar_apps_relayout" />
++    <item type="id" name="retro_system_bar_nav_relayout" />
+ 
+     <!-- Nav buttons are as wide as on the 3.x/4.x tablet system bar. -->
+     <dimen name="retro_system_bar_button_width">80dp</dimen>
+diff --git a/quickstep/src/com/android/launcher3/taskbar/NavbarButtonsViewController.java b/quickstep/src/com/android/launcher3/taskbar/NavbarButtonsViewController.java
+index c9266fc220..d6d85b5453 100644
+--- a/quickstep/src/com/android/launcher3/taskbar/NavbarButtonsViewController.java
++++ b/quickstep/src/com/android/launcher3/taskbar/NavbarButtonsViewController.java
+@@ -1434,6 +1434,10 @@ public class NavbarButtonsViewController implements TaskbarControllers.LoggableT
+     }
+ 
+     private int getNavBarTranslationX(BubbleBarLocation location) {
++        // System bar nav position comes from RetroSystemBar.navGravity, not bubble-bar nudges.
++        if (RetroSystemBar.isEnabled() && !mContext.isPhoneMode()) {
++            return 0;
++        }
+         boolean isNavbarOnRight = location.isOnLeft(mNavButtonsView.isLayoutRtl());
+         DeviceProfile dp = mContext.getDeviceProfile();
+         float navBarTargetStartX;
+diff --git a/quickstep/src/com/android/launcher3/taskbar/RetroSystemBar.kt b/quickstep/src/com/android/launcher3/taskbar/RetroSystemBar.kt
+index 12258513d0..2248ef767c 100644
+--- a/quickstep/src/com/android/launcher3/taskbar/RetroSystemBar.kt
++++ b/quickstep/src/com/android/launcher3/taskbar/RetroSystemBar.kt
+@@ -86,6 +86,19 @@ object RetroSystemBar {
+         }
+     }
+ 
++    /**
++     * Where the nav (+ extra) buttons sit on the bar: `start`, `center` or `end` (before the
++     * tray). Defaults to start, like a classic tablet system bar.
++     */
++    @JvmStatic
++    val navGravity: String by lazy {
++        when (val gravity = RetroUiApplied["bar_nav_gravity"].orEmpty()) {
++            GRAVITY_CENTER,
++            GRAVITY_END -> gravity
++            else -> GRAVITY_START
++        }
++    }
++
+     /**
+      * The end (right edge) of [taskbarView]'s icon row, kept clear of the start buttons and the
+      * tray, which the nav buttons view lays out over the same bar.
+@@ -132,9 +145,9 @@ object RetroSystemBar {
+         }
+     }
+ 
+-    private const val GRAVITY_START = "start"
+-    private const val GRAVITY_CENTER = "center"
+-    private const val GRAVITY_END = "end"
++    const val GRAVITY_START = "start"
++    const val GRAVITY_CENTER = "center"
++    const val GRAVITY_END = "end"
+ 
+     data class ExtraButton(val type: Int, val drawable: Int, val id: Int)
+ }
+diff --git a/quickstep/src/com/android/launcher3/taskbar/TaskbarActivityContext.java b/quickstep/src/com/android/launcher3/taskbar/TaskbarActivityContext.java
+index 64375e2407..8e9365cce1 100644
+--- a/quickstep/src/com/android/launcher3/taskbar/TaskbarActivityContext.java
++++ b/quickstep/src/com/android/launcher3/taskbar/TaskbarActivityContext.java
+@@ -1000,6 +1000,10 @@ public class TaskbarActivityContext extends BaseTaskbarContext {
+ 
+     /** Returns whether taskbar should start align. */
+     public boolean shouldStartAlignTaskbar() {
++        // Tablet system bar places apps/nav via RetroSystemBar gravity, not start-align.
++        if (RetroSystemBar.isEnabled() && !isPhoneMode()) {
++            return false;
++        }
+         return isThreeButtonNav() && mDeviceProfile.getTaskbarProfile().isStartAlignTaskbar();
+     }
+ 
+@@ -1012,6 +1016,11 @@ public class TaskbarActivityContext extends BaseTaskbarContext {
+     }
+ 
+     public int getCornerRadius() {
++        // Pin the tablet system bar flush to the bottom like a classic nav bar (A16), not the
++        // rounded floating taskbar chrome.
++        if (RetroSystemBar.isEnabled() && !isPhoneMode()) {
++            return 0;
++        }
+         return isPhoneMode() ? 0 : getResources().getDimensionPixelSize(
+                 R.dimen.persistent_taskbar_corner_radius);
+     }
+diff --git a/quickstep/src/com/android/launcher3/taskbar/navbutton/SystemBarNavLayoutter.kt b/quickstep/src/com/android/launcher3/taskbar/navbutton/SystemBarNavLayoutter.kt
+index 1078a2790c..f60906f9da 100644
+--- a/quickstep/src/com/android/launcher3/taskbar/navbutton/SystemBarNavLayoutter.kt
++++ b/quickstep/src/com/android/launcher3/taskbar/navbutton/SystemBarNavLayoutter.kt
+@@ -22,8 +22,9 @@ import com.android.launcher3.taskbar.RetroSystemBar
+ import com.android.launcher3.taskbar.TaskbarActivityContext
+ 
+ /**
+- * Layoutter for the tablet system bar: back/home/recents and the extra buttons at the start, then
+- * the IME switcher and accessibility button. The end of the bar belongs to the tray.
++ * Layoutter for the tablet system bar: back/home/recents and the extra buttons, then the IME
++ * switcher and accessibility button. Placement follows [RetroSystemBar.navGravity]; the end of
++ * the bar belongs to the tray.
+  */
+ class SystemBarNavLayoutter(
+     resources: Resources,
+@@ -69,6 +70,24 @@ class SystemBarNavLayoutter(
+                 LinearLayout.LayoutParams(buttonWidth, ViewGroup.LayoutParams.MATCH_PARENT)
+         }
+ 
++        val edge = resources.getDimensionPixelSize(R.dimen.retro_system_bar_edge_margin)
++        val parent = navButtonContainer.parent as? ViewGroup
++        val tray = parent?.findViewById<View>(R.id.retro_system_tray)
++        relayoutOnTrayChange(tray)
++
++        val horizontalGravity =
++            when (RetroSystemBar.navGravity) {
++                RetroSystemBar.GRAVITY_CENTER -> Gravity.CENTER_HORIZONTAL
++                RetroSystemBar.GRAVITY_END -> Gravity.END
++                else -> Gravity.START
++            }
++        val marginStart = if (horizontalGravity == Gravity.START) edge else 0
++        val marginEnd =
++            when (horizontalGravity) {
++                Gravity.END -> trayEndMargin(tray, edge)
++                else -> 0
++            }
++
+         navButtonContainer.orientation = LinearLayout.HORIZONTAL
+         navButtonContainer.layoutParams =
+             FrameLayout.LayoutParams(
+@@ -76,9 +95,36 @@ class SystemBarNavLayoutter(
+                     ViewGroup.LayoutParams.MATCH_PARENT,
+                 )
+                 .apply {
+-                    gravity = Gravity.START or Gravity.CENTER_VERTICAL
+-                    marginStart =
+-                        resources.getDimensionPixelSize(R.dimen.retro_system_bar_edge_margin)
++                    gravity = horizontalGravity or Gravity.CENTER_VERTICAL
++                    this.marginStart = marginStart
++                    this.marginEnd = marginEnd
++                }
++    }
++
++    /** Keep nav `end` clear of the tray once the tray has a real width. */
++    private fun relayoutOnTrayChange(tray: View?) {
++        if (tray == null || tray.getTag(R.id.retro_system_bar_nav_relayout) != null) return
++        tray.setTag(R.id.retro_system_bar_nav_relayout, true)
++        tray.addOnLayoutChangeListener { _, left, _, right, _, oldLeft, _, oldRight, _ ->
++            if (left != oldLeft || right != oldRight) {
++                val context = navButtonContainer.context
++                if (context is TaskbarActivityContext) {
++                    navButtonContainer.post {
++                        layoutButtons(context, isA11yButtonPersistent = false)
++                    }
+                 }
++            }
++        }
++    }
++
++    private fun trayEndMargin(tray: View?, edge: Int): Int {
++        val trayWidth =
++            when {
++                tray == null -> 0
++                tray.width > 0 -> tray.width
++                tray.measuredWidth > 0 -> tray.measuredWidth
++                else -> 0
++            }
++        return trayWidth + edge
+     }
+ }
+-- 
+2.43.0
+

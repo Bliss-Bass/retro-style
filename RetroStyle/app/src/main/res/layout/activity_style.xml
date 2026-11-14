@@ -95,6 +95,31 @@
 
             <TextView
                 style="@style/RetroStyle.Section"
+                android:text="@string/section_nav_gravity" />
+
+            <RadioGroup
+                android:id="@+id/nav_gravity_group"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content">
+
+                <com.google.android.material.radiobutton.MaterialRadioButton
+                    android:id="@+id/nav_gravity_start"
+                    style="@style/RetroStyle.Choice"
+                    android:text="@string/nav_gravity_start" />
+
+                <com.google.android.material.radiobutton.MaterialRadioButton
+                    android:id="@+id/nav_gravity_center"
+                    style="@style/RetroStyle.Choice"
+                    android:text="@string/nav_gravity_center" />
+
+                <com.google.android.material.radiobutton.MaterialRadioButton
+                    android:id="@+id/nav_gravity_end"
+                    style="@style/RetroStyle.Choice"
+                    android:text="@string/nav_gravity_end" />
+            </RadioGroup>
+
+            <TextView
+                style="@style/RetroStyle.Section"
                 android:text="@string/section_apps_gravity" />
 
             <RadioGroup

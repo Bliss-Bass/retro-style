@@ -214,6 +214,19 @@ class StyleActivity : AppCompatActivity() {
         for (i in 0 until group.childCount) group.getChildAt(i).isEnabled = systemBar && apps
 
         bindGroup(
+            R.id.nav_gravity_group,
+            StyleSettings.KEY_BAR_NAV_GRAVITY,
+            StyleSettings.navGravity(cr),
+            mapOf(
+                R.id.nav_gravity_start to StyleSettings.GRAVITY_START,
+                R.id.nav_gravity_center to StyleSettings.GRAVITY_CENTER,
+                R.id.nav_gravity_end to StyleSettings.GRAVITY_END,
+            ),
+        )
+        val navGroup = findViewById<RadioGroup>(R.id.nav_gravity_group)
+        for (i in 0 until navGroup.childCount) navGroup.getChildAt(i).isEnabled = systemBar
+
+        bindGroup(
             R.id.bar_background_group,
             StyleSettings.KEY_BAR_BACKGROUND,
             StyleSettings.barBackground(cr),
