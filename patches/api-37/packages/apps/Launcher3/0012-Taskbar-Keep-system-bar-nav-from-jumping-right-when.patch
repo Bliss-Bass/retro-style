@@ -1,0 +1,60 @@
+From 59ecedbb3925c4db12bf6c596089d36d9e6a2b36 Mon Sep 17 00:00:00 2001
+From: Jon West <electrikjesus@gmail.com>
+Date: Sat, 14 Nov 2026 17:09:38 -0500
+Subject: [PATCH] Taskbar: Keep system bar nav from jumping right when home
+ loads
+
+Bubble-bar location updates on launcher attach were translating the nav cluster to the end; ignore those nudges for the tablet system bar and clear any leftover translationX.
+
+Change-Id: I527fa43cea1c672e101b264366e07967ae8c2cc3
+---
+ .../taskbar/NavbarButtonsViewController.java         | 12 ++++++++++++
+ .../taskbar/navbutton/SystemBarNavLayoutter.kt       |  2 ++
+ 2 files changed, 14 insertions(+)
+
+diff --git a/quickstep/src/com/android/launcher3/taskbar/NavbarButtonsViewController.java b/quickstep/src/com/android/launcher3/taskbar/NavbarButtonsViewController.java
+index d6d85b5453..ea91b6c057 100644
+--- a/quickstep/src/com/android/launcher3/taskbar/NavbarButtonsViewController.java
++++ b/quickstep/src/com/android/launcher3/taskbar/NavbarButtonsViewController.java
+@@ -1391,6 +1391,14 @@ public class NavbarButtonsViewController implements TaskbarControllers.LoggableT
+     /** Adjusts navigation buttons layout accordingly to the bubble bar position. */
+     @Override
+     public void onBubbleBarLocationUpdated(BubbleBarLocation location) {
++        // Home attach fires this and would shove system-bar nav to the end; gravity owns placement.
++        if (RetroSystemBar.isEnabled() && !mContext.isPhoneMode()) {
++            cancelExistingNavBarAnimation();
++            mNavButtonContainer.setTranslationX(0);
++            mBubbleBarTargetLocation = location;
++            notifyRecentsButtonPosition();
++            return;
++        }
+         boolean locationUpdated = location != mBubbleBarTargetLocation;
+         if (locationUpdated) {
+             cancelExistingNavBarAnimation();
+@@ -1408,6 +1416,10 @@ public class NavbarButtonsViewController implements TaskbarControllers.LoggableT
+     /** Animates navigation buttons accordingly to the bubble bar position. */
+     @Override
+     public void onBubbleBarLocationAnimated(BubbleBarLocation location) {
++        if (RetroSystemBar.isEnabled() && !mContext.isPhoneMode()) {
++            onBubbleBarLocationUpdated(location);
++            return;
++        }
+         if (location == mBubbleBarTargetLocation) return;
+         cancelExistingNavBarAnimation();
+         mBubbleBarTargetLocation = location;
+diff --git a/quickstep/src/com/android/launcher3/taskbar/navbutton/SystemBarNavLayoutter.kt b/quickstep/src/com/android/launcher3/taskbar/navbutton/SystemBarNavLayoutter.kt
+index f60906f9da..9cf1fb8c8d 100644
+--- a/quickstep/src/com/android/launcher3/taskbar/navbutton/SystemBarNavLayoutter.kt
++++ b/quickstep/src/com/android/launcher3/taskbar/navbutton/SystemBarNavLayoutter.kt
+@@ -89,6 +89,8 @@ class SystemBarNavLayoutter(
+             }
+ 
+         navButtonContainer.orientation = LinearLayout.HORIZONTAL
++        // Drop any bubble-bar / start-align translation left over from a prior home attach.
++        navButtonContainer.translationX = 0f
+         navButtonContainer.layoutParams =
+             FrameLayout.LayoutParams(
+                     FrameLayout.LayoutParams.WRAP_CONTENT,
+-- 
+2.43.0
+
