@@ -4,9 +4,10 @@
 package org.retro.style
 
 /**
- * Exclusive left / center / right zones on the tablet system bar (tray is fixed at the screen
- * end, past right). Nav and apps each occupy at most one zone; placing into an occupied zone
- * swaps. Justification for Launcher3 is derived from the zone.
+ * Placement of Nav and Apps on the tablet system bar (tray is fixed at the screen end).
+ * Each maps to Launcher3 gravity (`start` / `center` / `end`). Sections are exclusive — placing
+ * onto an occupied slot swaps. Justification cycling walks the same gravities (Apps may also
+ * leave the bar).
  */
 enum class BarZone(val gravity: String) {
     START(StyleSettings.GRAVITY_START),
@@ -93,15 +94,36 @@ data class BarZones(
         if (!appsEnabled) apps = null
     }
 
-    /** Move nav to the next zone (left → center → right → left), swapping with apps if needed. */
-    fun cycleNav() {
+    /** Tap justification: left-aligned → centered → right-aligned → left-aligned. */
+    fun cycleNavJustify() {
         placeNav(nextZone(nav))
     }
 
-    /** Move apps to the next zone; no-op when apps are off the bar. */
-    fun cycleApps() {
-        val current = apps ?: return
-        placeApps(nextZone(current))
+    /**
+     * Tap justification for apps: left → center → right → disabled (`apps = null`).
+     * Calling again while disabled places apps at start.
+     * @return whether apps remain on the bar
+     */
+    fun cycleAppsJustify(): Boolean {
+        val current = apps
+        if (current == null) {
+            placeApps(BarZone.START)
+            return true
+        }
+        return when (current) {
+            BarZone.START -> {
+                placeApps(BarZone.CENTER)
+                true
+            }
+            BarZone.CENTER -> {
+                placeApps(BarZone.END)
+                true
+            }
+            BarZone.END -> {
+                apps = null
+                false
+            }
+        }
     }
 
     private fun nextZone(from: BarZone): BarZone {

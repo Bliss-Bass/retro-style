@@ -11,11 +11,13 @@ import android.graphics.RectF
 import android.util.AttributeSet
 import android.view.MotionEvent
 import android.view.View
+import kotlin.math.abs
+import kotlin.math.hypot
 
 /**
- * Mini tablet system bar: three tappable zones (left / center / right-before-tray) plus a fixed
- * tray at the end. Occupied zones draw nav buttons or apps-menu + hotseat icons with labels.
- * Tap Nav/Apps to advance that item across zones; tap an empty zone to place the selected tool.
+ * Mini tablet system bar preview: a fixed system tray at the end, plus draggable Nav and Apps
+ * sections. Drag a section onto left / center / right to place it; tap it to cycle justification
+ * (or disable Apps). Empty slots are not labeled — only drop targets while dragging.
  */
 class SystemBarPreviewView
 @JvmOverloads
@@ -34,7 +36,6 @@ constructor(context: Context, attrs: AttributeSet? = null, defStyleAttr: Int = 0
             invalidate()
         }
 
-    /** Extra system-bar buttons from the draft (`vol_down`, `vol_up`, …). */
     var extraButtons: List<String> = emptyList()
         set(value) {
             field = value
@@ -65,7 +66,11 @@ constructor(context: Context, attrs: AttributeSet? = null, defStyleAttr: Int = 0
             invalidate()
         }
 
-    var onZoneTapped: ((BarZone) -> Unit)? = null
+    /** Drag finished: [occupant] should be placed at [zone] (swap as needed). */
+    var onOccupantDropped: ((BarOccupant, BarZone) -> Unit)? = null
+
+    /** Tap (no drag): cycle justification / disabled for [occupant]. */
+    var onOccupantTapped: ((BarOccupant) -> Unit)? = null
 
     private val barPaint = Paint(Paint.ANTI_ALIAS_FLAG)
     private val fillPaint = Paint(Paint.ANTI_ALIAS_FLAG)
@@ -81,9 +86,25 @@ constructor(context: Context, attrs: AttributeSet? = null, defStyleAttr: Int = 0
         }
     private val path = Path()
     private val barRect = RectF()
-    private val zoneRects = Array(3) { RectF() }
+    private val slotRects = Array(3) { RectF() }
     private val trayRect = RectF()
     private val tmpRect = RectF()
+    private val navRect = RectF()
+    private val appsRect = RectF()
+    private val dragRect = RectF()
+
+    private var touchOccupant: BarOccupant? = null
+    private var dragging = false
+    private var downX = 0f
+    private var downY = 0f
+    private var dragX = 0f
+    private var dragY = 0f
+    private var dragOffsetX = 0f
+    private var dragOffsetY = 0f
+    private var dropHighlight: BarZone? = null
+
+    private val touchSlop: Float
+        get() = dp(8f)
 
     override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
         val w = MeasureSpec.getSize(widthMeasureSpec)
@@ -92,17 +113,21 @@ constructor(context: Context, attrs: AttributeSet? = null, defStyleAttr: Int = 0
     }
 
     override fun onSizeChanged(w: Int, h: Int, oldw: Int, oldh: Int) {
+        layoutSlots(w, h)
+    }
+
+    private fun layoutSlots(w: Int, h: Int) {
         val pad = dp(6f)
         val trayW = dp(64f)
         barRect.set(pad, pad, w - pad, h - pad)
         val inner = RectF(barRect)
         inner.right -= trayW + dp(4f)
-        val zoneW = inner.width() / 3f
+        val slotW = inner.width() / 3f
         for (i in 0 until 3) {
-            zoneRects[i].set(
-                inner.left + i * zoneW + dp(2f),
+            slotRects[i].set(
+                inner.left + i * slotW + dp(2f),
                 inner.top + dp(3f),
-                inner.left + (i + 1) * zoneW - dp(2f),
+                inner.left + (i + 1) * slotW - dp(2f),
                 inner.bottom - dp(3f),
             )
         }
@@ -112,38 +137,93 @@ constructor(context: Context, attrs: AttributeSet? = null, defStyleAttr: Int = 0
             barRect.right - dp(4f),
             inner.bottom - dp(3f),
         )
+        updateOccupantRects()
+    }
+
+    private fun updateOccupantRects() {
+        sectionRectFor(zones.nav, navRect)
+        val appsZone = zones.apps
+        if (appsEnabled && appsZone != null) {
+            sectionRectFor(appsZone, appsRect)
+        } else {
+            // Dimmed stub on the end slot so Apps can be tapped back on when disabled.
+            appsRect.set(slotRects[BarZone.END.ordinal])
+        }
+    }
+
+    private fun sectionRectFor(zone: BarZone, out: RectF) {
+        out.set(slotRects[zone.ordinal])
     }
 
     override fun onDraw(canvas: Canvas) {
+        updateOccupantRects()
         val radius = if (kitKat) dp(2f) else dp(12f)
         barPaint.color = barColor
         canvas.drawRoundRect(barRect, radius, radius, barPaint)
 
-        BarZone.entries.forEachIndexed { i, zone ->
-            drawZone(canvas, zoneRects[i], zone, zones.occupantAt(zone))
+        if (dragging) {
+            val highlight = dropHighlight
+            for (i in 0 until 3) {
+                val zone = BarZone.entries[i]
+                strokePaint.color =
+                    if (zone == highlight) accentColor else contentColor and 0x28FFFFFF.toInt()
+                strokePaint.strokeWidth = if (zone == highlight) dp(2f) else dp(1f)
+                canvas.drawRoundRect(slotRects[i], if (kitKat) dp(2f) else dp(8f), if (kitKat) dp(2f) else dp(8f), strokePaint)
+            }
+            strokePaint.strokeWidth = dp(1.5f)
         }
+
+        val hideNav = dragging && touchOccupant == BarOccupant.NAV
+        val hideApps = dragging && touchOccupant == BarOccupant.APPS
+
+        if (!hideNav) drawSection(canvas, navRect, BarOccupant.NAV, enabled = true)
+        if (appsEnabled && zones.apps != null) {
+            if (!hideApps) drawSection(canvas, appsRect, BarOccupant.APPS, enabled = true)
+        } else if (!dragging) {
+            drawSection(canvas, appsRect, BarOccupant.APPS, enabled = false)
+        }
+
         drawTray(canvas, trayRect)
+
+        if (dragging && touchOccupant != null) {
+            dragRect.set(if (touchOccupant == BarOccupant.NAV) navRect else appsRect)
+            val w = dragRect.width()
+            val h = dragRect.height()
+            dragRect.set(dragX - w / 2f, dragY - h / 2f, dragX + w / 2f, dragY + h / 2f)
+            drawSection(canvas, dragRect, touchOccupant!!, enabled = true, dragging = true)
+        }
     }
 
-    private fun drawZone(canvas: Canvas, rect: RectF, zone: BarZone, occupant: BarOccupant?) {
-        val selected = occupant != null
-        strokePaint.color = if (selected) accentColor else contentColor and 0x40FFFFFF.toInt()
+    private fun drawSection(
+        canvas: Canvas,
+        rect: RectF,
+        occupant: BarOccupant,
+        enabled: Boolean,
+        dragging: Boolean = false,
+    ) {
         val r = if (kitKat) dp(2f) else dp(8f)
-        if (selected) {
+        strokePaint.color =
+            if (dragging) accentColor
+            else if (enabled) accentColor and 0xCCFFFFFF.toInt()
+            else contentColor and 0x44FFFFFF.toInt()
+        if (enabled || dragging) {
             fillPaint.color = accentColor and 0x33FFFFFF.toInt()
             canvas.drawRoundRect(rect, r, r, fillPaint)
         }
         canvas.drawRoundRect(rect, r, r, strokePaint)
 
+        val savedContent = contentColor
+        val savedAccent = accentColor
+        if (!enabled) {
+            contentColor = contentColor and 0x55FFFFFF.toInt()
+            accentColor = accentColor and 0x55FFFFFF.toInt()
+        }
         when (occupant) {
             BarOccupant.NAV -> drawNav(canvas, rect)
-            BarOccupant.APPS -> drawApps(canvas, rect)
-            null -> {
-                textPaint.color = contentColor and 0x66FFFFFF.toInt()
-                textPaint.textSize = dp(12f)
-                canvas.drawText(zoneLabel(zone), rect.centerX(), rect.centerY() + dp(4f), textPaint)
-            }
+            BarOccupant.APPS -> drawApps(canvas, rect, enabled)
         }
+        contentColor = savedContent
+        accentColor = savedAccent
     }
 
     private fun drawNav(canvas: Canvas, rect: RectF) {
@@ -211,7 +291,6 @@ constructor(context: Context, attrs: AttributeSet? = null, defStyleAttr: Int = 0
             }
             "vol_down",
             "vol_up" -> {
-                // Speaker wedge
                 path.reset()
                 path.moveTo(cx - size * 0.2f, cy - size * 0.45f)
                 path.lineTo(cx - size * 0.7f, cy - size * 0.45f)
@@ -234,7 +313,7 @@ constructor(context: Context, attrs: AttributeSet? = null, defStyleAttr: Int = 0
         }
     }
 
-    private fun drawApps(canvas: Canvas, rect: RectF) {
+    private fun drawApps(canvas: Canvas, rect: RectF, enabled: Boolean) {
         val labelH = dp(16f)
         val iconsBottom = rect.bottom - labelH - dp(2f)
         val iconsTop = rect.top + dp(6f)
@@ -243,7 +322,6 @@ constructor(context: Context, attrs: AttributeSet? = null, defStyleAttr: Int = 0
         strokePaint.color = contentColor
         strokePaint.strokeWidth = dp(1.5f)
 
-        // Apps menu (3×3 grid) on the left of the zone.
         val cell = dp(3.5f)
         val gap = dp(2.5f)
         val gridW = cell * 3 + gap * 2
@@ -258,17 +336,14 @@ constructor(context: Context, attrs: AttributeSet? = null, defStyleAttr: Int = 0
             }
         }
 
-        // Hotseat / running-task icon stubs to the right of the grid.
         val icon = dp(11f)
         val iconGap = dp(5f)
-        val count = 4
         var x = gridLeft + gridW + dp(10f)
         val maxRight = rect.right - dp(6f)
         var drawn = 0
-        while (drawn < count && x + icon <= maxRight) {
+        while (drawn < 4 && x + icon <= maxRight) {
             tmpRect.set(x, cy - icon / 2f, x + icon, cy + icon / 2f)
             canvas.drawRoundRect(tmpRect, dp(2.5f), dp(2.5f), fillPaint)
-            // Inner well so stubs read as app icons.
             fillPaint.color = contentColor and 0x44FFFFFF.toInt()
             tmpRect.inset(dp(2f), dp(2f))
             canvas.drawRoundRect(tmpRect, dp(1.5f), dp(1.5f), fillPaint)
@@ -280,7 +355,9 @@ constructor(context: Context, attrs: AttributeSet? = null, defStyleAttr: Int = 0
         textPaint.color = contentColor
         textPaint.textSize = dp(11f)
         canvas.drawText(
-            context.getString(R.string.preview_apps_label),
+            context.getString(
+                if (enabled) R.string.preview_apps_label else R.string.preview_apps_off_label
+            ),
             rect.centerX(),
             rect.bottom - dp(5f),
             textPaint,
@@ -301,26 +378,83 @@ constructor(context: Context, attrs: AttributeSet? = null, defStyleAttr: Int = 0
         canvas.drawText("12:00", rect.right - dp(24f), cy + dp(4f), textPaint)
     }
 
-    private fun zoneLabel(zone: BarZone): String =
-        when (zone) {
-            BarZone.START -> context.getString(R.string.preview_zone_left)
-            BarZone.CENTER -> context.getString(R.string.preview_zone_center)
-            BarZone.END -> context.getString(R.string.preview_zone_right)
-        }
-
     override fun onTouchEvent(event: MotionEvent): Boolean {
-        if (event.action != MotionEvent.ACTION_UP) {
-            return event.action == MotionEvent.ACTION_DOWN || super.onTouchEvent(event)
-        }
-        val x = event.x
-        val y = event.y
-        BarZone.entries.forEachIndexed { i, zone ->
-            if (zoneRects[i].contains(x, y)) {
-                onZoneTapped?.invoke(zone)
+        when (event.actionMasked) {
+            MotionEvent.ACTION_DOWN -> {
+                parent?.requestDisallowInterceptTouchEvent(true)
+                downX = event.x
+                downY = event.y
+                dragX = event.x
+                dragY = event.y
+                dragging = false
+                dropHighlight = null
+                touchOccupant = hitOccupant(event.x, event.y)
+                if (touchOccupant == null) return false
+                val src = if (touchOccupant == BarOccupant.NAV) navRect else appsRect
+                dragOffsetX = event.x - src.centerX()
+                dragOffsetY = event.y - src.centerY()
+                return true
+            }
+            MotionEvent.ACTION_MOVE -> {
+                if (touchOccupant == null) return false
+                dragX = event.x
+                dragY = event.y
+                if (!dragging && hypot(event.x - downX, event.y - downY) > touchSlop) {
+                    // Disabled apps stub is tap-only (re-enable / cycle), not draggable.
+                    if (touchOccupant == BarOccupant.APPS && (!appsEnabled || zones.apps == null)) {
+                        return true
+                    }
+                    dragging = true
+                }
+                if (dragging) {
+                    dropHighlight = nearestSlot(event.x)
+                    invalidate()
+                }
+                return true
+            }
+            MotionEvent.ACTION_UP,
+            MotionEvent.ACTION_CANCEL -> {
+                parent?.requestDisallowInterceptTouchEvent(false)
+                val occupant = touchOccupant
+                val wasDragging = dragging
+                val highlight = dropHighlight
+                touchOccupant = null
+                dragging = false
+                dropHighlight = null
+                invalidate()
+                if (occupant == null) return false
+                if (event.actionMasked == MotionEvent.ACTION_CANCEL) return true
+                if (wasDragging && highlight != null) {
+                    onOccupantDropped?.invoke(occupant, highlight)
+                } else if (!wasDragging && abs(event.x - downX) <= touchSlop && abs(event.y - downY) <= touchSlop) {
+                    onOccupantTapped?.invoke(occupant)
+                }
                 return true
             }
         }
         return super.onTouchEvent(event)
+    }
+
+    private fun hitOccupant(x: Float, y: Float): BarOccupant? {
+        updateOccupantRects()
+        // Prefer the section under the point; nav wins ties if overlapping (shouldn't).
+        if (appsEnabled && zones.apps != null && appsRect.contains(x, y)) return BarOccupant.APPS
+        if (navRect.contains(x, y)) return BarOccupant.NAV
+        if ((!appsEnabled || zones.apps == null) && appsRect.contains(x, y)) return BarOccupant.APPS
+        return null
+    }
+
+    private fun nearestSlot(x: Float): BarZone {
+        var best = BarZone.START
+        var bestDist = Float.MAX_VALUE
+        for (zone in BarZone.entries) {
+            val d = abs(slotRects[zone.ordinal].centerX() - x)
+            if (d < bestDist) {
+                bestDist = d
+                best = zone
+            }
+        }
+        return best
     }
 
     fun applyPackChrome(pack: ThemePack) {

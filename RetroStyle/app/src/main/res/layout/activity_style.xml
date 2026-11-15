@@ -35,46 +35,12 @@
         android:text="@string/preview_hint"
         android:textAppearance="?attr/textAppearanceBodySmall" />
 
-    <LinearLayout
-        android:id="@+id/preview_tools"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginHorizontal="24dp"
-        android:layout_marginTop="8dp"
-        android:gravity="center_vertical"
-        android:orientation="horizontal">
-
-        <com.google.android.material.button.MaterialButtonToggleGroup
-            android:id="@+id/tool_group"
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_weight="1"
-            app:selectionRequired="true"
-            app:singleSelection="true">
-
-            <com.google.android.material.button.MaterialButton
-                android:id="@+id/tool_nav"
-                style="@style/Widget.Material3.Button.OutlinedButton"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:text="@string/tool_nav" />
-
-            <com.google.android.material.button.MaterialButton
-                android:id="@+id/tool_apps"
-                style="@style/Widget.Material3.Button.OutlinedButton"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:text="@string/tool_apps" />
-        </com.google.android.material.button.MaterialButtonToggleGroup>
-    </LinearLayout>
-
     <com.google.android.material.materialswitch.MaterialSwitch
         android:id="@+id/bar_apps"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginHorizontal="24dp"
+        android:layout_marginTop="8dp"
         android:minHeight="48dp"
         android:text="@string/bar_apps" />
 

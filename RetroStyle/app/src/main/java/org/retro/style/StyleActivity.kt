@@ -19,13 +19,12 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.WindowCompat
 import com.google.android.material.appbar.MaterialToolbar
 import com.google.android.material.button.MaterialButton
-import com.google.android.material.button.MaterialButtonToggleGroup
 import com.google.android.material.materialswitch.MaterialSwitch
 import com.google.android.material.radiobutton.MaterialRadioButton
 
 /**
- * Settings > System > UI style. Edits a [StyleDraft] with a live system-bar zone preview; Apply
- * writes secure settings and runs [ApplyWorker] once.
+ * Settings > System > UI style. Edits a [StyleDraft] with a live system-bar preview; Apply writes
+ * secure settings and runs [ApplyWorker] once.
  */
 class StyleActivity : AppCompatActivity() {
 
@@ -35,7 +34,6 @@ class StyleActivity : AppCompatActivity() {
     private lateinit var applyButton: MaterialButton
     private lateinit var resetButton: MaterialButton
     private val styleIds = linkedMapOf<Int, String>()
-    private var placeTool: BarOccupant = BarOccupant.NAV
     private var syncingUi = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -56,7 +54,8 @@ class StyleActivity : AppCompatActivity() {
         }
 
         preview = findViewById(R.id.system_bar_preview)
-        preview.onZoneTapped = ::onZoneTapped
+        preview.onOccupantDropped = ::onOccupantDropped
+        preview.onOccupantTapped = ::onOccupantTapped
 
         applyButton = findViewById(R.id.apply)
         resetButton = findViewById(R.id.reset)
@@ -75,16 +74,6 @@ class StyleActivity : AppCompatActivity() {
             }
             if (!checked) draft.zones.apps = null
             refreshPreviewAndDirty()
-            bindTools()
-        }
-
-        findViewById<MaterialButtonToggleGroup>(R.id.tool_group).addOnButtonCheckedListener {
-            _,
-            checkedId,
-            isChecked ->
-            if (!isChecked || syncingUi) return@addOnButtonCheckedListener
-            placeTool =
-                if (checkedId == R.id.tool_apps) BarOccupant.APPS else BarOccupant.NAV
         }
 
         buildStyleList()
@@ -119,30 +108,40 @@ class StyleActivity : AppCompatActivity() {
         preview.extraButtons = draft.barButtons
         preview.applyPackChrome(draft.pack())
         preview.visibility = if (draft.isSystemBar()) View.VISIBLE else View.GONE
-        findViewById<View>(R.id.preview_tools).visibility =
-            if (draft.isSystemBar()) View.VISIBLE else View.GONE
         findViewById<View>(R.id.bar_apps).visibility =
             if (draft.isSystemBar()) View.VISIBLE else View.GONE
         updateDirtyState()
     }
 
-    private fun onZoneTapped(zone: BarZone) {
+    /** Drag: place Nav/Apps on a bar slot (left / center / right). */
+    private fun onOccupantDropped(occupant: BarOccupant, zone: BarZone) {
         if (!draft.isSystemBar()) return
-        when (draft.zones.occupantAt(zone)) {
-            // Tap Nav or Apps in the preview to move that item left → center → right.
-            BarOccupant.NAV -> draft.zones.cycleNav()
-            BarOccupant.APPS -> draft.zones.cycleApps()
-            // Empty zone: place the tool selected under the preview.
-            null -> {
-                if (placeTool == BarOccupant.APPS) draft.barApps = true
-                draft.zones.place(placeTool, zone, draft.barApps)
+        when (occupant) {
+            BarOccupant.NAV -> draft.zones.placeNav(zone)
+            BarOccupant.APPS -> {
+                draft.barApps = true
+                draft.zones.placeApps(zone)
             }
         }
+        syncBarAppsSwitch()
+        refreshPreviewAndDirty()
+    }
+
+    /** Tap: cycle justification (left / center / right), or disable Apps. */
+    private fun onOccupantTapped(occupant: BarOccupant) {
+        if (!draft.isSystemBar()) return
+        when (occupant) {
+            BarOccupant.NAV -> draft.zones.cycleNavJustify()
+            BarOccupant.APPS -> draft.barApps = draft.zones.cycleAppsJustify()
+        }
+        syncBarAppsSwitch()
+        refreshPreviewAndDirty()
+    }
+
+    private fun syncBarAppsSwitch() {
         syncingUi = true
         findViewById<MaterialSwitch>(R.id.bar_apps).isChecked = draft.barApps
         syncingUi = false
-        refreshPreviewAndDirty()
-        bindTools()
     }
 
     private fun applyDraft() {
@@ -157,18 +156,9 @@ class StyleActivity : AppCompatActivity() {
         bindStyleGroup()
         bindLayout()
         findViewById<MaterialSwitch>(R.id.bar_apps).isChecked = draft.barApps
-        bindTools()
         refreshPreviewAndDirty()
         syncingUi = false
         prepareAdvancedMenu(findViewById<MaterialToolbar>(R.id.toolbar).menu)
-    }
-
-    private fun bindTools() {
-        val tools = findViewById<MaterialButtonToggleGroup>(R.id.tool_group)
-        val appsBtn = findViewById<MaterialButton>(R.id.tool_apps)
-        appsBtn.isEnabled = draft.barApps && draft.isSystemBar()
-        if (!appsBtn.isEnabled && placeTool == BarOccupant.APPS) placeTool = BarOccupant.NAV
-        tools.check(if (placeTool == BarOccupant.APPS) R.id.tool_apps else R.id.tool_nav)
     }
 
     private fun buildStyleList() {
@@ -238,7 +228,6 @@ class StyleActivity : AppCompatActivity() {
                 if (checkedId == R.id.layout_system_bar) StyleSettings.LAYOUT_SYSTEM_BAR
                 else StyleSettings.LAYOUT_STOCK
             refreshPreviewAndDirty()
-            bindTools()
         }
     }
 
