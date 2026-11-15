@@ -14,9 +14,74 @@
         app:navigationIcon="@drawable/ic_arrow_back"
         app:title="@string/app_name" />
 
+    <TextView
+        style="@style/RetroStyle.Section"
+        android:layout_marginHorizontal="24dp"
+        android:layout_marginTop="8dp"
+        android:text="@string/section_preview" />
+
+    <org.retro.style.SystemBarPreviewView
+        android:id="@+id/system_bar_preview"
+        android:layout_width="match_parent"
+        android:layout_height="56dp"
+        android:layout_marginHorizontal="16dp"
+        android:contentDescription="@string/section_preview" />
+
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginHorizontal="24dp"
+        android:layout_marginTop="4dp"
+        android:text="@string/preview_hint"
+        android:textAppearance="?attr/textAppearanceBodySmall" />
+
+    <LinearLayout
+        android:id="@+id/preview_tools"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginHorizontal="24dp"
+        android:layout_marginTop="8dp"
+        android:gravity="center_vertical"
+        android:orientation="horizontal">
+
+        <com.google.android.material.button.MaterialButtonToggleGroup
+            android:id="@+id/tool_group"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            app:selectionRequired="true"
+            app:singleSelection="true">
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/tool_nav"
+                style="@style/Widget.Material3.Button.OutlinedButton"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="@string/tool_nav" />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/tool_apps"
+                style="@style/Widget.Material3.Button.OutlinedButton"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="@string/tool_apps" />
+        </com.google.android.material.button.MaterialButtonToggleGroup>
+    </LinearLayout>
+
+    <com.google.android.material.materialswitch.MaterialSwitch
+        android:id="@+id/bar_apps"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginHorizontal="24dp"
+        android:minHeight="48dp"
+        android:text="@string/bar_apps" />
+
     <androidx.core.widget.NestedScrollView
         android:layout_width="match_parent"
-        android:layout_height="match_parent">
+        android:layout_height="0dp"
+        android:layout_weight="1">
 
         <LinearLayout
             android:layout_width="match_parent"
@@ -29,41 +94,10 @@
                 style="@style/RetroStyle.Section"
                 android:text="@string/section_style" />
 
-            <!-- Filled from the installed theme packs (ThemeCatalog), grouped by category. -->
             <RadioGroup
                 android:id="@+id/style_group"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content" />
-
-            <!-- LineageOS black theme; hidden on builds without it. -->
-            <com.google.android.material.materialswitch.MaterialSwitch
-                android:id="@+id/black_theme"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="8dp"
-                android:minHeight="56dp"
-                android:text="@string/black_theme" />
-
-            <TextView
-                android:id="@+id/variant_section"
-                style="@style/RetroStyle.Section"
-                android:text="@string/section_variant" />
-
-            <RadioGroup
-                android:id="@+id/variant_group"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content">
-
-                <com.google.android.material.radiobutton.MaterialRadioButton
-                    android:id="@+id/variant_kitkat_stock"
-                    style="@style/RetroStyle.Choice"
-                    android:text="@string/variant_kitkat_stock" />
-
-                <com.google.android.material.radiobutton.MaterialRadioButton
-                    android:id="@+id/variant_holo_unified"
-                    style="@style/RetroStyle.Choice"
-                    android:text="@string/variant_holo_unified" />
-            </RadioGroup>
 
             <TextView
                 style="@style/RetroStyle.Section"
@@ -85,157 +119,34 @@
                     android:text="@string/layout_system_bar" />
             </RadioGroup>
 
-            <com.google.android.material.materialswitch.MaterialSwitch
-                android:id="@+id/bar_apps"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="8dp"
-                android:minHeight="56dp"
-                android:text="@string/bar_apps" />
-
             <TextView
-                style="@style/RetroStyle.Section"
-                android:text="@string/section_nav_gravity" />
-
-            <RadioGroup
-                android:id="@+id/nav_gravity_group"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content">
-
-                <com.google.android.material.radiobutton.MaterialRadioButton
-                    android:id="@+id/nav_gravity_start"
-                    style="@style/RetroStyle.Choice"
-                    android:text="@string/nav_gravity_start" />
-
-                <com.google.android.material.radiobutton.MaterialRadioButton
-                    android:id="@+id/nav_gravity_center"
-                    style="@style/RetroStyle.Choice"
-                    android:text="@string/nav_gravity_center" />
-
-                <com.google.android.material.radiobutton.MaterialRadioButton
-                    android:id="@+id/nav_gravity_end"
-                    style="@style/RetroStyle.Choice"
-                    android:text="@string/nav_gravity_end" />
-            </RadioGroup>
-
-            <TextView
-                style="@style/RetroStyle.Section"
-                android:text="@string/section_apps_gravity" />
-
-            <RadioGroup
-                android:id="@+id/apps_gravity_group"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content">
-
-                <com.google.android.material.radiobutton.MaterialRadioButton
-                    android:id="@+id/apps_gravity_start"
-                    style="@style/RetroStyle.Choice"
-                    android:text="@string/apps_gravity_start" />
-
-                <com.google.android.material.radiobutton.MaterialRadioButton
-                    android:id="@+id/apps_gravity_center"
-                    style="@style/RetroStyle.Choice"
-                    android:text="@string/apps_gravity_center" />
-
-                <com.google.android.material.radiobutton.MaterialRadioButton
-                    android:id="@+id/apps_gravity_end"
-                    style="@style/RetroStyle.Choice"
-                    android:text="@string/apps_gravity_end" />
-            </RadioGroup>
-
-            <TextView
-                style="@style/RetroStyle.Section"
-                android:text="@string/section_bar_background" />
-
-            <RadioGroup
-                android:id="@+id/bar_background_group"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content">
-
-                <com.google.android.material.radiobutton.MaterialRadioButton
-                    android:id="@+id/bar_background_stock"
-                    style="@style/RetroStyle.Choice"
-                    android:text="@string/bar_background_stock" />
-
-                <com.google.android.material.radiobutton.MaterialRadioButton
-                    android:id="@+id/bar_background_solid"
-                    style="@style/RetroStyle.Choice"
-                    android:text="@string/bar_background_solid" />
-
-                <com.google.android.material.radiobutton.MaterialRadioButton
-                    android:id="@+id/bar_background_gradient"
-                    style="@style/RetroStyle.Choice"
-                    android:text="@string/bar_background_gradient" />
-
-                <com.google.android.material.radiobutton.MaterialRadioButton
-                    android:id="@+id/bar_background_translucent"
-                    style="@style/RetroStyle.Choice"
-                    android:text="@string/bar_background_translucent" />
-
-                <com.google.android.material.radiobutton.MaterialRadioButton
-                    android:id="@+id/bar_background_transparent"
-                    style="@style/RetroStyle.Choice"
-                    android:text="@string/bar_background_transparent" />
-            </RadioGroup>
-
-            <TextView
-                style="@style/RetroStyle.Section"
-                android:text="@string/section_bar_buttons" />
-
-            <com.google.android.material.materialswitch.MaterialSwitch
-                android:id="@+id/bar_button_vol_down"
-                style="@style/RetroStyle.Switch"
-                android:text="@string/bar_button_vol_down" />
-
-            <com.google.android.material.materialswitch.MaterialSwitch
-                android:id="@+id/bar_button_vol_up"
-                style="@style/RetroStyle.Switch"
-                android:text="@string/bar_button_vol_up" />
-
-            <com.google.android.material.materialswitch.MaterialSwitch
-                android:id="@+id/bar_button_screenshot"
-                style="@style/RetroStyle.Switch"
-                android:text="@string/bar_button_screenshot" />
-
-            <com.google.android.material.materialswitch.MaterialSwitch
-                android:id="@+id/bar_button_power"
-                style="@style/RetroStyle.Switch"
-                android:text="@string/bar_button_power" />
-
-            <TextView
-                style="@style/RetroStyle.Section"
-                android:text="@string/section_anchor" />
-
-            <RadioGroup
-                android:id="@+id/anchor_group"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content">
-
-                <com.google.android.material.radiobutton.MaterialRadioButton
-                    android:id="@+id/anchor_top_end"
-                    style="@style/RetroStyle.Choice"
-                    android:text="@string/anchor_top_end" />
-
-                <com.google.android.material.radiobutton.MaterialRadioButton
-                    android:id="@+id/anchor_bottom_end"
-                    style="@style/RetroStyle.Choice"
-                    android:text="@string/anchor_bottom_end" />
-            </RadioGroup>
-
-            <com.google.android.material.materialswitch.MaterialSwitch
-                android:id="@+id/hide_status_bar"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="16dp"
-                android:minHeight="56dp"
-                android:text="@string/hide_status_bar" />
-
-            <TextView
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="8dp"
                 android:text="@string/footer"
                 android:textAppearance="?attr/textAppearanceBodySmall" />
         </LinearLayout>
     </androidx.core.widget.NestedScrollView>
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="end"
+        android:orientation="horizontal"
+        android:paddingHorizontal="16dp"
+        android:paddingVertical="12dp">
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/reset"
+            style="@style/Widget.Material3.Button.TextButton"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/reset" />
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/apply"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/apply" />
+    </LinearLayout>
 </LinearLayout>

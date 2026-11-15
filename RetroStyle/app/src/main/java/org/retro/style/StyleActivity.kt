@@ -9,54 +9,165 @@ import android.text.Spanned
 import android.text.style.ForegroundColorSpan
 import android.text.style.RelativeSizeSpan
 import android.util.TypedValue
+import android.view.Menu
+import android.view.MenuItem
 import android.view.View
 import android.widget.RadioGroup
 import android.widget.TextView
+import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.WindowCompat
 import com.google.android.material.appbar.MaterialToolbar
+import com.google.android.material.button.MaterialButton
+import com.google.android.material.button.MaterialButtonToggleGroup
 import com.google.android.material.materialswitch.MaterialSwitch
 import com.google.android.material.radiobutton.MaterialRadioButton
 
 /**
- * Settings > System > UI style. Each control writes one [StyleSettings] value and applies it right
- * away ([ApplyWorker]); SystemUI and the launcher restart when they need to, and the desktop
- * windows (this page included) come back afterwards. The style list shows every installed theme
- * pack ([ThemeCatalog]).
+ * Settings > System > UI style. Edits a [StyleDraft] with a live system-bar zone preview; Apply
+ * writes secure settings and runs [ApplyWorker] once.
  */
 class StyleActivity : AppCompatActivity() {
 
-    private var pageTheme = 0
+    private lateinit var draft: StyleDraft
+    private lateinit var applied: StyleDraft
+    private lateinit var preview: SystemBarPreviewView
+    private lateinit var applyButton: MaterialButton
+    private lateinit var resetButton: MaterialButton
     private val styleIds = linkedMapOf<Int, String>()
+    private var placeTool: BarOccupant = BarOccupant.NAV
+    private var syncingUi = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
-        // The page follows the chosen pack: Holo Dark packs get the Holo look, square-cornered
-        // packs square controls, all of them the system palette the pack sets.
-        pageTheme = pageTheme(StyleSettings.pack(contentResolver))
-        setTheme(pageTheme)
+        setTheme(R.style.Theme_RetroStyle)
         super.onCreate(savedInstanceState)
         WindowCompat.setDecorFitsSystemWindows(window, true)
         setContentView(R.layout.activity_style)
-        findViewById<MaterialToolbar>(R.id.toolbar).setNavigationOnClickListener {
-            onBackPressedDispatcher.onBackPressed()
+
+        applied = StyleDraft.load(contentResolver)
+        draft = applied.copyOf()
+
+        val toolbar = findViewById<MaterialToolbar>(R.id.toolbar)
+        toolbar.setNavigationOnClickListener { onBackPressedDispatcher.onBackPressed() }
+        toolbar.inflateMenu(R.menu.menu_style)
+        toolbar.setOnMenuItemClickListener {
+            prepareAdvancedMenu(toolbar.menu)
+            onAdvancedMenu(it)
         }
+
+        preview = findViewById(R.id.system_bar_preview)
+        preview.onZoneTapped = ::onZoneTapped
+
+        applyButton = findViewById(R.id.apply)
+        resetButton = findViewById(R.id.reset)
+        applyButton.setOnClickListener { applyDraft() }
+        resetButton.setOnClickListener {
+            draft = applied.copyOf()
+            bindAll()
+        }
+
+        findViewById<MaterialSwitch>(R.id.bar_apps).setOnCheckedChangeListener { _, checked ->
+            if (syncingUi) return@setOnCheckedChangeListener
+            draft.barApps = checked
+            if (checked && draft.zones.apps == null) {
+                draft.zones.apps =
+                    BarZone.entries.firstOrNull { it != draft.zones.nav } ?: BarZone.CENTER
+            }
+            if (!checked) draft.zones.apps = null
+            refreshPreviewAndDirty()
+            bindTools()
+        }
+
+        findViewById<MaterialButtonToggleGroup>(R.id.tool_group).addOnButtonCheckedListener {
+            _,
+            checkedId,
+            isChecked ->
+            if (!isChecked || syncingUi) return@addOnButtonCheckedListener
+            placeTool =
+                if (checkedId == R.id.tool_apps) BarOccupant.APPS else BarOccupant.NAV
+        }
+
         buildStyleList()
+        bindAll()
     }
 
     override fun onResume() {
         super.onResume()
-        bind()
+        // Reload applied in case another process changed settings; keep draft if dirty.
+        val latest = StyleDraft.load(contentResolver)
+        if (!isDirty()) {
+            applied = latest
+            draft = latest.copyOf()
+            bindAll()
+        } else {
+            applied = latest
+            updateDirtyState()
+        }
     }
 
-    private fun pageTheme(pack: ThemePack): Int =
-        when {
-            pack.widgets == "holo" && pack.night == ThemePack.NIGHT_DARK -> R.style.Theme_RetroStyle_KitKat
-            pack.widgets != "default" || (pack.corner ?: Float.MAX_VALUE) <= 4f ->
-                R.style.Theme_RetroStyle_Square
-            else -> R.style.Theme_RetroStyle
-        }
+    private fun isDirty(): Boolean = !draft.matches(applied)
 
-    /** One radio button per pack, under a header per category. */
+    private fun updateDirtyState() {
+        val dirty = isDirty()
+        applyButton.isEnabled = dirty
+        resetButton.isEnabled = dirty
+    }
+
+    private fun refreshPreviewAndDirty() {
+        preview.zones = draft.zones.copy()
+        preview.appsEnabled = draft.barApps && draft.isSystemBar()
+        preview.applyPackChrome(draft.pack())
+        preview.visibility = if (draft.isSystemBar()) View.VISIBLE else View.GONE
+        findViewById<View>(R.id.preview_tools).visibility =
+            if (draft.isSystemBar()) View.VISIBLE else View.GONE
+        findViewById<View>(R.id.bar_apps).visibility =
+            if (draft.isSystemBar()) View.VISIBLE else View.GONE
+        updateDirtyState()
+    }
+
+    private fun onZoneTapped(zone: BarZone) {
+        if (!draft.isSystemBar()) return
+        // Empty zone: place the selected tool. Occupied: cycle empty → Nav → Apps → empty.
+        if (draft.zones.occupantAt(zone) == null) {
+            if (placeTool == BarOccupant.APPS) draft.barApps = true
+            draft.zones.place(placeTool, zone, draft.barApps)
+        } else {
+            draft.zones.cycleAt(zone, draft.barApps)
+            if (draft.zones.apps != null) draft.barApps = true
+        }
+        syncingUi = true
+        findViewById<MaterialSwitch>(R.id.bar_apps).isChecked = draft.barApps
+        syncingUi = false
+        refreshPreviewAndDirty()
+        bindTools()
+    }
+
+    private fun applyDraft() {
+        draft.commit(contentResolver)
+        applied = draft.copyOf()
+        updateDirtyState()
+        ApplyWorker.apply(this)
+    }
+
+    private fun bindAll() {
+        syncingUi = true
+        bindStyleGroup()
+        bindLayout()
+        findViewById<MaterialSwitch>(R.id.bar_apps).isChecked = draft.barApps
+        bindTools()
+        refreshPreviewAndDirty()
+        syncingUi = false
+        prepareAdvancedMenu(findViewById<MaterialToolbar>(R.id.toolbar).menu)
+    }
+
+    private fun bindTools() {
+        val tools = findViewById<MaterialButtonToggleGroup>(R.id.tool_group)
+        val appsBtn = findViewById<MaterialButton>(R.id.tool_apps)
+        appsBtn.isEnabled = draft.barApps && draft.isSystemBar()
+        if (!appsBtn.isEnabled && placeTool == BarOccupant.APPS) placeTool = BarOccupant.NAV
+        tools.check(if (placeTool == BarOccupant.APPS) R.id.tool_apps else R.id.tool_nav)
+    }
+
     private fun buildStyleList() {
         val group = findViewById<RadioGroup>(R.id.style_group)
         group.removeAllViews()
@@ -76,9 +187,55 @@ class StyleActivity : AppCompatActivity() {
                 }
             group.addView(
                 button,
-                RadioGroup.LayoutParams(RadioGroup.LayoutParams.MATCH_PARENT, RadioGroup.LayoutParams.WRAP_CONTENT),
+                RadioGroup.LayoutParams(
+                    RadioGroup.LayoutParams.MATCH_PARENT,
+                    RadioGroup.LayoutParams.WRAP_CONTENT,
+                ),
             )
             styleIds[button.id] = pack.id
+        }
+    }
+
+    private fun bindStyleGroup() {
+        val group = findViewById<RadioGroup>(R.id.style_group)
+        group.setOnCheckedChangeListener(null)
+        styleIds.entries.firstOrNull { it.value == draft.styleId }?.let { group.check(it.key) }
+        group.setOnCheckedChangeListener { _, checkedId ->
+            if (syncingUi) return@setOnCheckedChangeListener
+            val id = styleIds[checkedId] ?: return@setOnCheckedChangeListener
+            draft.styleId = id
+            if (draft.pack().isKitKatSkin) {
+                draft.layout = StyleSettings.LAYOUT_SYSTEM_BAR
+            }
+            bindLayout()
+            refreshPreviewAndDirty()
+            prepareAdvancedMenu(findViewById<MaterialToolbar>(R.id.toolbar).menu)
+        }
+    }
+
+    private fun bindLayout() {
+        val kitKat = draft.pack().isKitKatSkin
+        if (kitKat) draft.layout = StyleSettings.LAYOUT_SYSTEM_BAR
+        val group = findViewById<RadioGroup>(R.id.layout_group)
+        group.setOnCheckedChangeListener(null)
+        group.check(
+            if (draft.effectiveLayout() == StyleSettings.LAYOUT_SYSTEM_BAR) R.id.layout_system_bar
+            else R.id.layout_stock
+        )
+        findViewById<MaterialRadioButton>(R.id.layout_stock).apply {
+            isEnabled = !kitKat
+            text =
+                getString(
+                    if (kitKat) R.string.layout_stock_kitkat_disabled else R.string.layout_stock
+                )
+        }
+        group.setOnCheckedChangeListener { _, checkedId ->
+            if (syncingUi) return@setOnCheckedChangeListener
+            draft.layout =
+                if (checkedId == R.id.layout_system_bar) StyleSettings.LAYOUT_SYSTEM_BAR
+                else StyleSettings.LAYOUT_STOCK
+            refreshPreviewAndDirty()
+            bindTools()
         }
     }
 
@@ -93,7 +250,6 @@ class StyleActivity : AppCompatActivity() {
     private fun header(text: Int): TextView =
         TextView(this, null, 0, R.style.RetroStyle_Category).apply { setText(text) }
 
-    /** The pack name, with its summary in smaller secondary text under it. */
     private fun label(pack: ThemePack): CharSequence {
         if (pack.summary.isEmpty()) return pack.name
         val secondary = TypedValue()
@@ -110,200 +266,115 @@ class StyleActivity : AppCompatActivity() {
 
     private fun dp(value: Int): Int = (value * resources.displayMetrics.density).toInt()
 
-    private fun bind() {
-        val cr = contentResolver
-        bindGroup(
-            R.id.style_group,
-            StyleSettings.KEY_STYLE,
-            StyleSettings.style(cr),
-            styleIds,
-            onChanged = {
-                // The pack may bring its own defaults (black, apps, home background).
-                bindBlack()
-                bindLayout()
-                bindSystemBarOptions()
-                bindVariant()
-                if (pageTheme(StyleSettings.pack(contentResolver)) != pageTheme) recreate()
-            },
-        )
-        bindVariant()
-        bindBlack()
-        bindGroup(
-            R.id.variant_group,
-            StyleSettings.KEY_VARIANT,
-            StyleSettings.variant(cr),
-            mapOf(
-                R.id.variant_kitkat_stock to StyleSettings.VARIANT_KITKAT_STOCK,
-                R.id.variant_holo_unified to StyleSettings.VARIANT_HOLO_UNIFIED,
-            ),
-        )
-        bindLayout()
-        bindSystemBarOptions()
-        bindGroup(
-            R.id.anchor_group,
-            StyleSettings.KEY_ANCHOR,
-            StyleSettings.anchor(cr),
-            mapOf(
-                R.id.anchor_top_end to StyleSettings.ANCHOR_TOP_END,
-                R.id.anchor_bottom_end to StyleSettings.ANCHOR_BOTTOM_END,
-            ),
-        )
-        findViewById<MaterialSwitch>(R.id.hide_status_bar).apply {
-            setOnCheckedChangeListener(null)
-            isChecked = StyleSettings.hideStatusBar(cr)
-            setOnCheckedChangeListener { _, checked ->
-                save(StyleSettings.KEY_HIDE_STATUS_BAR, if (checked) "1" else "0")
+    private fun prepareAdvancedMenu(menu: Menu) {
+        val pack = draft.pack()
+        menu.findItem(R.id.menu_variant)?.isVisible = pack.isKitKatSkin && pack.panel == null
+        menu.findItem(R.id.menu_black)?.apply {
+            isVisible = StyleApplier.hasBlackTheme(contentResolver)
+            isChecked = draft.black ?: StyleSettings.defaultBlack(contentResolver)
+        }
+        menu.findItem(R.id.menu_bar_background)?.isEnabled = draft.isSystemBar()
+        menu.findItem(R.id.menu_bar_buttons)?.isEnabled = draft.isSystemBar()
+        menu.findItem(R.id.menu_hide_status_bar)?.apply {
+            isEnabled = draft.isSystemBar()
+            isChecked = draft.hideStatusBar
+        }
+    }
+
+    private fun onAdvancedMenu(item: MenuItem): Boolean {
+        when (item.itemId) {
+            R.id.menu_variant -> showVariantDialog()
+            R.id.menu_black -> {
+                val next = !(draft.black ?: StyleSettings.defaultBlack(contentResolver))
+                draft.black = next
+                item.isChecked = next
+                updateDirtyState()
             }
-        }
-    }
-
-    /**
-     * KitKat's shell is the tablet system bar. Taskbar stays available for other packs; with a
-     * KitKat skin it is disabled and the layout is forced to system_bar.
-     */
-    private fun bindLayout() {
-        val cr = contentResolver
-        val kitKat = StyleSettings.pack(cr).isKitKatSkin
-        if (kitKat && StyleSettings.getLayoutChoice(cr) == StyleSettings.LAYOUT_STOCK) {
-            // Clear a stale Taskbar choice so apply writes system_bar.
-            StyleSettings.put(cr, StyleSettings.KEY_LAYOUT, StyleSettings.LAYOUT_SYSTEM_BAR)
-        }
-        bindGroup(
-            R.id.layout_group,
-            StyleSettings.KEY_LAYOUT,
-            StyleSettings.layout(cr),
-            mapOf(
-                R.id.layout_stock to StyleSettings.LAYOUT_STOCK,
-                R.id.layout_system_bar to StyleSettings.LAYOUT_SYSTEM_BAR,
-            ),
-            onChanged = ::bindSystemBarOptions,
-        )
-        findViewById<MaterialRadioButton>(R.id.layout_stock).apply {
-            isEnabled = !kitKat
-            text =
-                getString(
-                    if (kitKat) R.string.layout_stock_kitkat_disabled else R.string.layout_stock
-                )
-        }
-        findViewById<MaterialRadioButton>(R.id.layout_system_bar).isEnabled = true
-    }
-
-    /** Pure black follows the pack until the user flips it; only on builds with the black theme. */
-    private fun bindBlack() {
-        val cr = contentResolver
-        findViewById<MaterialSwitch>(R.id.black_theme).apply {
-            visibility = if (StyleApplier.hasBlackTheme(cr)) View.VISIBLE else View.GONE
-            setOnCheckedChangeListener(null)
-            isChecked = StyleSettings.black(cr)
-            setOnCheckedChangeListener { _, checked ->
-                save(StyleSettings.KEY_BLACK, if (checked) "1" else "0")
+            R.id.menu_bar_background -> showBarBackgroundDialog()
+            R.id.menu_bar_buttons -> showBarButtonsDialog()
+            R.id.menu_anchor -> showAnchorDialog()
+            R.id.menu_hide_status_bar -> {
+                draft.hideStatusBar = !draft.hideStatusBar
+                item.isChecked = draft.hideStatusBar
+                updateDirtyState()
             }
+            else -> return false
         }
+        return true
     }
 
-    /** The KitKat panel colors only apply to packs with the KitKat skin and no panel color. */
-    private fun bindVariant() {
-        val pack = StyleSettings.pack(contentResolver)
-        val visible = if (pack.isKitKatSkin && pack.panel == null) View.VISIBLE else View.GONE
-        findViewById<View>(R.id.variant_section).visibility = visible
-        findViewById<View>(R.id.variant_group).visibility = visible
-    }
-
-    /** Apps, their position and the extra buttons only apply to the tablet system bar. */
-    private fun bindSystemBarOptions() {
-        val cr = contentResolver
-        val systemBar = StyleSettings.layout(cr) == StyleSettings.LAYOUT_SYSTEM_BAR
-        val apps = StyleSettings.barApps(cr)
-        findViewById<MaterialSwitch>(R.id.bar_apps).apply {
-            setOnCheckedChangeListener(null)
-            isChecked = apps
-            isEnabled = systemBar
-            setOnCheckedChangeListener { _, checked ->
-                save(StyleSettings.KEY_BAR_APPS, if (checked) "1" else "0")
-                bindSystemBarOptions()
+    private fun showVariantDialog() {
+        val values =
+            arrayOf(StyleSettings.VARIANT_KITKAT_STOCK, StyleSettings.VARIANT_HOLO_UNIFIED)
+        val labels =
+            arrayOf(getString(R.string.variant_kitkat_stock), getString(R.string.variant_holo_unified))
+        val checked = values.indexOf(draft.variant).coerceAtLeast(0)
+        AlertDialog.Builder(this)
+            .setTitle(R.string.section_variant)
+            .setSingleChoiceItems(labels, checked) { dialog, which ->
+                draft.variant = values[which]
+                updateDirtyState()
+                dialog.dismiss()
             }
-        }
-        bindGroup(
-            R.id.apps_gravity_group,
-            StyleSettings.KEY_BAR_APPS_GRAVITY,
-            StyleSettings.appsGravity(cr),
-            mapOf(
-                R.id.apps_gravity_start to StyleSettings.GRAVITY_START,
-                R.id.apps_gravity_center to StyleSettings.GRAVITY_CENTER,
-                R.id.apps_gravity_end to StyleSettings.GRAVITY_END,
-            ),
-        )
-        val group = findViewById<RadioGroup>(R.id.apps_gravity_group)
-        for (i in 0 until group.childCount) group.getChildAt(i).isEnabled = systemBar && apps
+            .show()
+    }
 
-        bindGroup(
-            R.id.nav_gravity_group,
-            StyleSettings.KEY_BAR_NAV_GRAVITY,
-            StyleSettings.navGravity(cr),
-            mapOf(
-                R.id.nav_gravity_start to StyleSettings.GRAVITY_START,
-                R.id.nav_gravity_center to StyleSettings.GRAVITY_CENTER,
-                R.id.nav_gravity_end to StyleSettings.GRAVITY_END,
-            ),
-        )
-        val navGroup = findViewById<RadioGroup>(R.id.nav_gravity_group)
-        for (i in 0 until navGroup.childCount) navGroup.getChildAt(i).isEnabled = systemBar
-
-        bindGroup(
-            R.id.bar_background_group,
-            StyleSettings.KEY_BAR_BACKGROUND,
-            StyleSettings.barBackground(cr),
-            mapOf(
-                R.id.bar_background_stock to "stock",
-                R.id.bar_background_solid to "solid",
-                R.id.bar_background_gradient to "gradient",
-                R.id.bar_background_translucent to "translucent",
-                R.id.bar_background_transparent to "transparent",
-            ),
-        )
-        val backgrounds = findViewById<RadioGroup>(R.id.bar_background_group)
-        for (i in 0 until backgrounds.childCount) backgrounds.getChildAt(i).isEnabled = systemBar
-
-        val buttons = StyleSettings.barButtons(cr)
-        mapOf(
-                R.id.bar_button_vol_down to "vol_down",
-                R.id.bar_button_vol_up to "vol_up",
-                R.id.bar_button_screenshot to "screenshot",
-                R.id.bar_button_power to "power",
+    private fun showBarBackgroundDialog() {
+        val values = StyleSettings.BAR_BACKGROUNDS.toTypedArray()
+        val labels =
+            arrayOf(
+                getString(R.string.bar_background_stock),
+                getString(R.string.bar_background_solid),
+                getString(R.string.bar_background_gradient),
+                getString(R.string.bar_background_translucent),
+                getString(R.string.bar_background_transparent),
             )
-            .forEach { (id, button) ->
-                findViewById<MaterialSwitch>(id).apply {
-                    setOnCheckedChangeListener(null)
-                    isChecked = button in buttons
-                    isEnabled = systemBar
-                    setOnCheckedChangeListener { _, checked ->
-                        StyleSettings.setBarButton(cr, button, checked)
-                        ApplyWorker.apply(this@StyleActivity)
-                    }
-                }
+        val checked = values.indexOf(draft.barBackground).coerceAtLeast(0)
+        AlertDialog.Builder(this)
+            .setTitle(R.string.section_bar_background)
+            .setSingleChoiceItems(labels, checked) { dialog, which ->
+                draft.barBackground = values[which]
+                updateDirtyState()
+                dialog.dismiss()
             }
+            .show()
     }
 
-    private fun save(key: String, value: String) {
-        StyleSettings.put(contentResolver, key, value)
-        ApplyWorker.apply(this)
+    private fun showBarButtonsDialog() {
+        val labels =
+            arrayOf(
+                getString(R.string.bar_button_vol_down),
+                getString(R.string.bar_button_vol_up),
+                getString(R.string.bar_button_screenshot),
+                getString(R.string.bar_button_power),
+            )
+        val keys = StyleSettings.BAR_BUTTONS.toTypedArray()
+        val checked = BooleanArray(keys.size) { keys[it] in draft.barButtons }
+        AlertDialog.Builder(this)
+            .setTitle(R.string.section_bar_buttons)
+            .setMultiChoiceItems(labels, checked) { _, which, isChecked ->
+                checked[which] = isChecked
+            }
+            .setPositiveButton(android.R.string.ok) { _, _ ->
+                draft.barButtons = keys.filterIndexed { i, _ -> checked[i] }
+                updateDirtyState()
+            }
+            .setNegativeButton(android.R.string.cancel, null)
+            .show()
     }
 
-    private fun bindGroup(
-        groupId: Int,
-        key: String,
-        current: String,
-        values: Map<Int, String>,
-        onChanged: () -> Unit = {},
-    ) {
-        val group = findViewById<RadioGroup>(groupId)
-        group.setOnCheckedChangeListener(null)
-        values.entries.firstOrNull { it.value == current }?.let { group.check(it.key) }
-        group.setOnCheckedChangeListener { _, checkedId ->
-            values[checkedId]?.let {
-                save(key, it)
-                onChanged()
+    private fun showAnchorDialog() {
+        val values = arrayOf(StyleSettings.ANCHOR_TOP_END, StyleSettings.ANCHOR_BOTTOM_END)
+        val labels =
+            arrayOf(getString(R.string.anchor_top_end), getString(R.string.anchor_bottom_end))
+        val checked = values.indexOf(draft.anchor).coerceAtLeast(0)
+        AlertDialog.Builder(this)
+            .setTitle(R.string.section_anchor)
+            .setSingleChoiceItems(labels, checked) { dialog, which ->
+                draft.anchor = values[which]
+                updateDirtyState()
+                dialog.dismiss()
             }
-        }
+            .show()
     }
 }

@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="utf-8"?>
+<menu xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto">
+    <item
+        android:id="@+id/menu_advanced"
+        android:icon="@drawable/ic_more_vert"
+        android:title="@string/menu_advanced"
+        app:showAsAction="always">
+        <menu>
+            <item
+                android:id="@+id/menu_variant"
+                android:title="@string/section_variant" />
+            <item
+                android:id="@+id/menu_black"
+                android:checkable="true"
+                android:title="@string/black_theme_short" />
+            <item
+                android:id="@+id/menu_bar_background"
+                android:title="@string/section_bar_background" />
+            <item
+                android:id="@+id/menu_bar_buttons"
+                android:title="@string/section_bar_buttons" />
+            <item
+                android:id="@+id/menu_anchor"
+                android:title="@string/section_anchor" />
+            <item
+                android:id="@+id/menu_hide_status_bar"
+                android:checkable="true"
+                android:title="@string/hide_status_bar" />
+        </menu>
+    </item>
+</menu>
