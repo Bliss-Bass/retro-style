@@ -78,13 +78,19 @@ class StyleActivity : AppCompatActivity() {
             bindTools()
         }
 
-        findViewById<MaterialButtonToggleGroup>(R.id.tool_group).addOnButtonCheckedListener {
-            _,
-            checkedId,
-            isChecked ->
-            if (!isChecked || syncingUi) return@addOnButtonCheckedListener
-            placeTool =
-                if (checkedId == R.id.tool_apps) BarOccupant.APPS else BarOccupant.NAV
+        findViewById<MaterialButton>(R.id.tool_nav).setOnClickListener {
+            if (syncingUi || !draft.isSystemBar()) return@setOnClickListener
+            placeTool = BarOccupant.NAV
+            draft.zones.cycleNav()
+            bindTools()
+            refreshPreviewAndDirty()
+        }
+        findViewById<MaterialButton>(R.id.tool_apps).setOnClickListener {
+            if (syncingUi || !draft.isSystemBar() || !draft.barApps) return@setOnClickListener
+            placeTool = BarOccupant.APPS
+            draft.zones.cycleApps()
+            bindTools()
+            refreshPreviewAndDirty()
         }
 
         buildStyleList()
@@ -116,6 +122,7 @@ class StyleActivity : AppCompatActivity() {
     private fun refreshPreviewAndDirty() {
         preview.zones = draft.zones.copy()
         preview.appsEnabled = draft.barApps && draft.isSystemBar()
+        preview.extraButtons = draft.barButtons
         preview.applyPackChrome(draft.pack())
         preview.visibility = if (draft.isSystemBar()) View.VISIBLE else View.GONE
         findViewById<View>(R.id.preview_tools).visibility =
@@ -357,7 +364,7 @@ class StyleActivity : AppCompatActivity() {
             }
             .setPositiveButton(android.R.string.ok) { _, _ ->
                 draft.barButtons = keys.filterIndexed { i, _ -> checked[i] }
-                updateDirtyState()
+                refreshPreviewAndDirty()
             }
             .setNegativeButton(android.R.string.cancel, null)
             .show()

@@ -93,6 +93,22 @@ data class BarZones(
         if (!appsEnabled) apps = null
     }
 
+    /** Move nav to the next zone (left → center → right → left), swapping with apps if needed. */
+    fun cycleNav() {
+        placeNav(nextZone(nav))
+    }
+
+    /** Move apps to the next zone; no-op when apps are off the bar. */
+    fun cycleApps() {
+        val current = apps ?: return
+        placeApps(nextZone(current))
+    }
+
+    private fun nextZone(from: BarZone): BarZone {
+        val order = BarZone.entries
+        return order[(order.indexOf(from) + 1) % order.size]
+    }
+
     private fun firstEmpty(excluding: BarZone? = null): BarZone? =
         BarZone.entries.firstOrNull { it != excluding && occupantAt(it) == null }
 

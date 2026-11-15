@@ -23,7 +23,7 @@
     <org.retro.style.SystemBarPreviewView
         android:id="@+id/system_bar_preview"
         android:layout_width="match_parent"
-        android:layout_height="56dp"
+        android:layout_height="88dp"
         android:layout_marginHorizontal="16dp"
         android:contentDescription="@string/section_preview" />
 

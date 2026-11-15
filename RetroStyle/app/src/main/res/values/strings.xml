@@ -6,10 +6,15 @@
     <string name="menu_advanced">Advanced</string>
     <string name="apply">Apply</string>
     <string name="reset">Reset</string>
-    <string name="preview_hint">Tap a zone to cycle empty, Nav, or Apps. The tray stays on the right. Apply when it looks right.</string>
+    <string name="preview_hint">Tap Nav or Apps to move them left, center, or right. Tap a zone to place or clear. The tray stays on the right.</string>
     <string name="section_preview">System bar layout</string>
-    <string name="tool_nav">Place Nav</string>
-    <string name="tool_apps">Place Apps</string>
+    <string name="tool_nav">Nav</string>
+    <string name="tool_apps">Apps</string>
+    <string name="preview_nav_label">Nav</string>
+    <string name="preview_apps_label">Apps</string>
+    <string name="preview_zone_left">Left</string>
+    <string name="preview_zone_center">Center</string>
+    <string name="preview_zone_right">Right</string>
 
     <string name="section_style">Style</string>
     <string name="category_modern">Today\'s Android</string>
