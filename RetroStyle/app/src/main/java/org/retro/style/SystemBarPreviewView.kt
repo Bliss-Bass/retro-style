@@ -15,7 +15,7 @@ import android.view.View
 /**
  * Mini tablet system bar: three tappable zones (left / center / right-before-tray) plus a fixed
  * tray at the end. Occupied zones draw nav buttons or apps-menu + hotseat icons with labels.
- * Tap a zone to cycle empty → Nav → Apps → empty ([BarZones.cycleAt]).
+ * Tap Nav/Apps to advance that item across zones; tap an empty zone to place the selected tool.
  */
 class SystemBarPreviewView
 @JvmOverloads

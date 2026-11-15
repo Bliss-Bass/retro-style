@@ -6,7 +6,7 @@
     <string name="menu_advanced">Advanced</string>
     <string name="apply">Apply</string>
     <string name="reset">Reset</string>
-    <string name="preview_hint">Tap Nav or Apps to move them left, center, or right. Tap a zone to place or clear. The tray stays on the right.</string>
+    <string name="preview_hint">Tap Nav or Apps in the preview to move them left, center, or right. Use the buttons below to choose what an empty zone gets. The tray stays on the right.</string>
     <string name="section_preview">System bar layout</string>
     <string name="tool_nav">Nav</string>
     <string name="tool_apps">Apps</string>

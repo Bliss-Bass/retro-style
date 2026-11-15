@@ -78,19 +78,13 @@ class StyleActivity : AppCompatActivity() {
             bindTools()
         }
 
-        findViewById<MaterialButton>(R.id.tool_nav).setOnClickListener {
-            if (syncingUi || !draft.isSystemBar()) return@setOnClickListener
-            placeTool = BarOccupant.NAV
-            draft.zones.cycleNav()
-            bindTools()
-            refreshPreviewAndDirty()
-        }
-        findViewById<MaterialButton>(R.id.tool_apps).setOnClickListener {
-            if (syncingUi || !draft.isSystemBar() || !draft.barApps) return@setOnClickListener
-            placeTool = BarOccupant.APPS
-            draft.zones.cycleApps()
-            bindTools()
-            refreshPreviewAndDirty()
+        findViewById<MaterialButtonToggleGroup>(R.id.tool_group).addOnButtonCheckedListener {
+            _,
+            checkedId,
+            isChecked ->
+            if (!isChecked || syncingUi) return@addOnButtonCheckedListener
+            placeTool =
+                if (checkedId == R.id.tool_apps) BarOccupant.APPS else BarOccupant.NAV
         }
 
         buildStyleList()
@@ -134,13 +128,15 @@ class StyleActivity : AppCompatActivity() {
 
     private fun onZoneTapped(zone: BarZone) {
         if (!draft.isSystemBar()) return
-        // Empty zone: place the selected tool. Occupied: cycle empty → Nav → Apps → empty.
-        if (draft.zones.occupantAt(zone) == null) {
-            if (placeTool == BarOccupant.APPS) draft.barApps = true
-            draft.zones.place(placeTool, zone, draft.barApps)
-        } else {
-            draft.zones.cycleAt(zone, draft.barApps)
-            if (draft.zones.apps != null) draft.barApps = true
+        when (draft.zones.occupantAt(zone)) {
+            // Tap Nav or Apps in the preview to move that item left → center → right.
+            BarOccupant.NAV -> draft.zones.cycleNav()
+            BarOccupant.APPS -> draft.zones.cycleApps()
+            // Empty zone: place the tool selected under the preview.
+            null -> {
+                if (placeTool == BarOccupant.APPS) draft.barApps = true
+                draft.zones.place(placeTool, zone, draft.barApps)
+            }
         }
         syncingUi = true
         findViewById<MaterialSwitch>(R.id.bar_apps).isChecked = draft.barApps
