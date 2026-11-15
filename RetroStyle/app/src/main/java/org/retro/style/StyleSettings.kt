@@ -25,6 +25,9 @@ object StyleSettings {
     const val KEY_BAR_APPS = "retro_ui_bar_apps"
     const val KEY_BAR_APPS_GRAVITY = "retro_ui_bar_apps_gravity"
     const val KEY_BAR_NAV_GRAVITY = "retro_ui_bar_nav_gravity"
+    /** Content alignment inside the Apps / Nav zone (independent of which zone they occupy). */
+    const val KEY_BAR_APPS_JUSTIFY = "retro_ui_bar_apps_justify"
+    const val KEY_BAR_NAV_JUSTIFY = "retro_ui_bar_nav_justify"
     const val KEY_BAR_BUTTONS = "retro_ui_bar_buttons"
     const val KEY_CLOCK_SECONDS = "retro_ui_bar_clock_seconds"
     const val KEY_BAR_BACKGROUND = "retro_ui_bar_background"
@@ -111,6 +114,16 @@ object StyleSettings {
     fun navGravity(cr: ContentResolver): String =
         get(cr, KEY_BAR_NAV_GRAVITY)?.takeIf { it == GRAVITY_CENTER || it == GRAVITY_END }
             ?: GRAVITY_START
+
+    fun appsJustify(cr: ContentResolver): String =
+        get(cr, KEY_BAR_APPS_JUSTIFY)?.takeIf {
+            it == GRAVITY_START || it == GRAVITY_CENTER || it == GRAVITY_END
+        } ?: GRAVITY_CENTER
+
+    fun navJustify(cr: ContentResolver): String =
+        get(cr, KEY_BAR_NAV_JUSTIFY)?.takeIf {
+            it == GRAVITY_START || it == GRAVITY_CENTER || it == GRAVITY_END
+        } ?: GRAVITY_START
 
     /** Extra buttons on the system bar; none until the user turns them on. */
     fun barButtons(cr: ContentResolver): List<String> {

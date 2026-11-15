@@ -45,6 +45,8 @@ data class StyleDraft(
             barApps == other.barApps &&
             zones.nav == other.zones.nav &&
             zones.apps == other.zones.apps &&
+            zones.navJustify == other.zones.navJustify &&
+            zones.appsJustify == other.zones.appsJustify &&
             barBackground == other.barBackground &&
             barButtons == other.barButtons &&
             anchor == other.anchor &&
@@ -62,9 +64,11 @@ data class StyleDraft(
         )
         StyleSettings.put(cr, StyleSettings.KEY_BAR_APPS, if (barApps) "1" else "0")
         StyleSettings.put(cr, StyleSettings.KEY_BAR_NAV_GRAVITY, zones.nav.gravity)
+        StyleSettings.put(cr, StyleSettings.KEY_BAR_NAV_JUSTIFY, zones.navJustify.value)
         val appsZone = zones.apps
         if (barApps && appsZone != null) {
             StyleSettings.put(cr, StyleSettings.KEY_BAR_APPS_GRAVITY, appsZone.gravity)
+            StyleSettings.put(cr, StyleSettings.KEY_BAR_APPS_JUSTIFY, zones.appsJustify.value)
         }
         StyleSettings.put(cr, StyleSettings.KEY_BAR_BACKGROUND, barBackground)
         StyleSettings.put(
@@ -86,10 +90,12 @@ data class StyleDraft(
                 layout = StyleSettings.getLayoutChoice(cr),
                 barApps = apps,
                 zones =
-                    BarZones.fromGravities(
+                    BarZones.fromSettings(
                         StyleSettings.navGravity(cr),
                         StyleSettings.appsGravity(cr),
                         apps,
+                        StyleSettings.navJustify(cr),
+                        StyleSettings.appsJustify(cr),
                     ),
                 barBackground = StyleSettings.barBackground(cr),
                 barButtons = StyleSettings.barButtons(cr),

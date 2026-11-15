@@ -6,11 +6,14 @@
     <string name="menu_advanced">Advanced</string>
     <string name="apply">Apply</string>
     <string name="reset">Reset</string>
-    <string name="preview_hint">Drag Nav or Apps to place them on the left, center, or right (tray stays put). Tap a section to cycle left-aligned, centered, right-aligned, or turn Apps off.</string>
+    <string name="preview_hint">Drag Nav or Apps onto left, center, or right to place them (tray stays put). Tap a section to cycle how its icons are aligned, or turn Apps off.</string>
     <string name="section_preview">System bar layout</string>
     <string name="preview_nav_label">Nav</string>
     <string name="preview_apps_label">Apps</string>
     <string name="preview_apps_off_label">Apps off</string>
+    <string name="preview_justify_start">Left</string>
+    <string name="preview_justify_center">Center</string>
+    <string name="preview_justify_end">Right</string>
 
     <string name="section_style">Style</string>
     <string name="category_modern">Today\'s Android</string>

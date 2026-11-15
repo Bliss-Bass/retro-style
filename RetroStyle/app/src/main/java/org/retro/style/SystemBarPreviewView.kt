@@ -15,9 +15,9 @@ import kotlin.math.abs
 import kotlin.math.hypot
 
 /**
- * Mini tablet system bar preview: a fixed system tray at the end, plus draggable Nav and Apps
- * sections. Drag a section onto left / center / right to place it; tap it to cycle justification
- * (or disable Apps). Empty slots are not labeled — only drop targets while dragging.
+ * Mini tablet system bar preview: fixed tray at the end, plus Nav and Apps sections.
+ * Drag onto left / center / right to set the zone; tap to cycle content justification inside
+ * that zone (or disable Apps). Empty slots are drop targets only while dragging.
  */
 class SystemBarPreviewView
 @JvmOverloads
@@ -176,11 +176,15 @@ constructor(context: Context, attrs: AttributeSet? = null, defStyleAttr: Int = 0
         val hideNav = dragging && touchOccupant == BarOccupant.NAV
         val hideApps = dragging && touchOccupant == BarOccupant.APPS
 
-        if (!hideNav) drawSection(canvas, navRect, BarOccupant.NAV, enabled = true)
+        if (!hideNav) {
+            drawSection(canvas, navRect, BarOccupant.NAV, zones.navJustify, enabled = true)
+        }
         if (appsEnabled && zones.apps != null) {
-            if (!hideApps) drawSection(canvas, appsRect, BarOccupant.APPS, enabled = true)
+            if (!hideApps) {
+                drawSection(canvas, appsRect, BarOccupant.APPS, zones.appsJustify, enabled = true)
+            }
         } else if (!dragging) {
-            drawSection(canvas, appsRect, BarOccupant.APPS, enabled = false)
+            drawSection(canvas, appsRect, BarOccupant.APPS, BarJustify.START, enabled = false)
         }
 
         drawTray(canvas, trayRect)
@@ -190,7 +194,9 @@ constructor(context: Context, attrs: AttributeSet? = null, defStyleAttr: Int = 0
             val w = dragRect.width()
             val h = dragRect.height()
             dragRect.set(dragX - w / 2f, dragY - h / 2f, dragX + w / 2f, dragY + h / 2f)
-            drawSection(canvas, dragRect, touchOccupant!!, enabled = true, dragging = true)
+            val justify =
+                if (touchOccupant == BarOccupant.NAV) zones.navJustify else zones.appsJustify
+            drawSection(canvas, dragRect, touchOccupant!!, justify, enabled = true, dragging = true)
         }
     }
 
@@ -198,6 +204,7 @@ constructor(context: Context, attrs: AttributeSet? = null, defStyleAttr: Int = 0
         canvas: Canvas,
         rect: RectF,
         occupant: BarOccupant,
+        justify: BarJustify,
         enabled: Boolean,
         dragging: Boolean = false,
     ) {
@@ -219,15 +226,35 @@ constructor(context: Context, attrs: AttributeSet? = null, defStyleAttr: Int = 0
             accentColor = accentColor and 0x55FFFFFF.toInt()
         }
         when (occupant) {
-            BarOccupant.NAV -> drawNav(canvas, rect)
-            BarOccupant.APPS -> drawApps(canvas, rect, enabled)
+            BarOccupant.NAV -> drawNav(canvas, rect, justify)
+            BarOccupant.APPS -> drawApps(canvas, rect, justify, enabled)
         }
         contentColor = savedContent
         accentColor = savedAccent
     }
 
-    private fun drawNav(canvas: Canvas, rect: RectF) {
-        val labelH = dp(16f)
+    private fun contentStartX(rect: RectF, contentWidth: Float, justify: BarJustify): Float {
+        val pad = dp(8f)
+        val available = rect.width() - pad * 2f
+        val width = minOf(contentWidth, available)
+        return when (justify) {
+            BarJustify.START -> rect.left + pad
+            BarJustify.END -> rect.right - pad - width
+            BarJustify.CENTER -> rect.centerX() - width / 2f
+        }
+    }
+
+    private fun justifyLabel(justify: BarJustify): String =
+        context.getString(
+            when (justify) {
+                BarJustify.START -> R.string.preview_justify_start
+                BarJustify.CENTER -> R.string.preview_justify_center
+                BarJustify.END -> R.string.preview_justify_end
+            }
+        )
+
+    private fun drawNav(canvas: Canvas, rect: RectF, justify: BarJustify) {
+        val labelH = dp(18f)
         val iconsBottom = rect.bottom - labelH - dp(2f)
         val iconsTop = rect.top + dp(6f)
         val cy = (iconsTop + iconsBottom) / 2f
@@ -240,18 +267,18 @@ constructor(context: Context, attrs: AttributeSet? = null, defStyleAttr: Int = 0
         for (extra in extraButtons) {
             if (extra in StyleSettings.BAR_BUTTONS) buttons.add(extra)
         }
-        val slot = minOf(dp(22f), (rect.width() - dp(8f)) / buttons.size.coerceAtLeast(1))
+        val slot = minOf(dp(22f), (rect.width() - dp(16f)) / buttons.size.coerceAtLeast(1))
         val total = slot * buttons.size
-        var cx = rect.centerX() - total / 2f + slot / 2f
+        var cx = contentStartX(rect, total, justify) + slot / 2f
         for (button in buttons) {
             drawNavGlyph(canvas, button, cx, cy, slot * 0.38f)
             cx += slot
         }
 
         textPaint.color = contentColor
-        textPaint.textSize = dp(11f)
+        textPaint.textSize = dp(10f)
         canvas.drawText(
-            context.getString(R.string.preview_nav_label),
+            context.getString(R.string.preview_nav_label) + " · " + justifyLabel(justify),
             rect.centerX(),
             rect.bottom - dp(5f),
             textPaint,
@@ -313,8 +340,8 @@ constructor(context: Context, attrs: AttributeSet? = null, defStyleAttr: Int = 0
         }
     }
 
-    private fun drawApps(canvas: Canvas, rect: RectF, enabled: Boolean) {
-        val labelH = dp(16f)
+    private fun drawApps(canvas: Canvas, rect: RectF, justify: BarJustify, enabled: Boolean) {
+        val labelH = dp(18f)
         val iconsBottom = rect.bottom - labelH - dp(2f)
         val iconsTop = rect.top + dp(6f)
         val cy = (iconsTop + iconsBottom) / 2f
@@ -325,7 +352,12 @@ constructor(context: Context, attrs: AttributeSet? = null, defStyleAttr: Int = 0
         val cell = dp(3.5f)
         val gap = dp(2.5f)
         val gridW = cell * 3 + gap * 2
-        val gridLeft = rect.left + dp(8f)
+        val icon = dp(11f)
+        val iconGap = dp(5f)
+        val hotseat = 4
+        val contentW = gridW + dp(10f) + hotseat * icon + (hotseat - 1) * iconGap
+        val start = contentStartX(rect, contentW, justify)
+        val gridLeft = start
         val gridTop = cy - gridW / 2f
         for (row in 0 until 3) {
             for (col in 0 until 3) {
@@ -336,12 +368,10 @@ constructor(context: Context, attrs: AttributeSet? = null, defStyleAttr: Int = 0
             }
         }
 
-        val icon = dp(11f)
-        val iconGap = dp(5f)
         var x = gridLeft + gridW + dp(10f)
         val maxRight = rect.right - dp(6f)
         var drawn = 0
-        while (drawn < 4 && x + icon <= maxRight) {
+        while (drawn < hotseat && x + icon <= maxRight) {
             tmpRect.set(x, cy - icon / 2f, x + icon, cy + icon / 2f)
             canvas.drawRoundRect(tmpRect, dp(2.5f), dp(2.5f), fillPaint)
             fillPaint.color = contentColor and 0x44FFFFFF.toInt()
@@ -353,15 +383,14 @@ constructor(context: Context, attrs: AttributeSet? = null, defStyleAttr: Int = 0
         }
 
         textPaint.color = contentColor
-        textPaint.textSize = dp(11f)
-        canvas.drawText(
-            context.getString(
-                if (enabled) R.string.preview_apps_label else R.string.preview_apps_off_label
-            ),
-            rect.centerX(),
-            rect.bottom - dp(5f),
-            textPaint,
-        )
+        textPaint.textSize = dp(10f)
+        val label =
+            if (enabled) {
+                context.getString(R.string.preview_apps_label) + " · " + justifyLabel(justify)
+            } else {
+                context.getString(R.string.preview_apps_off_label)
+            }
+        canvas.drawText(label, rect.centerX(), rect.bottom - dp(5f), textPaint)
     }
 
     private fun drawTray(canvas: Canvas, rect: RectF) {

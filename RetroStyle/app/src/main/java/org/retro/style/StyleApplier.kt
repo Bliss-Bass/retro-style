@@ -100,6 +100,8 @@ object StyleApplier {
                 "bar_apps" to if (StyleSettings.barApps(cr)) "1" else "0",
                 "bar_apps_gravity" to StyleSettings.appsGravity(cr),
                 "bar_nav_gravity" to StyleSettings.navGravity(cr),
+                "bar_apps_justify" to StyleSettings.appsJustify(cr),
+                "bar_nav_justify" to StyleSettings.navJustify(cr),
                 "bar_buttons" to StyleSettings.barButtons(cr).joinToString(","),
                 "clock_seconds" to if (StyleSettings.clockSeconds(cr)) "1" else "0",
                 "bar_background" to
@@ -348,6 +350,8 @@ object StyleApplier {
             applied["bar_apps"] ?: if (kitKat) "0" else "1",
             applied["bar_apps_gravity"] ?: StyleSettings.GRAVITY_CENTER,
             applied["bar_nav_gravity"] ?: StyleSettings.GRAVITY_START,
+            applied["bar_apps_justify"] ?: StyleSettings.GRAVITY_CENTER,
+            applied["bar_nav_justify"] ?: StyleSettings.GRAVITY_START,
             applied["bar_buttons"].orEmpty(),
             applied["clock_seconds"] ?: "0",
             applied["bar_background"].orEmpty(),
