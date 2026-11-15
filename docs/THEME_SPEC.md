@@ -199,7 +199,9 @@ Rules for icons:
   `drawable-xxhdpi`) and Android scales them. Don't mix densities of the same icon.
 - The system bar tray lives in Launcher3. Its icons (`ic_retro_tray_battery`,
   `ic_retro_tray_wifi` and the navigation glyphs) go in `launcher3/res/`. KitKat and Jelly Bean
-  show how: level-list drawables pointing at per-level images.
+  show how: level-list drawables pointing at per-level images. Bell and volume
+  (`ic_retro_tray_notifications`, `ic_retro_tray_volume`) stay on the white Material vectors
+  unless a pack overrides them; the KitKat skin tints those two Holo blue to match the clock.
 
 ### Shell
 

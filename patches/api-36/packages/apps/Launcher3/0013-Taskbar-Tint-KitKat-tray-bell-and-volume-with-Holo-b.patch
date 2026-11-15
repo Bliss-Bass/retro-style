@@ -1,0 +1,39 @@
+From 7bd71bab2ba69a34270d9f1d1439445f0f1182fa Mon Sep 17 00:00:00 2001
+From: Jon West <electrikjesus@gmail.com>
+Date: Sun, 15 Nov 2026 15:56:19 -0500
+Subject: [PATCH] Taskbar: Tint KitKat tray bell and volume with Holo blue.
+
+Wifi and battery already use pre-colored overlays; the white Material bell and speaker stayed untinted and looked wrong next to the blue clock.
+
+Change-Id: I21ee574aa47816d7950cbe44aa0c66bea3fc04cb
+---
+ .../com/android/launcher3/taskbar/TaskbarSystemTrayView.kt  | 6 ++++--
+ 1 file changed, 4 insertions(+), 2 deletions(-)
+
+diff --git a/quickstep/src/com/android/launcher3/taskbar/TaskbarSystemTrayView.kt b/quickstep/src/com/android/launcher3/taskbar/TaskbarSystemTrayView.kt
+index e5aa24f173..0b2f7814c6 100644
+--- a/quickstep/src/com/android/launcher3/taskbar/TaskbarSystemTrayView.kt
++++ b/quickstep/src/com/android/launcher3/taskbar/TaskbarSystemTrayView.kt
+@@ -127,7 +127,9 @@ class TaskbarSystemTrayView(
+         notificationCount.setTextSize(TypedValue.COMPLEX_UNIT_SP, 12f)
+         notificationCount.gravity = Gravity.CENTER
+         notificationBell.setImageResource(R.drawable.ic_retro_tray_notifications)
+-        styleIcon(notificationBell)
++        // KitKat wifi/battery overlays are pre-colored Holo blue; the bell and volume glyphs are
++        // still the white Material vectors, so tint them to match the clock and battery text.
++        styleIcon(notificationBell, if (kitKat) HOLO_BLUE else contentColor)
+         // Always shown (a bell when empty) so the notification panel has its own target.
+         val notifications = group(notificationBell, notificationIcons, notificationCount)
+         notifications.contentDescription = context.getString(R.string.taskbar_button_notifications)
+@@ -182,7 +184,7 @@ class TaskbarSystemTrayView(
+             val volume = ImageView(context)
+             volume.setImageResource(R.drawable.ic_retro_tray_volume)
+             volume.contentDescription = context.getString(R.string.retro_system_bar_volume)
+-            styleIcon(volume)
++            styleIcon(volume, if (kitKat) HOLO_BLUE else contentColor)
+             volume.setOnClickListener {
+                 context
+                     .getSystemService(AudioManager::class.java)
+-- 
+2.43.0
+
