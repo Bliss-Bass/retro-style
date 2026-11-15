@@ -17,6 +17,7 @@
 
     <string name="section_layout">Bottom bar</string>
     <string name="layout_stock">Taskbar</string>
+    <string name="layout_stock_kitkat_disabled">Taskbar (not used with KitKat — use the tablet system bar)</string>
     <string name="layout_system_bar">Tablet system bar (pinned bottom bar with nav, apps, and tray)</string>
     <string name="bar_apps">Show apps and running tasks on the tablet system bar</string>
 

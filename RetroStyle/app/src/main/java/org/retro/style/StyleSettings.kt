@@ -74,10 +74,18 @@ object StyleSettings {
     fun variant(cr: ContentResolver): String =
         get(cr, KEY_VARIANT)?.takeIf { it == VARIANT_HOLO_UNIFIED } ?: VARIANT_KITKAT_STOCK
 
-    fun layout(cr: ContentResolver): String =
+    /** Raw layout choice (or build default), before KitKat coerces it to the system bar. */
+    fun getLayoutChoice(cr: ContentResolver): String =
         (get(cr, KEY_LAYOUT) ?: SystemProperties.get("ro.retro.ui_layout.default", "")).takeIf {
             it == LAYOUT_SYSTEM_BAR
         } ?: LAYOUT_STOCK
+
+    fun layout(cr: ContentResolver): String {
+        val chosen = getLayoutChoice(cr)
+        // KitKat's shell skin is the tablet system bar (nav + tray). Stock taskbar + KitKat
+        // overlays leave start-aligned nav/apps and a black bar that is not a taskbar.
+        return if (pack(cr).isKitKatSkin) LAYOUT_SYSTEM_BAR else chosen
+    }
 
     /** The panels open from the tray on the system bar, under the status bar otherwise. */
     fun anchor(cr: ContentResolver): String =

@@ -1,0 +1,134 @@
+From d148e948126f96ee8aff157ff063deaab1a0953f Mon Sep 17 00:00:00 2001
+From: Jon West <electrikjesus@gmail.com>
+Date: Sun, 15 Nov 2026 16:05:38 -0500
+Subject: [PATCH] Taskbar: Ignore invisible nav slots for system bar apps
+ gravity.
+
+IME/a11y/more stay INVISIBLE when unused and still reserved 80dp each, so center looked like start and left appeared stuck; collapse them to GONE and measure only visible children.
+
+Change-Id: I3138bf457915349e3a845693ae278e97d1e17ad6
+---
+ quickstep/res/values/retro_system_bar.xml     |  1 +
+ .../launcher3/taskbar/RetroSystemBar.kt       | 28 +++++++++++++++++--
+ .../navbutton/SystemBarNavLayoutter.kt        | 20 +++++++++++++
+ 3 files changed, 47 insertions(+), 2 deletions(-)
+
+diff --git a/quickstep/res/values/retro_system_bar.xml b/quickstep/res/values/retro_system_bar.xml
+index ee280bd503..9381546cac 100644
+--- a/quickstep/res/values/retro_system_bar.xml
++++ b/quickstep/res/values/retro_system_bar.xml
+@@ -16,6 +16,7 @@
+     <item type="id" name="retro_system_tray" />
+     <item type="id" name="retro_system_bar_apps_relayout" />
+     <item type="id" name="retro_system_bar_nav_relayout" />
++    <item type="id" name="retro_system_bar_nav_collapse" />
+ 
+     <!-- Nav buttons are as wide as on the 3.x/4.x tablet system bar. -->
+     <dimen name="retro_system_bar_button_width">80dp</dimen>
+diff --git a/quickstep/src/com/android/launcher3/taskbar/RetroSystemBar.kt b/quickstep/src/com/android/launcher3/taskbar/RetroSystemBar.kt
+index 2248ef767c..0b0abccc03 100644
+--- a/quickstep/src/com/android/launcher3/taskbar/RetroSystemBar.kt
++++ b/quickstep/src/com/android/launcher3/taskbar/RetroSystemBar.kt
+@@ -13,6 +13,7 @@ import android.graphics.Rect
+ import android.view.View
+ import android.view.ViewGroup
+ import com.android.launcher3.R
++import com.android.launcher3.anim.AlphaUpdateListener
+ import com.android.launcher3.taskbar.TaskbarNavButtonController.BUTTON_POWER
+ import com.android.launcher3.taskbar.TaskbarNavButtonController.BUTTON_SCREENSHOT
+ import com.android.launcher3.taskbar.TaskbarNavButtonController.BUTTON_VOLUME_DOWN
+@@ -106,14 +107,18 @@ object RetroSystemBar {
+     @JvmStatic
+     fun iconEnd(taskbarView: View, spaceNeeded: Int, rtl: Boolean): Int {
+         val root = taskbarView.rootView as? ViewGroup ?: return taskbarView.width
+-        val buttons = root.findViewById<View>(R.id.end_nav_buttons)
++        val buttons = root.findViewById<ViewGroup>(R.id.end_nav_buttons)
+         val tray = root.findViewById<View>(R.id.retro_system_tray)
+         relayoutOnChange(taskbarView, buttons)
+         relayoutOnChange(taskbarView, tray)
+ 
+         val origin = boundsIn(root, taskbarView) ?: return taskbarView.width
+         val gap = taskbarView.resources.getDimensionPixelSize(R.dimen.retro_system_bar_edge_margin)
+-        val buttonsBounds = boundsIn(root, buttons)?.apply { offset(-origin.left, 0) }
++        // Nav extras (IME / a11y / more) stay INVISIBLE when unused and still reserve 80dp each in
++        // the LinearLayout; only VISIBLE children count for apps gravity.
++        val buttonsBounds =
++            visibleChildrenBounds(root, buttons)?.apply { offset(-origin.left, 0) }
++                ?: boundsIn(root, buttons)?.apply { offset(-origin.left, 0) }
+         val trayBounds = boundsIn(root, tray)?.apply { offset(-origin.left, 0) }
+         val leftGroup = if (rtl) trayBounds else buttonsBounds
+         val rightGroup = if (rtl) buttonsBounds else trayBounds
+@@ -136,6 +141,25 @@ object RetroSystemBar {
+         return bounds
+     }
+ 
++    /**
++     * Union of [group]'s drawn children in [root] coords. Skips GONE/INVISIBLE and alpha-hidden
++     * views so unused nav slots do not push apps gravity toward the end.
++     */
++    private fun visibleChildrenBounds(root: ViewGroup, group: ViewGroup?): Rect? {
++        if (group == null || !group.isAttachedToWindow) return null
++        var union: Rect? = null
++        for (i in 0 until group.childCount) {
++            val child = group.getChildAt(i)
++            if (child.visibility != View.VISIBLE) continue
++            if (child.alpha < AlphaUpdateListener.ALPHA_CUTOFF_THRESHOLD) continue
++            if (child.width <= 0) continue
++            val bounds = Rect(0, 0, child.width, child.height)
++            root.offsetDescendantRectToMyCoords(child, bounds)
++            union = union?.apply { union(bounds) } ?: Rect(bounds)
++        }
++        return union
++    }
++
+     private fun relayoutOnChange(taskbarView: View, view: View?) {
+         if (view == null || view.getTag(R.id.retro_system_bar_apps_relayout) != null) return
+         view.setTag(R.id.retro_system_bar_apps_relayout, true)
+diff --git a/quickstep/src/com/android/launcher3/taskbar/navbutton/SystemBarNavLayoutter.kt b/quickstep/src/com/android/launcher3/taskbar/navbutton/SystemBarNavLayoutter.kt
+index 9cf1fb8c8d..8e67a05016 100644
+--- a/quickstep/src/com/android/launcher3/taskbar/navbutton/SystemBarNavLayoutter.kt
++++ b/quickstep/src/com/android/launcher3/taskbar/navbutton/SystemBarNavLayoutter.kt
+@@ -18,6 +18,7 @@ import android.widget.ImageView
+ import android.widget.LinearLayout
+ import android.widget.Space
+ import com.android.launcher3.R
++import com.android.launcher3.anim.AlphaUpdateListener
+ import com.android.launcher3.taskbar.RetroSystemBar
+ import com.android.launcher3.taskbar.TaskbarActivityContext
+ 
+@@ -68,6 +69,10 @@ class SystemBarNavLayoutter(
+             val button: View = navButtonContainer.getChildAt(i)
+             button.layoutParams =
+                 LinearLayout.LayoutParams(buttonWidth, ViewGroup.LayoutParams.MATCH_PARENT)
++            // AlphaUpdateListener hides unused IME/a11y/more with INVISIBLE, which still reserves
++            // width in this LinearLayout and throws off nav/apps gravity. Collapse to GONE.
++            collapseIfHidden(button)
++            watchCollapseWhenHidden(button)
+         }
+ 
+         val edge = resources.getDimensionPixelSize(R.dimen.retro_system_bar_edge_margin)
+@@ -103,6 +108,21 @@ class SystemBarNavLayoutter(
+                 }
+     }
+ 
++    private fun collapseIfHidden(button: View) {
++        if (
++            button.visibility == View.INVISIBLE ||
++                button.alpha < AlphaUpdateListener.ALPHA_CUTOFF_THRESHOLD
++        ) {
++            button.visibility = View.GONE
++        }
++    }
++
++    private fun watchCollapseWhenHidden(button: View) {
++        if (button.getTag(R.id.retro_system_bar_nav_collapse) != null) return
++        button.setTag(R.id.retro_system_bar_nav_collapse, true)
++        button.addOnLayoutChangeListener { v, _, _, _, _, _, _, _, _ -> collapseIfHidden(v) }
++    }
++
+     /** Keep nav `end` clear of the tray once the tray has a real width. */
+     private fun relayoutOnTrayChange(tray: View?) {
+         if (tray == null || tray.getTag(R.id.retro_system_bar_nav_relayout) != null) return
+-- 
+2.43.0
+

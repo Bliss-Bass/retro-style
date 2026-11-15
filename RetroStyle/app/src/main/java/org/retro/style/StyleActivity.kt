@@ -120,6 +120,7 @@ class StyleActivity : AppCompatActivity() {
             onChanged = {
                 // The pack may bring its own defaults (black, apps, home background).
                 bindBlack()
+                bindLayout()
                 bindSystemBarOptions()
                 bindVariant()
                 if (pageTheme(StyleSettings.pack(contentResolver)) != pageTheme) recreate()
@@ -136,16 +137,7 @@ class StyleActivity : AppCompatActivity() {
                 R.id.variant_holo_unified to StyleSettings.VARIANT_HOLO_UNIFIED,
             ),
         )
-        bindGroup(
-            R.id.layout_group,
-            StyleSettings.KEY_LAYOUT,
-            StyleSettings.layout(cr),
-            mapOf(
-                R.id.layout_stock to StyleSettings.LAYOUT_STOCK,
-                R.id.layout_system_bar to StyleSettings.LAYOUT_SYSTEM_BAR,
-            ),
-            onChanged = ::bindSystemBarOptions,
-        )
+        bindLayout()
         bindSystemBarOptions()
         bindGroup(
             R.id.anchor_group,
@@ -163,6 +155,37 @@ class StyleActivity : AppCompatActivity() {
                 save(StyleSettings.KEY_HIDE_STATUS_BAR, if (checked) "1" else "0")
             }
         }
+    }
+
+    /**
+     * KitKat's shell is the tablet system bar. Taskbar stays available for other packs; with a
+     * KitKat skin it is disabled and the layout is forced to system_bar.
+     */
+    private fun bindLayout() {
+        val cr = contentResolver
+        val kitKat = StyleSettings.pack(cr).isKitKatSkin
+        if (kitKat && StyleSettings.getLayoutChoice(cr) == StyleSettings.LAYOUT_STOCK) {
+            // Clear a stale Taskbar choice so apply writes system_bar.
+            StyleSettings.put(cr, StyleSettings.KEY_LAYOUT, StyleSettings.LAYOUT_SYSTEM_BAR)
+        }
+        bindGroup(
+            R.id.layout_group,
+            StyleSettings.KEY_LAYOUT,
+            StyleSettings.layout(cr),
+            mapOf(
+                R.id.layout_stock to StyleSettings.LAYOUT_STOCK,
+                R.id.layout_system_bar to StyleSettings.LAYOUT_SYSTEM_BAR,
+            ),
+            onChanged = ::bindSystemBarOptions,
+        )
+        findViewById<MaterialRadioButton>(R.id.layout_stock).apply {
+            isEnabled = !kitKat
+            text =
+                getString(
+                    if (kitKat) R.string.layout_stock_kitkat_disabled else R.string.layout_stock
+                )
+        }
+        findViewById<MaterialRadioButton>(R.id.layout_system_bar).isEnabled = true
     }
 
     /** Pure black follows the pack until the user flips it; only on builds with the black theme. */
