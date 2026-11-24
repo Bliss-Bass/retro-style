@@ -1,0 +1,226 @@
+From ed49ce986b5de67f9a79dfcbca28ec2cc666ec9a Mon Sep 17 00:00:00 2001
+From: electrikjesus <electrikjesus@gmail.com>
+Date: Tue, 24 Nov 2026 19:30:24 +0100
+Subject: [PATCH] Taskbar: Place system-bar apps and nav in exclusive zones.
+
+Apps gravity no longer treats nav as a fixed left bound, so moving nav to center/end can leave apps in the start zone instead of gluing both to the right; nav uses equal content thirds to match the RetroStyle preview.
+
+Change-Id: I061965c0e0d75e283caf529fffb9234c0a301eba
+---
+ .../launcher3/taskbar/RetroSystemBar.kt       | 91 ++++++++++++++++---
+ .../navbutton/SystemBarNavLayoutter.kt        | 59 ++++++++----
+ 2 files changed, 118 insertions(+), 32 deletions(-)
+
+diff --git a/quickstep/src/com/android/launcher3/taskbar/RetroSystemBar.kt b/quickstep/src/com/android/launcher3/taskbar/RetroSystemBar.kt
+index 0b0abccc03..e66de51eb5 100644
+--- a/quickstep/src/com/android/launcher3/taskbar/RetroSystemBar.kt
++++ b/quickstep/src/com/android/launcher3/taskbar/RetroSystemBar.kt
+@@ -100,9 +100,33 @@ object RetroSystemBar {
+         }
+     }
+ 
++    /** Content alignment inside the nav zone (`bar_nav_justify`). */
++    @JvmStatic
++    val navJustify: String by lazy {
++        when (val justify = RetroUiApplied["bar_nav_justify"].orEmpty()) {
++            GRAVITY_CENTER,
++            GRAVITY_END -> justify
++            else -> GRAVITY_START
++        }
++    }
++
++    /** Content alignment inside the apps zone (`bar_apps_justify`). */
++    @JvmStatic
++    val appsJustify: String by lazy {
++        when (val justify = RetroUiApplied["bar_apps_justify"].orEmpty()) {
++            GRAVITY_START,
++            GRAVITY_END -> justify
++            else -> GRAVITY_CENTER
++        }
++    }
++
+     /**
+-     * The end (right edge) of [taskbarView]'s icon row, kept clear of the start buttons and the
+-     * tray, which the nav buttons view lays out over the same bar.
++     * The end (right edge) of [taskbarView]'s icon row.
++     *
++     * Nav and apps occupy exclusive zones (`bar_nav_gravity` / `bar_apps_gravity`); the tray stays
++     * past the end. Older logic always treated nav as the left bound, so apps stayed glued to the
++     * right of nav whenever nav moved to center/end. When apps stay in the center with nav at
++     * start (classic), apps still fill the remaining span between nav and tray.
+      */
+     @JvmStatic
+     fun iconEnd(taskbarView: View, spaceNeeded: Int, rtl: Boolean): Int {
+@@ -114,25 +138,68 @@ object RetroSystemBar {
+ 
+         val origin = boundsIn(root, taskbarView) ?: return taskbarView.width
+         val gap = taskbarView.resources.getDimensionPixelSize(R.dimen.retro_system_bar_edge_margin)
++        val width = taskbarView.width
+         // Nav extras (IME / a11y / more) stay INVISIBLE when unused and still reserve 80dp each in
+         // the LinearLayout; only VISIBLE children count for apps gravity.
+         val buttonsBounds =
+             visibleChildrenBounds(root, buttons)?.apply { offset(-origin.left, 0) }
+                 ?: boundsIn(root, buttons)?.apply { offset(-origin.left, 0) }
+         val trayBounds = boundsIn(root, tray)?.apply { offset(-origin.left, 0) }
+-        val leftGroup = if (rtl) trayBounds else buttonsBounds
+-        val rightGroup = if (rtl) buttonsBounds else trayBounds
+-        val minEnd = (leftGroup?.right ?: 0) + gap + spaceNeeded
+-        val maxEnd = max(minEnd, (rightGroup?.left ?: taskbarView.width) - gap)
+-        val startEnd = if (rtl) maxEnd else minEnd
+-        val endEnd = if (rtl) minEnd else maxEnd
+-        return when (appsGravity) {
+-            GRAVITY_START -> startEnd
+-            GRAVITY_END -> endEnd
+-            else -> ((taskbarView.width + spaceNeeded) / 2).coerceIn(minEnd, maxEnd)
++
++        // Resolve zones in physical LTR coords; RTL flips start/end so Gravity.START still packs
++        // toward the layout start edge.
++        val appsZone = if (rtl) flipGravity(appsGravity) else appsGravity
++        val navZone = if (rtl) flipGravity(navGravity) else navGravity
++        val justify = if (rtl) flipGravity(appsJustify) else appsJustify
++        val contentLeft = gap
++        val contentRight = (trayBounds?.left ?: width) - gap
++        val contentWidth = (contentRight - contentLeft).coerceAtLeast(0)
++        if (contentWidth <= 0) {
++            return spaceNeeded.coerceAtMost(width)
+         }
++        val zoneWidth = contentWidth / 3
++        val beforeNav = (buttonsBounds?.left?.minus(gap) ?: contentRight).coerceAtMost(contentRight)
++        val afterNav = (buttonsBounds?.right?.plus(gap) ?: contentLeft).coerceAtLeast(contentLeft)
++
++        val (spanLeft, spanRight) =
++            when (appsZone) {
++                GRAVITY_START ->
++                    when (navZone) {
++                        GRAVITY_START -> Pair(afterNav, contentRight)
++                        else -> Pair(contentLeft, minOf(contentLeft + zoneWidth, beforeNav))
++                    }
++                GRAVITY_END ->
++                    when (navZone) {
++                        GRAVITY_END -> Pair(contentLeft, beforeNav)
++                        else -> Pair(max(contentRight - zoneWidth, afterNav), contentRight)
++                    }
++                else ->
++                    when (navZone) {
++                        // Classic: apps use the full remaining span after start-aligned nav.
++                        GRAVITY_START -> Pair(afterNav, contentRight)
++                        GRAVITY_END -> Pair(contentLeft, beforeNav)
++                        else -> Pair(contentLeft + zoneWidth, contentLeft + 2 * zoneWidth)
++                    }
++            }
++        val minEnd = spanLeft + spaceNeeded
++        val maxEnd = max(minEnd, spanRight)
++        val ltrEnd =
++            when (justify) {
++                GRAVITY_START -> minEnd.coerceAtMost(maxEnd)
++                GRAVITY_END -> maxEnd
++                else -> ((spanLeft + spanRight + spaceNeeded) / 2).coerceIn(minEnd, maxEnd)
++            }
++        // Mirror the icon block for RTL after computing in physical left→right space.
++        return if (rtl) width - ltrEnd + spaceNeeded else ltrEnd
+     }
+ 
++    private fun flipGravity(gravity: String): String =
++        when (gravity) {
++            GRAVITY_START -> GRAVITY_END
++            GRAVITY_END -> GRAVITY_START
++            else -> gravity
++        }
++
+     /** Layout bounds of [view] in [root], ignoring animation transforms. */
+     private fun boundsIn(root: ViewGroup, view: View?): Rect? {
+         if (view == null || view.width == 0 || !view.isAttachedToWindow) return null
+diff --git a/quickstep/src/com/android/launcher3/taskbar/navbutton/SystemBarNavLayoutter.kt b/quickstep/src/com/android/launcher3/taskbar/navbutton/SystemBarNavLayoutter.kt
+index 8e67a05016..b1273b7d55 100644
+--- a/quickstep/src/com/android/launcher3/taskbar/navbutton/SystemBarNavLayoutter.kt
++++ b/quickstep/src/com/android/launcher3/taskbar/navbutton/SystemBarNavLayoutter.kt
+@@ -80,17 +80,29 @@ class SystemBarNavLayoutter(
+         val tray = parent?.findViewById<View>(R.id.retro_system_tray)
+         relayoutOnTrayChange(tray)
+ 
+-        val horizontalGravity =
++        // Three equal zones across the content width (bar minus tray), matching RetroStyle's
++        // preview. FrameLayout start/center/end on the full bar let nav sit on top of apps when
++        // apps occupy start and nav moves to center/end.
++        val parentWidth = parent?.width?.takeIf { it > 0 } ?: parent?.measuredWidth ?: 0
++        val trayWidth = trayWidth(tray)
++        val contentWidth = (parentWidth - trayWidth - edge).coerceAtLeast(0)
++        val zoneWidth = if (contentWidth > 0) contentWidth / 3 else 0
++        val zoneIndex =
+             when (RetroSystemBar.navGravity) {
+-                RetroSystemBar.GRAVITY_CENTER -> Gravity.CENTER_HORIZONTAL
+-                RetroSystemBar.GRAVITY_END -> Gravity.END
+-                else -> Gravity.START
++                RetroSystemBar.GRAVITY_CENTER -> 1
++                RetroSystemBar.GRAVITY_END -> 2
++                else -> 0
+             }
+-        val marginStart = if (horizontalGravity == Gravity.START) edge else 0
++        val marginStart = edge + zoneIndex * zoneWidth
+         val marginEnd =
+-            when (horizontalGravity) {
+-                Gravity.END -> trayEndMargin(tray, edge)
+-                else -> 0
++            when {
++                parentWidth <= 0 || zoneWidth <= 0 ->
++                    if (RetroSystemBar.navGravity == RetroSystemBar.GRAVITY_END) {
++                        trayEndMargin(tray, edge)
++                    } else {
++                        0
++                    }
++                else -> (parentWidth - marginStart - zoneWidth).coerceAtLeast(0)
+             }
+ 
+         navButtonContainer.orientation = LinearLayout.HORIZONTAL
+@@ -98,14 +110,22 @@ class SystemBarNavLayoutter(
+         navButtonContainer.translationX = 0f
+         navButtonContainer.layoutParams =
+             FrameLayout.LayoutParams(
+-                    FrameLayout.LayoutParams.WRAP_CONTENT,
++                    if (zoneWidth > 0) zoneWidth else FrameLayout.LayoutParams.WRAP_CONTENT,
+                     ViewGroup.LayoutParams.MATCH_PARENT,
+                 )
+                 .apply {
+-                    gravity = horizontalGravity or Gravity.CENTER_VERTICAL
++                    // Fill the zone slot; children stay start-packed inside the LinearLayout.
++                    gravity = Gravity.START or Gravity.CENTER_VERTICAL
+                     this.marginStart = marginStart
+                     this.marginEnd = marginEnd
+                 }
++        // Align nav cluster within its zone from bar_nav_justify (default start).
++        navButtonContainer.gravity =
++            when (RetroSystemBar.navJustify) {
++                RetroSystemBar.GRAVITY_CENTER -> Gravity.CENTER_HORIZONTAL
++                RetroSystemBar.GRAVITY_END -> Gravity.END
++                else -> Gravity.START
++            }
+     }
+ 
+     private fun collapseIfHidden(button: View) {
+@@ -139,14 +159,13 @@ class SystemBarNavLayoutter(
+         }
+     }
+ 
+-    private fun trayEndMargin(tray: View?, edge: Int): Int {
+-        val trayWidth =
+-            when {
+-                tray == null -> 0
+-                tray.width > 0 -> tray.width
+-                tray.measuredWidth > 0 -> tray.measuredWidth
+-                else -> 0
+-            }
+-        return trayWidth + edge
+-    }
++    private fun trayEndMargin(tray: View?, edge: Int): Int = trayWidth(tray) + edge
++
++    private fun trayWidth(tray: View?): Int =
++        when {
++            tray == null -> 0
++            tray.width > 0 -> tray.width
++            tray.measuredWidth > 0 -> tray.measuredWidth
++            else -> 0
++        }
+ }
+-- 
+2.53.0
+
