@@ -69,10 +69,9 @@ class StyleActivity : AppCompatActivity() {
             if (syncingUi) return@setOnCheckedChangeListener
             draft.barApps = checked
             if (checked && draft.zones.apps == null) {
-                draft.zones.apps =
-                    BarZone.entries.firstOrNull { it != draft.zones.nav } ?: BarZone.CENTER
+                draft.zones.enableApps()
             }
-            if (!checked) draft.zones.apps = null
+            if (!checked) draft.zones.disableApps()
             refreshPreviewAndDirty()
         }
 

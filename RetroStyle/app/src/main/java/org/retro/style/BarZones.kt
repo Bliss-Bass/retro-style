@@ -42,6 +42,11 @@ data class BarZones(
     var nav: BarZone = BarZone.START,
     /** Zone Apps occupies (drag); null when Apps is off the bar. */
     var apps: BarZone? = BarZone.CENTER,
+    /**
+     * Last zone Apps occupied while enabled. The disabled preview stub and re-enable both use
+     * this so Apps do not jump to the end slot when turned off.
+     */
+    var appsLast: BarZone = BarZone.CENTER,
     /** Content alignment inside Nav's zone (tap). */
     var navJustify: BarJustify = BarJustify.START,
     /** Content alignment inside Apps' zone (tap). */
@@ -57,11 +62,34 @@ data class BarZones(
     fun placeNav(zone: BarZone) {
         if (apps == zone) apps = nav
         nav = zone
+        apps?.let { appsLast = it }
     }
 
     fun placeApps(zone: BarZone) {
         if (nav == zone) nav = apps ?: firstEmpty(excluding = zone) ?: BarZone.START
         apps = zone
+        appsLast = zone
+    }
+
+    /** Turn Apps off while remembering [appsLast] for the dimmed stub / next enable. */
+    fun disableApps() {
+        apps?.let { appsLast = it }
+        apps = null
+    }
+
+    /**
+     * Turn Apps back on in [appsLast] when free, else the first empty zone (never on top of Nav).
+     */
+    fun enableApps(preferred: BarZone? = null): BarZone {
+        val want = preferred ?: appsLast
+        val zone =
+            when {
+                want != nav -> want
+                else -> firstEmpty() ?: BarZone.entries.first { it != nav }
+            }
+        apps = zone
+        appsLast = zone
+        return zone
     }
 
     /** Tap: cycle Nav content alignment left → center → right → left. Zone unchanged. */
@@ -71,12 +99,12 @@ data class BarZones(
 
     /**
      * Tap: cycle Apps alignment left → center → right → off the bar.
-     * While off, the next tap puts Apps back (empty zone preferred) with left alignment.
+     * While off, the next tap puts Apps back at [appsLast] (or an empty zone) with left alignment.
      * @return whether Apps remain on the bar
      */
     fun cycleAppsJustify(): Boolean {
         if (apps == null) {
-            apps = firstEmpty() ?: BarZone.CENTER
+            enableApps()
             appsJustify = BarJustify.START
             return true
         }
@@ -90,7 +118,7 @@ data class BarZones(
                 true
             }
             BarJustify.END -> {
-                apps = null
+                disableApps()
                 false
             }
         }
@@ -113,15 +141,19 @@ data class BarZones(
             appsJustify: String,
         ): BarZones {
             var nav = BarZone.fromGravity(navGravity)
-            var apps =
-                if (appsEnabled) BarZone.fromGravity(appsGravity ?: StyleSettings.GRAVITY_CENTER)
-                else null
-            if (apps != null && apps == nav) {
-                apps = BarZone.entries.firstOrNull { it != nav } ?: BarZone.CENTER
-            }
+            val remembered =
+                BarZone.fromGravity(appsGravity ?: StyleSettings.GRAVITY_CENTER).let { zone ->
+                    if (zone == nav) {
+                        BarZone.entries.firstOrNull { it != nav } ?: BarZone.CENTER
+                    } else {
+                        zone
+                    }
+                }
+            val apps = if (appsEnabled) remembered else null
             return BarZones(
                 nav = nav,
                 apps = apps,
+                appsLast = remembered,
                 navJustify = BarJustify.fromValue(navJustify),
                 appsJustify = BarJustify.fromValue(appsJustify),
             )

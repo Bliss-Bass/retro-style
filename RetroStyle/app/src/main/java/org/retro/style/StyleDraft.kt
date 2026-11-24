@@ -45,6 +45,7 @@ data class StyleDraft(
             barApps == other.barApps &&
             zones.nav == other.zones.nav &&
             zones.apps == other.zones.apps &&
+            zones.appsLast == other.zones.appsLast &&
             zones.navJustify == other.zones.navJustify &&
             zones.appsJustify == other.zones.appsJustify &&
             barBackground == other.barBackground &&
@@ -65,11 +66,11 @@ data class StyleDraft(
         StyleSettings.put(cr, StyleSettings.KEY_BAR_APPS, if (barApps) "1" else "0")
         StyleSettings.put(cr, StyleSettings.KEY_BAR_NAV_GRAVITY, zones.nav.gravity)
         StyleSettings.put(cr, StyleSettings.KEY_BAR_NAV_JUSTIFY, zones.navJustify.value)
-        val appsZone = zones.apps
-        if (barApps && appsZone != null) {
-            StyleSettings.put(cr, StyleSettings.KEY_BAR_APPS_GRAVITY, appsZone.gravity)
-            StyleSettings.put(cr, StyleSettings.KEY_BAR_APPS_JUSTIFY, zones.appsJustify.value)
-        }
+        // Always persist the apps zone (including when disabled) so the stub / next enable
+        // reopen in the same slot instead of jumping to end.
+        val appsZone = zones.apps ?: zones.appsLast
+        StyleSettings.put(cr, StyleSettings.KEY_BAR_APPS_GRAVITY, appsZone.gravity)
+        StyleSettings.put(cr, StyleSettings.KEY_BAR_APPS_JUSTIFY, zones.appsJustify.value)
         StyleSettings.put(cr, StyleSettings.KEY_BAR_BACKGROUND, barBackground)
         StyleSettings.put(
             cr,

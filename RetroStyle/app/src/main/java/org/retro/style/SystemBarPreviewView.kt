@@ -146,8 +146,13 @@ constructor(context: Context, attrs: AttributeSet? = null, defStyleAttr: Int = 0
         if (appsEnabled && appsZone != null) {
             sectionRectFor(appsZone, appsRect)
         } else {
-            // Dimmed stub on the end slot so Apps can be tapped back on when disabled.
-            appsRect.set(slotRects[BarZone.END.ordinal])
+            // Dimmed stub in the last zone Apps occupied (not always the end slot).
+            val stub =
+                when (val last = zones.appsLast) {
+                    zones.nav -> BarZone.entries.firstOrNull { it != zones.nav } ?: BarZone.END
+                    else -> last
+                }
+            appsRect.set(slotRects[stub.ordinal])
         }
     }
 
