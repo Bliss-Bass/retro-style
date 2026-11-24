@@ -37,7 +37,7 @@ if ! pm path org.retro.style >/dev/null 2>&1; then
 fi
 
 UI_NIGHT=$(cmd uimode night 2>/dev/null)
-KEYS="retro_ui_style retro_ui_layout retro_panel_anchor retro_ui_style_variant retro_ui_hide_status_bar retro_ui_bar_apps retro_ui_bar_apps_gravity retro_ui_bar_buttons retro_ui_bar_background retro_ui_black"
+KEYS="retro_ui_style retro_ui_layout retro_panel_anchor retro_ui_style_variant retro_ui_hide_status_bar retro_ui_bar_apps retro_ui_bar_apps_gravity retro_ui_bar_nav_gravity retro_ui_bar_apps_justify retro_ui_bar_nav_justify retro_ui_bar_buttons retro_ui_bar_background retro_ui_black"
 SAVED=""
 for k in $KEYS; do SAVED="$SAVED $k=$(secure "$k")"; done
 
@@ -69,12 +69,14 @@ check_pack_overlays() {
 	done
 }
 
-# One combination: style layout anchor variant hide apps gravity buttons
+# One combination: style layout anchor variant hide apps apps_gravity nav_gravity buttons
+# Older callers omit nav_gravity (\$9); it defaults empty (start).
 n=0
 fails=0
-echo "#	style	layout	anchor	variant	hide	apps	gravity	buttons	result	problems" >"$RESULTS"
+echo "#	style	layout	anchor	variant	hide	apps	apps_g	nav_g	buttons	result	problems" >"$RESULTS"
 run_combo() {
 	style=$1 layout=$2 anchor=$3 variant=$4 hide=$5 apps=$6 gravity=$7 buttons=$8
+	nav_gravity=${9:-}
 	n=$((n + 1))
 	problems=""
 	fail() { problems="$problems; $*"; }
@@ -92,6 +94,7 @@ run_combo() {
 	put retro_ui_style_variant "$variant"
 	put retro_ui_bar_apps "$apps"
 	put retro_ui_bar_apps_gravity "$gravity"
+	put retro_ui_bar_nav_gravity "$nav_gravity"
 	put retro_ui_bar_buttons "$buttons"
 	put retro_ui_hide_status_bar "$hide"
 	apply_and_wait
@@ -107,6 +110,14 @@ run_combo() {
 	[ "$(applied anchor)" = "$want_anchor" ] || fail "applied anchor=$(applied anchor) want $want_anchor"
 	[ -z "$apps" ] || [ "$(applied bar_apps)" = "$apps" ] || fail "bar_apps not applied"
 	[ -z "$gravity" ] || [ "$(applied bar_apps_gravity)" = "$gravity" ] || fail "apps gravity not applied"
+	want_nav=$nav_gravity
+	[ -z "$want_nav" ] && want_nav=start
+	[ "$(applied bar_nav_gravity)" = "$want_nav" ] || fail "nav gravity=$(applied bar_nav_gravity) want $want_nav"
+	# Disabled apps must still keep the last apps gravity (preview stub / next enable).
+	if [ "$apps" = 0 ] && [ -n "$gravity" ]; then
+		[ "$(applied bar_apps_gravity)" = "$gravity" ] ||
+			fail "disabled apps gravity drifted to $(applied bar_apps_gravity)"
+	fi
 	want_buttons=$buttons
 	[ "$want_buttons" = none ] && want_buttons=""
 	[ -z "$buttons" ] || [ "$(applied bar_buttons)" = "$want_buttons" ] || fail "bar buttons not applied"
@@ -162,10 +173,11 @@ run_combo() {
 		result=PASS
 		rm -f "$OUT/c${n}_"*.png
 	fi
-	printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n' "$n" "$style" "$layout" \
-		"${anchor:--}" "${variant:--}" "$hide" "${apps:--}" "${gravity:--}" "${buttons:--}" \
+	printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n' "$n" "$style" "$layout" \
+		"${anchor:--}" "${variant:--}" "$hide" "${apps:--}" "${gravity:--}" \
+		"${nav_gravity:-start}" "${buttons:--}" \
 		"$result" "${problems#; }" >>"$RESULTS"
-	echo "[$n] $result $style/$layout anchor=${anchor:-default} variant=${variant:-default} hide=$hide apps=${apps:-default} gravity=${gravity:-default} buttons=${buttons:-default}${problems:+ :: ${problems#; }}"
+	echo "[$n] $result $style/$layout anchor=${anchor:-default} variant=${variant:-default} hide=$hide apps=${apps:-default} apps_g=${gravity:-default} nav_g=${nav_gravity:-start} buttons=${buttons:-default}${problems:+ :: ${problems#; }}"
 }
 
 STYLES="material m3 kitkat"
@@ -191,16 +203,28 @@ for variant in kitkat_stock holo_unified; do
 	run_combo kitkat system_bar "" "$variant" 0 "" "" ""
 done
 
-# 3. System bar contents.
+# 3. System bar contents (apps gravity with default nav=start).
 for style in $STYLES; do
-	run_combo "$style" system_bar "" "" 0 0 "" none
+	# apps=0 keeps gravity so the disabled stub / next enable stay put.
+	run_combo "$style" system_bar "" "" 0 0 start none
 	for gravity in start center end; do
 		run_combo "$style" system_bar "" "" 0 1 "$gravity" none
 	done
 	run_combo "$style" system_bar "" "" 0 1 center vol_down,vol_up,screenshot,power
 	[ "$MODE" = quick ] && continue
 	run_combo "$style" system_bar "" "" 0 1 start vol_down,power
-	run_combo "$style" system_bar "" "" 0 0 "" screenshot
+	run_combo "$style" system_bar "" "" 0 0 center screenshot
+done
+
+# 3b. Exclusive nav/apps zones (the layout that used to glue apps to the right of nav).
+# Args: ... apps apps_gravity buttons nav_gravity
+for style in $STYLES; do
+	run_combo "$style" system_bar "" "" 0 1 start none center
+	run_combo "$style" system_bar "" "" 0 1 start none end
+	[ "$MODE" = quick ] && continue
+	run_combo "$style" system_bar "" "" 0 1 center none start
+	run_combo "$style" system_bar "" "" 0 1 end none start
+	run_combo "$style" system_bar "" "" 0 0 start none center
 done
 
 # 4. System bar backgrounds on the home screen.
@@ -252,6 +276,6 @@ apply_and_wait
 
 {
 	echo "combinations: $n, failed: $fails"
-	grep -P '\tFAIL\t' "$RESULTS" 2>/dev/null || awk -F'\t' '$10 == "FAIL"' "$RESULTS"
+	grep -P '\tFAIL\t' "$RESULTS" 2>/dev/null || awk -F'\t' '$11 == "FAIL"' "$RESULTS"
 } | tee "$SUMMARY"
 echo "results: $RESULTS"

@@ -20,8 +20,9 @@ From quickest to most thorough.
    different shade skin or panel colors restarts SystemUI once and your desktop windows come
    back at the same place. Packs that force dark or light mode switch it, and Material You gives
    your own setting back.
-3. **Bottom bar > Tablet system bar:** back/home/recents on the left, the tray on the right. Turn
-   on the extra buttons and the apps, and try the three app positions.
+3. **Bottom bar > Tablet system bar:** drag Nav and Apps onto left / center / right (exclusive
+   zones). Turn Apps off and confirm the dimmed stub stays in that zone, not always the end.
+   Try extra buttons. On Bass with SmartDock, use **System Default** so Launcher3 owns the bar.
 4. Tap the tray's bell and its clock: Notifications and Quick Settings open above the tray. The
    whole bar stays in front of the panel's blur.
 5. Lock the screen (with a lockscreen set) and unlock: no SystemUI crash.
@@ -47,9 +48,11 @@ adb shell am broadcast -a org.retro.style.action.APPLY -n org.retro.style/.Apply
 ## The matrix
 
 `tests/retro_style_matrix.sh` runs on the device as root and applies about 50 combinations of
-the options, then (in `full` mode) every installed pack. For each one it checks:
+the options (including exclusive nav/apps zone pairs), then (in `full` mode) every installed
+pack. For each one it checks:
 
-- `retro_ui_applied` holds the expected pack and skin and the other values
+- `retro_ui_applied` holds the expected pack and skin and the other values (including
+  `bar_nav_gravity` / `bar_apps_gravity`, and gravity kept when apps are off)
 - only the chosen pack's overlays and the right status bar overlay are on, and the theme JSON has
   the pack's seed color
 - SystemUI and the launcher are running and stay up while both panels open and close
@@ -57,6 +60,9 @@ the options, then (in `full` mode) every installed pack. For each one it checks:
 - an open Settings window survived the restarts
 
 It ends with four style switches in a row without waiting, then restores your settings.
+
+On Bass, also run `vendor/ax86-lite/tests/test_bass_ui_style.sh` (via `run_tests.sh`): it covers
+bootflags re-APPLY when `retro_ui_applied` is empty, zone placement, and SmartDock coexistence.
 
 ```sh
 adb root
