@@ -62,7 +62,8 @@ pack. For each one it checks:
 It ends with four style switches in a row without waiting, then restores your settings.
 
 On Bass, also run `vendor/ax86-lite/tests/test_bass_ui_style.sh` (via `run_tests.sh`): it covers
-bootflags re-APPLY when `retro_ui_applied` is empty, zone placement, and SmartDock coexistence.
+bootflags re-APPLY when `retro_ui_applied` is empty, zone placement, and (with SmartDock)
+Desktop style cycling then UI Style pack switches while keeping the display awake.
 
 ```sh
 adb root
