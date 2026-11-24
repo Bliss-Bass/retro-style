@@ -140,7 +140,8 @@ m bacon
 
 After flashing and finishing setup:
 
-1. **Settings > System > UI style** is there and lists the packs you ship. Pick **KitKat**: the
+1. **Settings > System > UI style** (also under **Display > Appearance**) is there and lists the
+   packs you ship. Pick **KitKat**: the
    screen restyles, SystemUI restarts once, and your open windows come back.
 2. The style was applied:
    ```sh

@@ -9,7 +9,8 @@ source tree.
 *Material You with the tablet system bar: back, home and recents on the left, apps in the middle,
 the tray on the right. More in [Screenshots](#screenshots).*
 
-What you get, all switchable at runtime in **Settings > System > UI style**:
+What you get, all switchable at runtime in **Settings > System > UI style** or
+**Settings > Display > Appearance > UI style**:
 
 - **Theme packs:** 18 to start with. Today's Material You and Material 3; Android through the
   years (Froyo, Gingerbread, Honeycomb, Jelly Bean, KitKat, Holo Light, Lollipop, Pie); and ROM
@@ -63,7 +64,7 @@ right under the status bar:
 |---|---|
 | ![Notifications from the tray](docs/images/material-notifications.png) | ![Quick Settings from the top right](docs/images/dracula-quick-settings.png) |
 
-**The UI style page** in Settings > System:
+**The UI style page** in Settings > System (also under Display > Appearance):
 
 | Styles | Bottom bar and panel options |
 |---|---|
@@ -89,7 +90,7 @@ right under the status bar:
    $(call inherit-product, vendor/retro-style/retro_style.mk)
    ```
 4. Build as usual (`breakfast <device> && m bacon`).
-5. On the device, open **Settings > System > UI style**.
+5. On the device, open **Settings > System > UI style** or **Display > Appearance > UI style**.
 
 [docs/INSTALL.md](docs/INSTALL.md) walks through every step, with checks and troubleshooting.
 

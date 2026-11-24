@@ -14,7 +14,7 @@ Android mechanisms, and each one is worth knowing on its own:
 
 ```mermaid
 flowchart LR
-    user([User]) --> page[RetroStyle app<br/>Settings > System > UI style]
+    user([User]) --> page[RetroStyle app<br/>Settings > System / Display > Appearance > UI style]
     page -->|"retro_* choices<br/>retro_ui_applied"| secure[(Settings.Secure)]
     page -->|"enable / disable"| om[OverlayManager]
     page -->|"theme JSON"| secure

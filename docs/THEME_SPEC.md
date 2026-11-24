@@ -2,7 +2,8 @@
 
 This is the rulebook for designing a retro-style theme pack. A pack is one folder,
 `themes/<id>/`, and the OS picks it up without code changes: the build installs it, and
-**Settings > System > UI style** lists it. The 18 packs in `themes/` follow these rules and are the
+**Settings > System > UI style** (and **Display > Appearance > UI style**) lists it. The 18 packs
+in `themes/` follow these rules and are the
 best examples. `themes/_template/` is the starting point for a new one.
 
 If you only want the steps, read [themes/_template/README.md](../themes/_template/README.md).

@@ -14,7 +14,8 @@ From quickest to most thorough.
 
 ## On a device, by hand
 
-1. **Settings > System > UI style** opens, themed after the current pack, with the packs grouped
+1. **Settings > System > UI style** (and **Settings > Display > Appearance > UI style**) opens,
+   themed after the current pack, with the packs grouped
    under Today's Android, Android through the years, and ROM and community classics.
 2. Switch between packs. Each switch applies right away; switching to or from a pack with a
    different shade skin or panel colors restarts SystemUI once and your desktop windows come

@@ -2,7 +2,7 @@
 # Copyright (C) 2026 Navotpala Tech (Bliss Co-Labs Inc.)
 # SPDX-License-Identifier: AGPL-3.0-only OR LicenseRef-Navotpala-Commercial
 # retro_style_matrix.sh
-# Bug hunt for Settings > System > UI style: applies combinations of the
+# Bug hunt for Settings > System / Display > Appearance > UI style: applies combinations of the
 # retro_* settings, then checks the applied style, overlays, SystemUI / Launcher3
 # stability, crashes and ANRs, both shade panels, and that an open app window
 # survives the restarts. Restores the previous settings at the end.

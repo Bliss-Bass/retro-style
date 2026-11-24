@@ -2,7 +2,8 @@
 
 Choose how Android looks and where the bottom bar's controls sit.
 
-Open **Settings > System > UI style**. Changes apply right away. When a change needs SystemUI to
+Open **Settings > System > UI style**, or **Settings > Display > Appearance > UI style**.
+Changes apply right away. When a change needs SystemUI to
 restart, the screen redraws once and your open windows come back where they were.
 
 ## Style

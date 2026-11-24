@@ -23,7 +23,8 @@ import com.google.android.material.materialswitch.MaterialSwitch
 import com.google.android.material.radiobutton.MaterialRadioButton
 
 /**
- * Settings > System > UI style. Edits a [StyleDraft] with a live system-bar preview; Apply writes
+ * Settings > System > UI style (also Settings > Display > Appearance). Edits a [StyleDraft]
+ * with a live system-bar preview; Apply writes
  * secure settings and runs [ApplyWorker] once.
  */
 class StyleActivity : AppCompatActivity() {
