@@ -76,6 +76,11 @@ On Bass, also run `vendor/ax86-lite/tests/test_bass_ui_style.sh` (via `run_tests
 bootflags re-APPLY when `retro_ui_applied` is empty, zone placement, and (with SmartDock)
 Desktop style cycling then UI Style pack switches while keeping the display awake.
 
+`vendor/ax86-lite/tests/test_bass_blur_transparency.sh` applies Glass and each blur /
+transparency override over adb, opens the UI Style Advanced dialogs, swipes Dual Shade open,
+and writes screenshots under `/data/local/tmp/bass_blur_proof/` (`adb pull` for visual review).
+Needs `--blurui`.
+
 ```sh
 adb root
 adb push vendor/retro-style/tests/retro_style_matrix.sh /data/local/tmp/

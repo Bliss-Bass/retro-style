@@ -1,0 +1,185 @@
+From 4b22755999d345c244fcfb011c3ec28409986134 Mon Sep 17 00:00:00 2001
+From: electrikjesus <electrikjesus@gmail.com>
+Date: Wed, 25 Nov 2026 23:17:00 +0100
+Subject: [PATCH] SystemUI: Tint Dual Shade panel blur and re-read freeform
+ window style.
+
+BackgroundBlurDrawable.setColor keeps panel_color over blur instead of a clear panel; freeform window_alpha/blur re-read Settings each apply so Glass options take effect.
+---
+ .../DesktopModeWindowDecoration.java          | 18 ++++++----
+ .../shell/windowdecor/RetroUiWindowStyle.java | 14 ++++----
+ .../shade/ui/composable/OverlayShade.kt       | 34 +++++++++++++++----
+ 3 files changed, 46 insertions(+), 20 deletions(-)
+
+diff --git a/libs/WindowManager/Shell/src/com/android/wm/shell/windowdecor/DesktopModeWindowDecoration.java b/libs/WindowManager/Shell/src/com/android/wm/shell/windowdecor/DesktopModeWindowDecoration.java
+index ccf32fd64de1..e3eced52e81d 100644
+--- a/libs/WindowManager/Shell/src/com/android/wm/shell/windowdecor/DesktopModeWindowDecoration.java
++++ b/libs/WindowManager/Shell/src/com/android/wm/shell/windowdecor/DesktopModeWindowDecoration.java
+@@ -663,9 +663,9 @@ public class DesktopModeWindowDecoration extends WindowDecoration<WindowDecorLin
+ 
+     /**
+      * Applies RetroStyle window_blur_radius / window_alpha to the focused freeform task leash.
+-     * Unfocused tasks clear blur so only one (or a small set of focused) surfaces pay the cost.
+-     * AppCompat/Material/Compose apps may still draw opaque content; DeviceDefault-themed apps
+-     * show through more clearly.
++     * Unfocused tasks clear blur/alpha so only one (or a small set of focused) surfaces pay the
++     * cost. Background blur is only visible when the leash is translucent, so blur alone also
++     * applies a mild default alpha when window_alpha is unset.
+      */
+     private void applyRetroUiWindowEffects(SurfaceControl.Transaction t,
+             SurfaceControl taskSurface, boolean hasGlobalFocus) {
+@@ -675,10 +675,16 @@ public class DesktopModeWindowDecoration extends WindowDecoration<WindowDecorLin
+         final int blurPx = hasGlobalFocus ? RetroUiWindowStyle.blurRadiusPx(mContext) : 0;
+         t.setBackgroundBlurRadius(taskSurface, blurPx);
+         if (hasGlobalFocus) {
+-            final float alpha = RetroUiWindowStyle.windowAlpha(mContext);
+-            if (alpha >= 0f && alpha < 1f) {
+-                t.setAlpha(taskSurface, alpha);
++            float alpha = RetroUiWindowStyle.windowAlpha(mContext);
++            // Opaque app buffers cover background blur; need leash translucency to see it.
++            if (alpha < 0f && blurPx > 0) {
++                alpha = 230f / 255f;
+             }
++            if (alpha >= 0f) {
++                t.setAlpha(taskSurface, Math.min(1f, Math.max(0f, alpha)));
++            }
++        } else {
++            t.setAlpha(taskSurface, 1f);
+         }
+     }
+ 
+diff --git a/libs/WindowManager/Shell/src/com/android/wm/shell/windowdecor/RetroUiWindowStyle.java b/libs/WindowManager/Shell/src/com/android/wm/shell/windowdecor/RetroUiWindowStyle.java
+index 081404208d3b..15753317b036 100644
+--- a/libs/WindowManager/Shell/src/com/android/wm/shell/windowdecor/RetroUiWindowStyle.java
++++ b/libs/WindowManager/Shell/src/com/android/wm/shell/windowdecor/RetroUiWindowStyle.java
+@@ -19,21 +19,19 @@ import java.util.Map;
+  * Reads freeform window transparency/blur defaults from RetroStyle's {@code retro_ui_applied}
+  * secure setting (pack defaults + UI Style overrides). Cap concurrent blurs by only applying
+  * when the decoration has global focus.
++ *
++ * <p>Values are re-read each call: SystemUI may start before the first APPLY, and UI Style can
++ * change window keys without always restarting the Shell process that owns decorations.
+  */
+ final class RetroUiWindowStyle {
+     private static final String SETTING = "retro_ui_applied";
+     private static final int MAX_BLUR_RADIUS_DP = 40;
+ 
+-    private static Map<String, String> sValues;
+-
+     private RetroUiWindowStyle() {}
+ 
+-    static synchronized Map<String, String> values(Context context) {
+-        if (sValues == null) {
+-            sValues = parse(Settings.Secure.getString(
+-                    context.getContentResolver(), SETTING));
+-        }
+-        return sValues;
++    static Map<String, String> values(Context context) {
++        return parse(Settings.Secure.getString(
++                context.getContentResolver(), SETTING));
+     }
+ 
+     /** Blur radius in px for the focused freeform task, or 0 when unset/off. */
+diff --git a/packages/SystemUI/compose/features/src/com/android/systemui/shade/ui/composable/OverlayShade.kt b/packages/SystemUI/compose/features/src/com/android/systemui/shade/ui/composable/OverlayShade.kt
+index 4ea4ce47efa1..51d989e83435 100644
+--- a/packages/SystemUI/compose/features/src/com/android/systemui/shade/ui/composable/OverlayShade.kt
++++ b/packages/SystemUI/compose/features/src/com/android/systemui/shade/ui/composable/OverlayShade.kt
+@@ -37,6 +37,7 @@ import androidx.compose.ui.Alignment
+ import androidx.compose.ui.Modifier
+ import androidx.compose.ui.geometry.Rect
+ import androidx.compose.ui.graphics.Color
++import androidx.compose.ui.graphics.toArgb
+ import androidx.compose.ui.layout.approachLayout
+ import androidx.compose.ui.layout.boundsInWindow
+ import androidx.compose.ui.layout.onPlaced
+@@ -178,18 +179,21 @@ private fun ContentScope.Panel(
+     header: (@Composable () -> Unit)?,
+     content: @Composable () -> Unit,
+ ) {
++    val panelColor = Colors.panelBackground(enableTransparency || RetroUiStyle.panelBlur)
++    // When panel_blur is on, the Compose fill stays transparent so the rounded expand
++    // shape still animates; tint + blur live on BackgroundBlurDrawable (setColor).
++    val fillColor = if (RetroUiStyle.panelBlur) Color.Transparent else panelColor
+     Box(
+         modifier =
+             modifier
+                 .disableSwipesWhenScrolling()
+-                .verticalExpandContainerBackground(Colors.panelBackground(enableTransparency), spec)
++                .verticalExpandContainerBackground(fillColor, spec)
+     ) {
+-        // Localized blur behind the panel rect when UI Style / Glass enables panel_blur.
+-        // Prefer this over fullscreen shade-window blur (see SceneTransitionBlurViewModel).
+         if (RetroUiStyle.panelBlur) {
+             PanelLocalBackgroundBlur(
+                 blurRadiusDp = RetroUiStyle.panelBlurRadiusDp,
+                 cornerRadius = spec.radius,
++                tintArgb = panelColor.toArgb(),
+             )
+         }
+         Column {
+@@ -201,7 +205,7 @@ private fun ContentScope.Panel(
+ 
+ /** View-local BackgroundBlurDrawable clipped to the Dual Shade panel bounds. */
+ @Composable
+-private fun PanelLocalBackgroundBlur(blurRadiusDp: Int, cornerRadius: Dp) {
++private fun PanelLocalBackgroundBlur(blurRadiusDp: Int, cornerRadius: Dp, tintArgb: Int) {
+     val density = LocalDensity.current
+     val blurRadiusPx = with(density) { blurRadiusDp.dp.roundToPx() }
+     val cornerRadiusPx = with(density) { cornerRadius.toPx() }
+@@ -211,7 +215,7 @@ private fun PanelLocalBackgroundBlur(blurRadiusDp: Int, cornerRadius: Dp) {
+                 view.addOnAttachStateChangeListener(
+                     object : View.OnAttachStateChangeListener {
+                         override fun onViewAttachedToWindow(v: View) {
+-                            applyPanelBackgroundBlur(v, blurRadiusPx, cornerRadiusPx)
++                            applyPanelBackgroundBlur(v, blurRadiusPx, cornerRadiusPx, tintArgb)
+                         }
+ 
+                         override fun onViewDetachedFromWindow(v: View) {
+@@ -221,11 +225,21 @@ private fun PanelLocalBackgroundBlur(blurRadiusDp: Int, cornerRadius: Dp) {
+                 )
+             }
+         },
++        update = { view ->
++            if (view.isAttachedToWindow) {
++                applyPanelBackgroundBlur(view, blurRadiusPx, cornerRadiusPx, tintArgb)
++            }
++        },
+         modifier = Modifier.fillMaxSize(),
+     )
+ }
+ 
+-private fun applyPanelBackgroundBlur(view: View, blurRadiusPx: Int, cornerRadiusPx: Float) {
++private fun applyPanelBackgroundBlur(
++    view: View,
++    blurRadiusPx: Int,
++    cornerRadiusPx: Float,
++    tintArgb: Int,
++) {
+     try {
+         val root = view.rootSurfaceControl ?: return
+         val method =
+@@ -247,6 +261,12 @@ private fun applyPanelBackgroundBlur(view: View, blurRadiusPx: Int, cornerRadius
+                 .getMethod("setCornerRadius", Float::class.javaPrimitiveType)
+                 .invoke(drawable, cornerRadiusPx)
+         } catch (_: Throwable) {}
++        // Alpha-blended on top of the blur so panel_color / Glass tint still show.
++        try {
++            drawable.javaClass
++                .getMethod("setColor", Int::class.javaPrimitiveType)
++                .invoke(drawable, tintArgb)
++        } catch (_: Throwable) {}
+         view.background = drawable
+     } catch (t: Throwable) {
+         Log.w("OverlayShade", "panel local blur unavailable", t)
+@@ -305,6 +325,8 @@ object OverlayShade {
+         fun panelBackground(transparencyEnabled: Boolean): Color {
+             if (RetroUiStyle.isKitKat) return Color(RetroUiStyle.kitKatPanelColor)
+             RetroUiStyle.panelColor?.let { return Color(it) }
++            // Glass-like default when blur is on but no pack/UI Style panel_color yet.
++            if (RetroUiStyle.panelBlur) return Color(0x8C000000)
+             return Color(
+                 shadePanel(
+                     context = LocalContext.current,
+-- 
+2.53.0
+

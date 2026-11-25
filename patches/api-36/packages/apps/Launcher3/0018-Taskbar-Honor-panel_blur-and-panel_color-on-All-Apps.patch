@@ -1,0 +1,128 @@
+From 9b9e3a942b76ce8b1276103ba13401ba3bae21c2 Mon Sep 17 00:00:00 2001
+From: electrikjesus <electrikjesus@gmail.com>
+Date: Wed, 25 Nov 2026 23:17:02 +0100
+Subject: [PATCH] Taskbar: Honor panel_blur and panel_color on All Apps
+ background.
+
+Enable All Apps overlay blur when UI Style sets panel_blur, and draw the pack/UI Style panel color (with alpha) instead of the opaque stock over-blur fill.
+
+Change-Id: I666d01d181c10bd2e9048f9d7168ecf4e5477480
+---
+ .../allapps/TaskbarAllAppsContainerView.java  | 21 +++++++++++++++++++
+ .../allapps/TaskbarAllAppsSlideInView.java    |  3 ++-
+ .../overlay/TaskbarOverlayContext.java        | 13 ++++++++++--
+ .../allapps/ActivityAllAppsContainerView.java |  2 +-
+ 4 files changed, 35 insertions(+), 4 deletions(-)
+
+diff --git a/quickstep/src/com/android/launcher3/taskbar/allapps/TaskbarAllAppsContainerView.java b/quickstep/src/com/android/launcher3/taskbar/allapps/TaskbarAllAppsContainerView.java
+index a46845affa..1f38f93a96 100644
+--- a/quickstep/src/com/android/launcher3/taskbar/allapps/TaskbarAllAppsContainerView.java
++++ b/quickstep/src/com/android/launcher3/taskbar/allapps/TaskbarAllAppsContainerView.java
+@@ -16,11 +16,13 @@
+ package com.android.launcher3.taskbar.allapps;
+ 
+ import android.content.Context;
++import android.graphics.Color;
+ import android.util.AttributeSet;
+ 
+ import androidx.annotation.Nullable;
+ 
+ import com.android.launcher3.allapps.ActivityAllAppsContainerView;
++import com.android.launcher3.taskbar.RetroUiApplied;
+ import com.android.launcher3.taskbar.overlay.TaskbarOverlayContext;
+ 
+ import java.util.Optional;
+@@ -29,6 +31,9 @@ import java.util.Optional;
+ public class TaskbarAllAppsContainerView extends
+         ActivityAllAppsContainerView<TaskbarOverlayContext> {
+ 
++    /** Glass-like default when panel_blur is on but no panel_color is set. */
++    private static final int GLASS_PANEL_COLOR = 0x8C000000;
++
+     private @Nullable OnInvalidateHeaderListener mOnInvalidateHeaderListener;
+ 
+     public TaskbarAllAppsContainerView(Context context, AttributeSet attrs) {
+@@ -56,6 +61,22 @@ public class TaskbarAllAppsContainerView extends
+         return true;
+     }
+ 
++    @Override
++    protected int getBackgroundColor() {
++        final String panelColor = RetroUiApplied.INSTANCE.get("panel_color");
++        if (panelColor != null && !panelColor.isEmpty()) {
++            try {
++                return Color.parseColor(panelColor);
++            } catch (IllegalArgumentException ignored) {
++                // fall through
++            }
++        }
++        if ("1".equals(RetroUiApplied.INSTANCE.get("panel_blur"))) {
++            return GLASS_PANEL_COLOR;
++        }
++        return super.getBackgroundColor();
++    }
++
+     interface OnInvalidateHeaderListener {
+         void onInvalidateHeader();
+     }
+diff --git a/quickstep/src/com/android/launcher3/taskbar/allapps/TaskbarAllAppsSlideInView.java b/quickstep/src/com/android/launcher3/taskbar/allapps/TaskbarAllAppsSlideInView.java
+index e7d15d7dbe..3f588e20ca 100644
+--- a/quickstep/src/com/android/launcher3/taskbar/allapps/TaskbarAllAppsSlideInView.java
++++ b/quickstep/src/com/android/launcher3/taskbar/allapps/TaskbarAllAppsSlideInView.java
+@@ -93,7 +93,8 @@ public class TaskbarAllAppsSlideInView extends AbstractSlideInView<TaskbarOverla
+                 retroMax = stockMax;
+             }
+         }
+-        mMaxBlurRadius = shouldReduceWorkspaceBlurUsage(context) ? 0 : retroMax;
++        // panel_blur opts into All Apps blur even when reduce_workspace_blur_usage is on.
++        mMaxBlurRadius = (!panelBlur && shouldReduceWorkspaceBlurUsage(context)) ? 0 : retroMax;
+     }
+ 
+     void init(TaskbarAllAppsCallbacks callbacks, TaskbarUiState taskbarUiState) {
+diff --git a/quickstep/src/com/android/launcher3/taskbar/overlay/TaskbarOverlayContext.java b/quickstep/src/com/android/launcher3/taskbar/overlay/TaskbarOverlayContext.java
+index 24fff3602b..eda5c891a7 100644
+--- a/quickstep/src/com/android/launcher3/taskbar/overlay/TaskbarOverlayContext.java
++++ b/quickstep/src/com/android/launcher3/taskbar/overlay/TaskbarOverlayContext.java
+@@ -31,6 +31,7 @@ import com.android.launcher3.InsettableFrameLayout.LayoutParams;
+ import com.android.launcher3.R;
+ import com.android.launcher3.popup.PopupDataProvider;
+ import com.android.launcher3.taskbar.BaseTaskbarContext;
++import com.android.launcher3.taskbar.RetroUiApplied;
+ import com.android.launcher3.taskbar.TaskbarActivityContext;
+ import com.android.launcher3.taskbar.TaskbarControllers;
+ import com.android.launcher3.taskbar.TaskbarCustomActionsListener;
+@@ -149,8 +150,16 @@ public class TaskbarOverlayContext extends BaseTaskbarContext {
+ 
+     @Override
+     public boolean isAllAppsBackgroundBlurEnabled() {
+-        return !shouldReduceWorkspaceBlurUsage(this) && BlurUtils.supportsBlursOnWindows()
+-                && WindowBlurState.getInstance(this).getValue();
++        if (!BlurUtils.supportsBlursOnWindows()
++                || !WindowBlurState.getInstance(this).getValue()) {
++            return false;
++        }
++        // UI Style / Glass panel_blur opts into All Apps blur even when the reduce-workspace
++        // blur flag would otherwise turn it off.
++        if ("1".equals(RetroUiApplied.INSTANCE.get("panel_blur"))) {
++            return true;
++        }
++        return !shouldReduceWorkspaceBlurUsage(this);
+     }
+ 
+     @Override
+diff --git a/src/com/android/launcher3/allapps/ActivityAllAppsContainerView.java b/src/com/android/launcher3/allapps/ActivityAllAppsContainerView.java
+index b5d4b5de84..842bd08643 100644
+--- a/src/com/android/launcher3/allapps/ActivityAllAppsContainerView.java
++++ b/src/com/android/launcher3/allapps/ActivityAllAppsContainerView.java
+@@ -836,7 +836,7 @@ public class ActivityAllAppsContainerView<T extends Context & ActivityContext>
+                 : ColorUtils.blendARGB(getBackgroundColor(), mHeaderProtectionColor, blendRatio);
+     }
+ 
+-    int getBackgroundColor() {
++    protected int getBackgroundColor() {
+         return isBackgroundBlurEnabled()
+                 ? mBottomSheetBackgroundColorOverBlur
+                 : mBottomSheetBackgroundColorBlurFallback;
+-- 
+2.53.0
+

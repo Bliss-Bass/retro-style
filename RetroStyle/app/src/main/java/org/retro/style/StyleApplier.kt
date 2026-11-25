@@ -361,6 +361,7 @@ object StyleApplier {
             listOf(
                 applied["panel_blur"].orEmpty(),
                 applied["panel_blur_radius"].orEmpty(),
+                applied["panel_color"].orEmpty(),
             )
         if (!systemBar) return listOf(false, kitKat) + blurKeys
         return listOf(
