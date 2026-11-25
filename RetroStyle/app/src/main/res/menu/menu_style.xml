@@ -21,6 +21,22 @@
                 android:id="@+id/menu_bar_buttons"
                 android:title="@string/section_bar_buttons" />
             <item
+                android:id="@+id/menu_panel_color"
+                android:title="@string/section_panel_color" />
+            <item
+                android:id="@+id/menu_panel_blur"
+                android:checkable="true"
+                android:title="@string/section_panel_blur" />
+            <item
+                android:id="@+id/menu_panel_blur_radius"
+                android:title="@string/section_panel_blur_radius" />
+            <item
+                android:id="@+id/menu_dialog_transparency"
+                android:title="@string/section_dialog_transparency" />
+            <item
+                android:id="@+id/menu_window_transparency"
+                android:title="@string/section_window_transparency" />
+            <item
                 android:id="@+id/menu_anchor"
                 android:title="@string/section_anchor" />
             <item

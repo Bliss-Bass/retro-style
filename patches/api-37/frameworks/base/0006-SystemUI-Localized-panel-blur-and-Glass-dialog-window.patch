@@ -1,0 +1,422 @@
+From 77d1f2505db22ad933213daa0c802bc9aba63de6 Mon Sep 17 00:00:00 2001
+From: electrikjesus <electrikjesus@gmail.com>
+Date: Wed, 25 Nov 2026 13:37:27 +0100
+Subject: [PATCH] SystemUI: Localized panel blur and Glass dialog/window chrome
+ from retro_ui_applied.
+
+Dual Shade panels use BackgroundBlurDrawable when panel_blur is set; dialogs and focused freeform tasks honor dialog_/window_ keys so UI Style can theme Glass without fullscreen RRO blur.
+---
+ .../DesktopModeWindowDecoration.java          | 24 +++++
+ .../shell/windowdecor/RetroUiWindowStyle.java | 94 +++++++++++++++++++
+ .../shade/ui/composable/OverlayShade.kt       | 67 +++++++++++++
+ .../phone/SystemUIDialogFactoryExt.kt         | 47 +++++++---
+ .../viewmodel/SceneTransitionBlurViewModel.kt |  9 +-
+ .../shade/shared/model/RetroUiStyle.kt        | 33 ++++++-
+ 6 files changed, 256 insertions(+), 18 deletions(-)
+ create mode 100644 libs/WindowManager/Shell/src/com/android/wm/shell/windowdecor/RetroUiWindowStyle.java
+
+diff --git a/libs/WindowManager/Shell/src/com/android/wm/shell/windowdecor/DesktopModeWindowDecoration.java b/libs/WindowManager/Shell/src/com/android/wm/shell/windowdecor/DesktopModeWindowDecoration.java
+index 5b9a63dcce07..ccf32fd64de1 100644
+--- a/libs/WindowManager/Shell/src/com/android/wm/shell/windowdecor/DesktopModeWindowDecoration.java
++++ b/libs/WindowManager/Shell/src/com/android/wm/shell/windowdecor/DesktopModeWindowDecoration.java
+@@ -565,6 +565,9 @@ public class DesktopModeWindowDecoration extends WindowDecoration<WindowDecorLin
+         relayout(mRelayoutParams, startT, finishT, wct, oldRootView, taskSurface, mResult);
+         // After this line, mTaskInfo is up-to-date and should be used instead of taskInfo
+ 
++        // Glass / UI Style freeform window blur+alpha: focused tasks only (cost cap).
++        applyRetroUiWindowEffects(finishT, taskSurface, hasGlobalFocus);
++
+         if (!wct.isEmpty()) {
+             if (mRelayoutParams.mShouldSetAppBounds) {
+                 // When expanding from PiP to freeform, we need to start a Transition for applying
+@@ -658,6 +661,27 @@ public class DesktopModeWindowDecoration extends WindowDecoration<WindowDecorLin
+         return isCaptionVisible() && !mIsRecentsTransitionRunning;
+     }
+ 
++    /**
++     * Applies RetroStyle window_blur_radius / window_alpha to the focused freeform task leash.
++     * Unfocused tasks clear blur so only one (or a small set of focused) surfaces pay the cost.
++     * AppCompat/Material/Compose apps may still draw opaque content; DeviceDefault-themed apps
++     * show through more clearly.
++     */
++    private void applyRetroUiWindowEffects(SurfaceControl.Transaction t,
++            SurfaceControl taskSurface, boolean hasGlobalFocus) {
++        if (t == null || taskSurface == null || !taskSurface.isValid()) {
++            return;
++        }
++        final int blurPx = hasGlobalFocus ? RetroUiWindowStyle.blurRadiusPx(mContext) : 0;
++        t.setBackgroundBlurRadius(taskSurface, blurPx);
++        if (hasGlobalFocus) {
++            final float alpha = RetroUiWindowStyle.windowAlpha(mContext);
++            if (alpha >= 0f && alpha < 1f) {
++                t.setAlpha(taskSurface, alpha);
++            }
++        }
++    }
++
+     private boolean isCaptionVisible() {
+         return mTaskInfo.isVisible && mIsCaptionVisible;
+     }
+diff --git a/libs/WindowManager/Shell/src/com/android/wm/shell/windowdecor/RetroUiWindowStyle.java b/libs/WindowManager/Shell/src/com/android/wm/shell/windowdecor/RetroUiWindowStyle.java
+new file mode 100644
+index 000000000000..081404208d3b
+--- /dev/null
++++ b/libs/WindowManager/Shell/src/com/android/wm/shell/windowdecor/RetroUiWindowStyle.java
+@@ -0,0 +1,94 @@
++/*
++ * Copyright (C) 2026 Navotpala Tech (Bliss Co-Labs Inc.)
++ *
++ * SPDX-License-Identifier: AGPL-3.0-only OR LicenseRef-Navotpala-Commercial
++ * Part of retro-style (vendor/retro-style).
++ */
++
++package com.android.wm.shell.windowdecor;
++
++import android.content.Context;
++import android.provider.Settings;
++import android.util.DisplayMetrics;
++
++import java.util.Collections;
++import java.util.HashMap;
++import java.util.Map;
++
++/**
++ * Reads freeform window transparency/blur defaults from RetroStyle's {@code retro_ui_applied}
++ * secure setting (pack defaults + UI Style overrides). Cap concurrent blurs by only applying
++ * when the decoration has global focus.
++ */
++final class RetroUiWindowStyle {
++    private static final String SETTING = "retro_ui_applied";
++    private static final int MAX_BLUR_RADIUS_DP = 40;
++
++    private static Map<String, String> sValues;
++
++    private RetroUiWindowStyle() {}
++
++    static synchronized Map<String, String> values(Context context) {
++        if (sValues == null) {
++            sValues = parse(Settings.Secure.getString(
++                    context.getContentResolver(), SETTING));
++        }
++        return sValues;
++    }
++
++    /** Blur radius in px for the focused freeform task, or 0 when unset/off. */
++    static int blurRadiusPx(Context context) {
++        String raw = values(context).get("window_blur_radius");
++        if (raw == null || raw.isEmpty()) {
++            return 0;
++        }
++        try {
++            int dp = Integer.parseInt(raw);
++            if (dp <= 0) {
++                return 0;
++            }
++            dp = Math.min(dp, MAX_BLUR_RADIUS_DP);
++            DisplayMetrics metrics = context.getResources().getDisplayMetrics();
++            return Math.round(dp * metrics.density);
++        } catch (NumberFormatException e) {
++            return 0;
++        }
++    }
++
++    /**
++     * Window alpha 0–1 for the focused freeform task leash, or -1 when unset (leave stock).
++     */
++    static float windowAlpha(Context context) {
++        String raw = values(context).get("window_alpha");
++        if (raw == null || raw.isEmpty()) {
++            return -1f;
++        }
++        try {
++            if (raw.startsWith("#") && raw.length() >= 9) {
++                int argb = (int) Long.parseLong(raw.substring(1), 16);
++                return ((argb >>> 24) & 0xff) / 255f;
++            }
++            int alpha = Integer.parseInt(raw);
++            if (alpha > 255) {
++                return ((alpha >>> 24) & 0xff) / 255f;
++            }
++            return Math.max(0, Math.min(255, alpha)) / 255f;
++        } catch (NumberFormatException e) {
++            return -1f;
++        }
++    }
++
++    static Map<String, String> parse(String value) {
++        if (value == null || value.isEmpty()) {
++            return Collections.emptyMap();
++        }
++        Map<String, String> out = new HashMap<>();
++        for (String pair : value.split(";")) {
++            String[] parts = pair.split("=", 2);
++            if (parts.length == 2 && !parts[0].isBlank()) {
++                out.put(parts[0].trim(), parts[1].trim());
++            }
++        }
++        return out;
++    }
++}
+diff --git a/packages/SystemUI/compose/features/src/com/android/systemui/shade/ui/composable/OverlayShade.kt b/packages/SystemUI/compose/features/src/com/android/systemui/shade/ui/composable/OverlayShade.kt
+index 474a846ab5c2..f7b196935c90 100644
+--- a/packages/SystemUI/compose/features/src/com/android/systemui/shade/ui/composable/OverlayShade.kt
++++ b/packages/SystemUI/compose/features/src/com/android/systemui/shade/ui/composable/OverlayShade.kt
+@@ -17,11 +17,15 @@
+ package com.android.systemui.shade.ui.composable
+ 
+ import android.annotation.SuppressLint
++import android.graphics.drawable.Drawable
++import android.util.Log
++import android.view.View
+ import androidx.compose.foundation.layout.Box
+ import androidx.compose.foundation.layout.Column
+ import androidx.compose.foundation.layout.PaddingValues
+ import androidx.compose.foundation.layout.WindowInsets
+ import androidx.compose.foundation.layout.fillMaxSize
++import androidx.compose.foundation.layout.matchParentSize
+ import androidx.compose.foundation.layout.safeDrawing
+ import androidx.compose.foundation.layout.union
+ import androidx.compose.foundation.layout.width
+@@ -45,6 +49,7 @@ import androidx.compose.ui.res.dimensionResource
+ import androidx.compose.ui.unit.Dp
+ import androidx.compose.ui.unit.IntOffset
+ import androidx.compose.ui.unit.dp
++import androidx.compose.ui.viewinterop.AndroidView
+ import com.android.compose.animation.scene.ContentScope
+ import com.android.compose.animation.scene.ElementKey
+ import com.android.compose.animation.scene.LowestZIndexContentPicker
+@@ -180,6 +185,14 @@ private fun ContentScope.Panel(
+                 .disableSwipesWhenScrolling()
+                 .verticalExpandContainerBackground(Colors.panelBackground(enableTransparency), spec)
+     ) {
++        // Localized blur behind the panel rect when UI Style / Glass enables panel_blur.
++        // Prefer this over fullscreen shade-window blur (see SceneTransitionBlurViewModel).
++        if (RetroUiStyle.panelBlur) {
++            PanelLocalBackgroundBlur(
++                blurRadiusDp = RetroUiStyle.panelBlurRadiusDp,
++                cornerRadius = spec.radius,
++            )
++        }
+         Column {
+             header?.invoke()
+             content()
+@@ -187,6 +200,60 @@ private fun ContentScope.Panel(
+     }
+ }
+ 
++/** View-local BackgroundBlurDrawable clipped to the Dual Shade panel bounds. */
++@Composable
++private fun PanelLocalBackgroundBlur(blurRadiusDp: Int, cornerRadius: Dp) {
++    val density = LocalDensity.current
++    val blurRadiusPx = with(density) { blurRadiusDp.dp.roundToPx() }
++    val cornerRadiusPx = with(density) { cornerRadius.toPx() }
++    AndroidView(
++        factory = { context ->
++            View(context).also { view ->
++                view.addOnAttachStateChangeListener(
++                    object : View.OnAttachStateChangeListener {
++                        override fun onViewAttachedToWindow(v: View) {
++                            applyPanelBackgroundBlur(v, blurRadiusPx, cornerRadiusPx)
++                        }
++
++                        override fun onViewDetachedFromWindow(v: View) {
++                            v.background = null
++                        }
++                    }
++                )
++            }
++        },
++        modifier = Modifier.matchParentSize(),
++    )
++}
++
++private fun applyPanelBackgroundBlur(view: View, blurRadiusPx: Int, cornerRadiusPx: Float) {
++    try {
++        val root = view.rootSurfaceControl ?: return
++        val method =
++            try {
++                root.javaClass.getMethod("createBackgroundBlurDrawable")
++            } catch (_: NoSuchMethodException) {
++                root.javaClass.getDeclaredMethod("createBackgroundBlurDrawable").apply {
++                    isAccessible = true
++                }
++            }
++        val drawable = method.invoke(root) as? Drawable ?: return
++        try {
++            drawable.javaClass
++                .getMethod("setBlurRadius", Int::class.javaPrimitiveType)
++                .invoke(drawable, blurRadiusPx)
++        } catch (_: Throwable) {}
++        try {
++            drawable.javaClass
++                .getMethod("setCornerRadius", Float::class.javaPrimitiveType)
++                .invoke(drawable, cornerRadiusPx)
++        } catch (_: Throwable) {}
++        view.background = drawable
++    } catch (t: Throwable) {
++        Log.w("OverlayShade", "panel local blur unavailable", t)
++    }
++}
++
+ @Composable
+ @ReadOnlyComposable
+ @SuppressLint("ConfigurationScreenWidthHeight")
+diff --git a/packages/SystemUI/compose/features/src/com/android/systemui/statusbar/phone/SystemUIDialogFactoryExt.kt b/packages/SystemUI/compose/features/src/com/android/systemui/statusbar/phone/SystemUIDialogFactoryExt.kt
+index ace9e84de64e..ce9d135945f8 100644
+--- a/packages/SystemUI/compose/features/src/com/android/systemui/statusbar/phone/SystemUIDialogFactoryExt.kt
++++ b/packages/SystemUI/compose/features/src/com/android/systemui/statusbar/phone/SystemUIDialogFactoryExt.kt
+@@ -203,11 +203,18 @@ fun SystemUIDialogFactory.createBottomSheet(
+                 val radius = dimensionResource(R.dimen.bottom_sheet_corner_radius)
+                 val isBlurSupported by
+                     dialog.blurInteractor!!.isBlurCurrentlySupported.collectAsStateWithLifecycle()
+-                val isBlurEnabled = isVolumeAndPowerBlurEnabled()
++                val retroDialogBlurDp =
++                    com.android.systemui.shade.shared.model.RetroUiStyle.dialogBlurRadiusDp
++                val isBlurEnabled =
++                    isVolumeAndPowerBlurEnabled() || (retroDialogBlurDp != null && retroDialogBlurDp > 0)
+                 val backgroundBlurModifier =
+                     if (isBlurEnabled) {
+                         val bottomsheetBlurRadius =
+-                            dimensionResource(R.dimen.bottomsheet_blur_radius)
++                            if (retroDialogBlurDp != null && retroDialogBlurDp > 0) {
++                                with(LocalDensity.current) { retroDialogBlurDp.dp }
++                            } else {
++                                dimensionResource(R.dimen.bottomsheet_blur_radius)
++                            }
+                         val cornerRadius = dimensionResource(R.dimen.bottom_sheet_corner_radius)
+                         val drawable = remember { createBackgroundBlurDrawable(dialog) }
+ 
+@@ -253,19 +260,31 @@ fun SystemUIDialogFactory.createBottomSheet(
+                             .then(backgroundBlurModifier ?: Modifier),
+                     shape = RoundedCornerShape(topStart = radius, topEnd = radius),
+                     color =
+-                        if (isBlurEnabled) {
+-                            if (isBlurSupported) {
+-                                Color(
+-                                    ColorUtils.compositeColors(
+-                                        LocalAndroidColorScheme.current.surfaceEffect0.toArgb(),
+-                                        LocalAndroidColorScheme.current.surfaceEffect2.toArgb(),
+-                                    )
+-                                )
+-                            } else {
+-                                LocalAndroidColorScheme.current.surfaceEffect0Fallback
++                        run {
++                            val base =
++                                if (isBlurEnabled) {
++                                    if (isBlurSupported) {
++                                        Color(
++                                            ColorUtils.compositeColors(
++                                                LocalAndroidColorScheme.current.surfaceEffect0
++                                                    .toArgb(),
++                                                LocalAndroidColorScheme.current.surfaceEffect2
++                                                    .toArgb(),
++                                            )
++                                        )
++                                    } else {
++                                        LocalAndroidColorScheme.current.surfaceEffect0Fallback
++                                    }
++                                } else {
++                                    containerColorProvider()
++                                }
++                            val dialogAlpha =
++                                com.android.systemui.shade.shared.model.RetroUiStyle.dialogAlpha
++                            when {
++                                dialogAlpha == null -> base
++                                dialogAlpha > 255 -> Color(dialogAlpha) // packed ARGB
++                                else -> base.copy(alpha = dialogAlpha / 255f)
+                             }
+-                        } else {
+-                            containerColorProvider()
+                         },
+                 ) {
+                     Box(
+diff --git a/packages/SystemUI/src/com/android/systemui/scene/ui/viewmodel/SceneTransitionBlurViewModel.kt b/packages/SystemUI/src/com/android/systemui/scene/ui/viewmodel/SceneTransitionBlurViewModel.kt
+index 9c11eb554abb..42230f4154dd 100644
+--- a/packages/SystemUI/src/com/android/systemui/scene/ui/viewmodel/SceneTransitionBlurViewModel.kt
++++ b/packages/SystemUI/src/com/android/systemui/scene/ui/viewmodel/SceneTransitionBlurViewModel.kt
+@@ -36,6 +36,7 @@ import com.android.systemui.lifecycle.HydratedActivatable
+ import com.android.systemui.scene.shared.model.Overlays
+ import com.android.systemui.scene.shared.model.Scenes
+ import com.android.systemui.shade.domain.interactor.ShadeInteractor
++import com.android.systemui.shade.shared.model.RetroUiStyle
+ import com.android.systemui.wallpapers.domain.interactor.WallpaperInteractor
+ import com.android.systemui.window.domain.interactor.WindowRootViewBlurInteractor
+ import com.android.systemui.window.logging.BlurLogger
+@@ -170,7 +171,13 @@ constructor(
+             }
+ 
+             is OverlayKey -> {
+-                blurConfig.maxBlurRadiusPx
++                // Dual Shade panels use view-local BackgroundBlurDrawable when panel_blur is on;
++                // skip expensive fullscreen shade-window blur for those overlays.
++                if (RetroUiStyle.panelBlur) {
++                    blurConfig.minBlurRadiusPx
++                } else {
++                    blurConfig.maxBlurRadiusPx
++                }
+             }
+         }
+     }
+diff --git a/packages/SystemUI/src/com/android/systemui/shade/shared/model/RetroUiStyle.kt b/packages/SystemUI/src/com/android/systemui/shade/shared/model/RetroUiStyle.kt
+index 898aa5ae12b2..07edee9661e0 100644
+--- a/packages/SystemUI/src/com/android/systemui/shade/shared/model/RetroUiStyle.kt
++++ b/packages/SystemUI/src/com/android/systemui/shade/shared/model/RetroUiStyle.kt
+@@ -15,13 +15,13 @@ import android.graphics.Color
+  * The UI style SystemUI's shade panels are drawn in, from [RetroUiApplied].
+  *
+  * `style=kitkat` swaps the Quick Settings grid for KitKat tablet rows and uses Holo panel colors;
+- * `variant` picks `holo_unified` (navy) or `kitkat_stock` (black). A theme pack may set its own
+- * `panel_color` (any skin) and `accent` (the KitKat skin's clock and switches), as #AARRGGBB.
++ * `variant` picks `holo_unified` (navy) or `kitkat_stock` (black). A theme pack or UI Style prefs
++ * may set `panel_color` (any skin), blur keys, dialog/window keys, and `accent` (KitKat clock).
+  */
+ object RetroUiStyle {
+     val isKitKat: Boolean by lazy { RetroUiApplied["style"] == "kitkat" }
+ 
+-    /** Panel background the theme pack sets, or null for the skin's own. */
++    /** Panel background the theme pack / UI Style sets, or null for the skin's own. */
+     val panelColor: Int? by lazy { color(RetroUiApplied["panel_color"]) }
+ 
+     /** Panel background (ARGB) for the KitKat style. */
+@@ -31,6 +31,27 @@ object RetroUiStyle {
+             else 0xF0000000.toInt()
+     }
+ 
++    /** Localized panel blur from UI Style / Glass pack defaults. */
++    val panelBlur: Boolean by lazy { RetroUiApplied["panel_blur"] == "1" }
++
++    /** Panel blur radius in dp (default 25). */
++    val panelBlurRadiusDp: Int by lazy {
++        RetroUiApplied["panel_blur_radius"]?.toIntOrNull()?.takeIf { it >= 0 } ?: 25
++    }
++
++    /** System dialog surface alpha 0–255, or packed ARGB when the value looks like a color. */
++    val dialogAlpha: Int? by lazy { alphaOrColor(RetroUiApplied["dialog_alpha"]) }
++
++    val dialogBlurRadiusDp: Int? by lazy {
++        RetroUiApplied["dialog_blur_radius"]?.toIntOrNull()?.takeIf { it >= 0 }
++    }
++
++    val windowAlpha: Int? by lazy { alphaOrColor(RetroUiApplied["window_alpha"]) }
++
++    val windowBlurRadiusDp: Int? by lazy {
++        RetroUiApplied["window_blur_radius"]?.toIntOrNull()?.takeIf { it >= 0 }
++    }
++
+     /** Clock and switch color of the KitKat skin: the pack's accent, else Holo blue. */
+     val accent: Int by lazy { color(RetroUiApplied["accent"]) ?: HOLO_BLUE }
+ 
+@@ -39,4 +60,10 @@ object RetroUiStyle {
+ 
+     private fun color(value: String?): Int? =
+         value?.takeIf { it.isNotEmpty() }?.let { runCatching { Color.parseColor(it) }.getOrNull() }
++
++    private fun alphaOrColor(value: String?): Int? {
++        if (value.isNullOrEmpty()) return null
++        if (value.startsWith("#")) return color(value)
++        return value.toIntOrNull()?.coerceIn(0, 255)
++    }
+ }
+-- 
+2.53.0
+

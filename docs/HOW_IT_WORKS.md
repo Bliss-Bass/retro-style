@@ -11,6 +11,9 @@ Android mechanisms, and each one is worth knowing on its own:
 4. **A privileged platform app** stores the user's choices and switches all of the above.
 5. **Small patch series** add what resources alone can't: new layouts in SystemUI and the
    taskbar.
+6. **Blur and transparency** (Glass and UI Style overrides) are documented in
+   [BLUR_AND_TRANSPARENCY.md](BLUR_AND_TRANSPARENCY.md): pack `shell.*` defaults, StyleSettings
+   overrides, and localized blur on Dual Shade / All Apps / SmartDock / dialogs / freeform.
 
 ```mermaid
 flowchart LR

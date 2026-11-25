@@ -32,6 +32,7 @@ library, so it won't compile without the SystemUI series.
 | 0003 | Send status bar icons to the launcher tray | Forwards the status bar's icons (Bluetooth, alarm, Do Not Disturb, ...) to the launcher over `ILauncherProxy`, so the tray can show them when the top status bar is hidden. |
 | 0004 | Read the applied retro style from Settings.Secure | Switches `RetroUiStyle` and `ShadePanelAnchor` from system properties to the `retro_ui_applied` secure setting RetroStyle writes ([why](HOW_IT_WORKS.md#why-a-secure-setting-and-not-system-properties)). |
 | 0005 | Use the theme pack's shade panel and accent colors | Reads `panel_color` (the shade panels' background, both skins) and `accent` (the KitKat skin's clock and switches) from `retro_ui_applied`, so theme packs can color the shell ([THEME_SPEC.md](THEME_SPEC.md#shell)). |
+| 0006 | Localized panel blur and Glass dialog/window chrome | `panel_blur` / radii drive Dual Shade `BackgroundBlurDrawable` and skip fullscreen overlay blur; SystemUI dialogs and focused freeform tasks honor `dialog_*` / `window_*` ([BLUR_AND_TRANSPARENCY.md](BLUR_AND_TRANSPARENCY.md)). |
 
 The Dual Shade fixes (stuck heads-up notifications, the shade swallowing taps, the lockscreen
 crash, the Quick Settings volume slider) live in [dual-shade](https://github.com/Bliss-Bass/dual-shade), which
@@ -52,6 +53,7 @@ applied first. On Android 17 Dual Shade is upstream and dual-shade has no `frame
 | 0008 | Read the applied retro style from Settings.Secure | Switches `RetroSystemBar` from system properties to `retro_ui_applied`. |
 | 0009 | Let the system bar pick its home screen background | `RetroBarBackground`: with `bar_background` set, the system bar draws its own background on the home screen (solid, a 4.x shadow gradient, semi-transparent or transparent) instead of whatever the stock taskbar draws there. Apps keep the stock background. |
 | 0010 | Keep the volume icon in the KitKat tray without volume buttons | The tray shows a volume icon whenever the bar has no volume buttons next to the nav buttons; KitKat used to leave it out and had no volume control on the bar by default. |
+| 0017 | Scale All Apps overlay blur from retro panel_blur_radius | When `panel_blur=1`, the taskbar All Apps / start overlay max blur follows `panel_blur_radius` from `retro_ui_applied`. |
 
 ## Maintaining the series
 

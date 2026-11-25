@@ -31,6 +31,15 @@ data class ThemePack(
     val barApps: Boolean,
     /** The system bar's home screen background (shell.bar_home), or null for stock. */
     val barHome: String? = null,
+    /** Pack default for localized panel blur (shell.blur_enabled). */
+    val blurEnabled: Boolean? = null,
+    /** Pack default blur radius in dp (shell.blur_radius). */
+    val blurRadius: Int? = null,
+    /** Pack default dialog alpha 0–255 or packed ARGB (shell.dialog_alpha). */
+    val dialogAlpha: Int? = null,
+    val dialogBlurRadius: Int? = null,
+    val windowAlpha: Int? = null,
+    val windowBlurRadius: Int? = null,
 ) {
     /** Overlay package for one of [ThemeCatalog.TARGETS], whether or not the pack ships it. */
     fun overlay(target: String): String = "org.retro.theme.$id.${target.replace('_', '.')}"
@@ -68,11 +77,36 @@ data class ThemePack(
                 accent = color(shell.optString("accent")),
                 barApps = shell.optBoolean("bar_apps", true),
                 barHome = shell.optString("bar_home").ifEmpty { null },
+                blurEnabled =
+                    if (shell.has("blur_enabled")) shell.optBoolean("blur_enabled") else null,
+                blurRadius =
+                    if (shell.has("blur_radius")) shell.optInt("blur_radius").takeIf { it >= 0 }
+                    else null,
+                dialogAlpha = alphaOrColor(shell, "dialog_alpha"),
+                dialogBlurRadius =
+                    if (shell.has("dialog_blur_radius"))
+                        shell.optInt("dialog_blur_radius").takeIf { it >= 0 }
+                    else null,
+                windowAlpha = alphaOrColor(shell, "window_alpha"),
+                windowBlurRadius =
+                    if (shell.has("window_blur_radius"))
+                        shell.optInt("window_blur_radius").takeIf { it >= 0 }
+                    else null,
             )
         }
 
         private fun color(value: String): Int? =
             value.takeIf { it.startsWith("#") }?.let { runCatching { Color.parseColor(it) }.getOrNull() }
+
+        /** Integer 0–255 alpha, or #AARRGGBB / #RRGGBB color from a shell JSON field. */
+        private fun alphaOrColor(shell: JSONObject, key: String): Int? {
+            if (!shell.has(key)) return null
+            val raw = shell.opt(key) ?: return null
+            if (raw is Number) return raw.toInt().coerceIn(0, 255)
+            val text = raw.toString()
+            if (text.startsWith("#")) return color(text)
+            return text.toIntOrNull()?.coerceIn(0, 255)
+        }
     }
 }
 

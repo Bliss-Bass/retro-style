@@ -106,7 +106,15 @@ object StyleApplier {
                 "clock_seconds" to if (StyleSettings.clockSeconds(cr)) "1" else "0",
                 "bar_background" to
                     StyleSettings.barBackground(cr).takeIf { it != StyleSettings.BAR_BG_STOCK }.orEmpty(),
-                "panel_color" to pack.panel?.let(::hex).orEmpty(),
+                "panel_color" to StyleSettings.panelColor(cr)?.let(::hex).orEmpty(),
+                "panel_blur" to if (StyleSettings.panelBlur(cr)) "1" else "0",
+                "panel_blur_radius" to StyleSettings.panelBlurRadius(cr).toString(),
+                "dialog_alpha" to alphaOrColorToken(StyleSettings.dialogAlpha(cr)),
+                "dialog_blur_radius" to
+                    StyleSettings.dialogBlurRadius(cr)?.toString().orEmpty(),
+                "window_alpha" to alphaOrColorToken(StyleSettings.windowAlpha(cr)),
+                "window_blur_radius" to
+                    StyleSettings.windowBlurRadius(cr)?.toString().orEmpty(),
                 "accent" to pack.accent?.let(::hex).orEmpty(),
             )
         val previous = parse(Settings.Secure.getString(cr, APPLIED_SETTING))
@@ -327,7 +335,7 @@ object StyleApplier {
         cr.call(LINEAGE_SETTINGS, "PUT_secure", key, Bundle().apply { putString("value", value) })
     }
 
-    /** What SystemUI draws differently: skin, panel colors, the panel anchor. */
+    /** What SystemUI draws differently: skin, panel colors, blur, dialogs, the panel anchor. */
     private fun systemUiView(applied: Map<String, String>): List<Any?> {
         val kitKat = applied["style"] == ThemePack.SKIN_KITKAT
         return listOf(
@@ -335,6 +343,12 @@ object StyleApplier {
             kitKat && applied["variant"] == StyleSettings.VARIANT_HOLO_UNIFIED,
             applied["anchor"] == StyleSettings.ANCHOR_BOTTOM_END,
             applied["panel_color"].orEmpty(),
+            applied["panel_blur"].orEmpty(),
+            applied["panel_blur_radius"].orEmpty(),
+            applied["dialog_alpha"].orEmpty(),
+            applied["dialog_blur_radius"].orEmpty(),
+            applied["window_alpha"].orEmpty(),
+            applied["window_blur_radius"].orEmpty(),
             if (kitKat) applied["accent"].orEmpty() else "",
         )
     }
@@ -343,7 +357,12 @@ object StyleApplier {
     private fun launcherView(applied: Map<String, String>): List<Any?> {
         val systemBar = applied["layout"] == StyleSettings.LAYOUT_SYSTEM_BAR
         val kitKat = applied["style"] == ThemePack.SKIN_KITKAT
-        if (!systemBar) return listOf(false, kitKat)
+        val blurKeys =
+            listOf(
+                applied["panel_blur"].orEmpty(),
+                applied["panel_blur_radius"].orEmpty(),
+            )
+        if (!systemBar) return listOf(false, kitKat) + blurKeys
         return listOf(
             true,
             kitKat,
@@ -355,7 +374,7 @@ object StyleApplier {
             applied["bar_buttons"].orEmpty(),
             applied["clock_seconds"] ?: "0",
             applied["bar_background"].orEmpty(),
-        )
+        ) + blurKeys
     }
 
     /**
@@ -427,6 +446,14 @@ object StyleApplier {
 
     /** #AARRGGBB, the form SystemUI and Launcher3 parse back with Color.parseColor. */
     fun hex(color: Int): String = "#%08X".format(color)
+
+    /** 0–255 as decimal; packed ARGB as `#AARRGGBB`. */
+    private fun alphaOrColorToken(value: Int?): String =
+        when {
+            value == null -> ""
+            value in 0..255 -> value.toString()
+            else -> hex(value)
+        }
 
     fun format(values: Map<String, String>): String =
         values.entries.joinToString(";") { "${it.key}=${it.value}" }

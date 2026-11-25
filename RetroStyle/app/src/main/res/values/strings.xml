@@ -50,6 +50,27 @@
     <string name="anchor_top_end">From the top right</string>
     <string name="anchor_bottom_end">From the tray, bottom right</string>
 
+    <string name="section_panel_color">Shade panel color</string>
+    <string name="panel_color_pack">Style default</string>
+    <string name="panel_color_opaque_black">Opaque black</string>
+    <string name="panel_color_near_black">Near-black</string>
+    <string name="panel_color_holo_navy">Holo navy (translucent)</string>
+    <string name="panel_color_glass">Glass dark (55% opaque)</string>
+    <string name="panel_color_bar">Bar dark (40% opaque)</string>
+    <string name="panel_color_frost">Frost light (30% opaque)</string>
+    <string name="section_panel_blur">Blur behind shade panels</string>
+    <string name="section_panel_blur_radius">Panel blur strength</string>
+    <string name="blur_radius_soft">Soft (15)</string>
+    <string name="blur_radius_medium">Medium (25)</string>
+    <string name="blur_radius_strong">Strong (40)</string>
+    <string name="blur_radius_pack">Style default</string>
+    <string name="section_dialog_transparency">System dialog transparency &amp; blur</string>
+    <string name="section_window_transparency">Freeform window transparency &amp; blur</string>
+    <string name="transparency_pack">Style default (off unless the style sets it)</string>
+    <string name="transparency_off">Off</string>
+    <string name="transparency_glass">Glass-like</string>
+    <string name="transparency_strong">Strongly translucent</string>
+
     <string name="hide_status_bar">Hide the top status bar on the tablet system bar</string>
     <string name="footer">KitKat styles always use the tablet system bar and hide the top status bar there. Apply writes the style and may restart SystemUI and the launcher.</string>
 </resources>

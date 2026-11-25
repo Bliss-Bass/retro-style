@@ -267,6 +267,8 @@ class StyleActivity : AppCompatActivity() {
         }
         menu.findItem(R.id.menu_bar_background)?.isEnabled = draft.isSystemBar()
         menu.findItem(R.id.menu_bar_buttons)?.isEnabled = draft.isSystemBar()
+        menu.findItem(R.id.menu_panel_blur)?.isChecked =
+            draft.panelBlur ?: (draft.pack().blurEnabled == true)
         menu.findItem(R.id.menu_hide_status_bar)?.apply {
             isEnabled = draft.isSystemBar()
             isChecked = draft.hideStatusBar
@@ -284,6 +286,16 @@ class StyleActivity : AppCompatActivity() {
             }
             R.id.menu_bar_background -> showBarBackgroundDialog()
             R.id.menu_bar_buttons -> showBarButtonsDialog()
+            R.id.menu_panel_color -> showPanelColorDialog()
+            R.id.menu_panel_blur -> {
+                val current = draft.panelBlur ?: (draft.pack().blurEnabled == true)
+                draft.panelBlur = !current
+                item.isChecked = !current
+                updateDirtyState()
+            }
+            R.id.menu_panel_blur_radius -> showPanelBlurRadiusDialog()
+            R.id.menu_dialog_transparency -> showDialogTransparencyDialog()
+            R.id.menu_window_transparency -> showWindowTransparencyDialog()
             R.id.menu_anchor -> showAnchorDialog()
             R.id.menu_hide_status_bar -> {
                 draft.hideStatusBar = !draft.hideStatusBar
@@ -364,6 +376,117 @@ class StyleActivity : AppCompatActivity() {
             .setTitle(R.string.section_anchor)
             .setSingleChoiceItems(labels, checked) { dialog, which ->
                 draft.anchor = values[which]
+                updateDirtyState()
+                dialog.dismiss()
+            }
+            .show()
+    }
+
+    private fun showPanelColorDialog() {
+        val values = StyleSettings.PANEL_COLOR_PRESETS.toTypedArray()
+        val labels =
+            arrayOf(
+                getString(R.string.panel_color_pack),
+                getString(R.string.panel_color_opaque_black),
+                getString(R.string.panel_color_near_black),
+                getString(R.string.panel_color_holo_navy),
+                getString(R.string.panel_color_glass),
+                getString(R.string.panel_color_bar),
+                getString(R.string.panel_color_frost),
+            )
+        val checked = values.indexOf(draft.panelColorChoice).coerceAtLeast(0)
+        AlertDialog.Builder(this)
+            .setTitle(R.string.section_panel_color)
+            .setSingleChoiceItems(labels, checked) { dialog, which ->
+                draft.panelColorChoice = values[which]
+                updateDirtyState()
+                dialog.dismiss()
+            }
+            .show()
+    }
+
+    private fun showPanelBlurRadiusDialog() {
+        val values = arrayOf(null, 15, 25, 40)
+        val labels =
+            arrayOf(
+                getString(R.string.blur_radius_pack),
+                getString(R.string.blur_radius_soft),
+                getString(R.string.blur_radius_medium),
+                getString(R.string.blur_radius_strong),
+            )
+        val checked = values.indexOf(draft.panelBlurRadius).coerceAtLeast(0)
+        AlertDialog.Builder(this)
+            .setTitle(R.string.section_panel_blur_radius)
+            .setSingleChoiceItems(labels, checked) { dialog, which ->
+                draft.panelBlurRadius = values[which]
+                if (values[which] != null && draft.panelBlur == null) {
+                    draft.panelBlur = true
+                }
+                updateDirtyState()
+                dialog.dismiss()
+            }
+            .show()
+    }
+
+    private fun showDialogTransparencyDialog() {
+        // pack default / off / glass / strong → (alpha, blurRadius)
+        val choices =
+            listOf(
+                null to null,
+                255 to 0,
+                200 to 25,
+                140 to 40,
+            )
+        val labels =
+            arrayOf(
+                getString(R.string.transparency_pack),
+                getString(R.string.transparency_off),
+                getString(R.string.transparency_glass),
+                getString(R.string.transparency_strong),
+            )
+        val checked =
+            choices
+                .indexOfFirst {
+                    it.first == draft.dialogAlpha && it.second == draft.dialogBlurRadius
+                }
+                .coerceAtLeast(0)
+        AlertDialog.Builder(this)
+            .setTitle(R.string.section_dialog_transparency)
+            .setSingleChoiceItems(labels, checked) { dialog, which ->
+                draft.dialogAlpha = choices[which].first
+                draft.dialogBlurRadius = choices[which].second
+                updateDirtyState()
+                dialog.dismiss()
+            }
+            .show()
+    }
+
+    private fun showWindowTransparencyDialog() {
+        val choices =
+            listOf(
+                null to null,
+                255 to 0,
+                230 to 20,
+                180 to 30,
+            )
+        val labels =
+            arrayOf(
+                getString(R.string.transparency_pack),
+                getString(R.string.transparency_off),
+                getString(R.string.transparency_glass),
+                getString(R.string.transparency_strong),
+            )
+        val checked =
+            choices
+                .indexOfFirst {
+                    it.first == draft.windowAlpha && it.second == draft.windowBlurRadius
+                }
+                .coerceAtLeast(0)
+        AlertDialog.Builder(this)
+            .setTitle(R.string.section_window_transparency)
+            .setSingleChoiceItems(labels, checked) { dialog, which ->
+                draft.windowAlpha = choices[which].first
+                draft.windowBlurRadius = choices[which].second
                 updateDirtyState()
                 dialog.dismiss()
             }

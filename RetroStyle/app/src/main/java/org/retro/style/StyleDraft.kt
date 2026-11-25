@@ -20,6 +20,14 @@ data class StyleDraft(
     var anchor: String,
     var hideStatusBar: Boolean,
     var black: Boolean?,
+    /** `pack` or `#AARRGGBB`; `pack` clears the override. */
+    var panelColorChoice: String = "pack",
+    var panelBlur: Boolean? = null,
+    var panelBlurRadius: Int? = null,
+    var dialogAlpha: Int? = null,
+    var dialogBlurRadius: Int? = null,
+    var windowAlpha: Int? = null,
+    var windowBlurRadius: Int? = null,
 ) {
     fun pack(): ThemePack =
         ThemeCatalog.find(styleId)
@@ -52,7 +60,14 @@ data class StyleDraft(
             barButtons == other.barButtons &&
             anchor == other.anchor &&
             hideStatusBar == other.hideStatusBar &&
-            black == other.black
+            black == other.black &&
+            panelColorChoice == other.panelColorChoice &&
+            panelBlur == other.panelBlur &&
+            panelBlurRadius == other.panelBlurRadius &&
+            dialogAlpha == other.dialogAlpha &&
+            dialogBlurRadius == other.dialogBlurRadius &&
+            windowAlpha == other.windowAlpha &&
+            windowBlurRadius == other.windowBlurRadius
 
     fun commit(cr: ContentResolver) {
         val pack = pack()
@@ -80,11 +95,40 @@ data class StyleDraft(
         StyleSettings.put(cr, StyleSettings.KEY_ANCHOR, anchor)
         StyleSettings.put(cr, StyleSettings.KEY_HIDE_STATUS_BAR, if (hideStatusBar) "1" else "0")
         black?.let { StyleSettings.put(cr, StyleSettings.KEY_BLACK, if (it) "1" else "0") }
+        StyleSettings.put(
+            cr,
+            StyleSettings.KEY_PANEL_COLOR,
+            panelColorChoice.takeIf { it.startsWith("#") },
+        )
+        StyleSettings.put(
+            cr,
+            StyleSettings.KEY_PANEL_BLUR,
+            panelBlur?.let { if (it) "1" else "0" },
+        )
+        StyleSettings.put(
+            cr,
+            StyleSettings.KEY_PANEL_BLUR_RADIUS,
+            panelBlurRadius?.toString(),
+        )
+        StyleSettings.put(cr, StyleSettings.KEY_DIALOG_ALPHA, dialogAlpha?.toString())
+        StyleSettings.put(
+            cr,
+            StyleSettings.KEY_DIALOG_BLUR_RADIUS,
+            dialogBlurRadius?.toString(),
+        )
+        StyleSettings.put(cr, StyleSettings.KEY_WINDOW_ALPHA, windowAlpha?.toString())
+        StyleSettings.put(
+            cr,
+            StyleSettings.KEY_WINDOW_BLUR_RADIUS,
+            windowBlurRadius?.toString(),
+        )
     }
 
     companion object {
         fun load(cr: ContentResolver): StyleDraft {
             val apps = StyleSettings.barApps(cr)
+            val blurRaw =
+                android.provider.Settings.Secure.getString(cr, StyleSettings.KEY_PANEL_BLUR)
             return StyleDraft(
                 styleId = StyleSettings.style(cr),
                 variant = StyleSettings.variant(cr),
@@ -108,6 +152,37 @@ data class StyleDraft(
                         "0" -> false
                         else -> null
                     },
+                panelColorChoice = StyleSettings.panelColorChoice(cr),
+                panelBlur =
+                    when (blurRaw) {
+                        "1" -> true
+                        "0" -> false
+                        else -> null
+                    },
+                panelBlurRadius =
+                    android.provider.Settings.Secure.getString(
+                            cr,
+                            StyleSettings.KEY_PANEL_BLUR_RADIUS,
+                        )
+                        ?.toIntOrNull(),
+                dialogAlpha =
+                    android.provider.Settings.Secure.getString(cr, StyleSettings.KEY_DIALOG_ALPHA)
+                        ?.toIntOrNull(),
+                dialogBlurRadius =
+                    android.provider.Settings.Secure.getString(
+                            cr,
+                            StyleSettings.KEY_DIALOG_BLUR_RADIUS,
+                        )
+                        ?.toIntOrNull(),
+                windowAlpha =
+                    android.provider.Settings.Secure.getString(cr, StyleSettings.KEY_WINDOW_ALPHA)
+                        ?.toIntOrNull(),
+                windowBlurRadius =
+                    android.provider.Settings.Secure.getString(
+                            cr,
+                            StyleSettings.KEY_WINDOW_BLUR_RADIUS,
+                        )
+                        ?.toIntOrNull(),
             )
         }
     }

@@ -1,0 +1,53 @@
+From 7247467268efbbf6b2a20df6a86be3b674d12cfe Mon Sep 17 00:00:00 2001
+From: electrikjesus <electrikjesus@gmail.com>
+Date: Wed, 25 Nov 2026 13:37:34 +0100
+Subject: [PATCH] Taskbar: Scale All Apps overlay blur from retro
+ panel_blur_radius.
+
+When UI Style / Glass enables panel_blur, the start menu overlay uses the configured radius instead of only the stock depth max.
+
+Change-Id: Ic48faef9fc84edd61b03fa6a0ec931b3250266a1
+---
+ .../allapps/TaskbarAllAppsSlideInView.java    | 19 ++++++++++++++++---
+ 1 file changed, 16 insertions(+), 3 deletions(-)
+
+diff --git a/quickstep/src/com/android/launcher3/taskbar/allapps/TaskbarAllAppsSlideInView.java b/quickstep/src/com/android/launcher3/taskbar/allapps/TaskbarAllAppsSlideInView.java
+index 51ff36d0c7..e7d15d7dbe 100644
+--- a/quickstep/src/com/android/launcher3/taskbar/allapps/TaskbarAllAppsSlideInView.java
++++ b/quickstep/src/com/android/launcher3/taskbar/allapps/TaskbarAllAppsSlideInView.java
+@@ -44,6 +44,7 @@ import com.android.launcher3.Insettable;
+ import com.android.launcher3.R;
+ import com.android.launcher3.anim.AnimatorListeners;
+ import com.android.launcher3.anim.PendingAnimation;
++import com.android.launcher3.taskbar.RetroUiApplied;
+ import com.android.launcher3.taskbar.TaskbarUiState;
+ import com.android.launcher3.taskbar.allapps.TaskbarAllAppsViewController.TaskbarAllAppsCallbacks;
+ import com.android.launcher3.taskbar.overlay.TaskbarOverlayContext;
+@@ -78,9 +79,21 @@ public class TaskbarAllAppsSlideInView extends AbstractSlideInView<TaskbarOverla
+             int defStyleAttr) {
+         super(context, attrs, defStyleAttr);
+         mHandler = new Handler(Looper.myLooper());
+-        mMaxBlurRadius = shouldReduceWorkspaceBlurUsage(context)
+-                ? 0
+-                : getResources().getDimensionPixelSize(R.dimen.max_depth_blur_radius_enhanced);
++        // UI Style / Glass panel_blur_radius scales All Apps overlay blur when panel_blur=1.
++        final int stockMax = getResources().getDimensionPixelSize(
++                R.dimen.max_depth_blur_radius_enhanced);
++        final boolean panelBlur = "1".equals(RetroUiApplied.INSTANCE.get("panel_blur"));
++        final String radiusDp = RetroUiApplied.INSTANCE.get("panel_blur_radius");
++        int retroMax = stockMax;
++        if (panelBlur && radiusDp != null) {
++            try {
++                retroMax = Math.round(
++                        Float.parseFloat(radiusDp) * getResources().getDisplayMetrics().density);
++            } catch (NumberFormatException ignored) {
++                retroMax = stockMax;
++            }
++        }
++        mMaxBlurRadius = shouldReduceWorkspaceBlurUsage(context) ? 0 : retroMax;
+     }
+ 
+     void init(TaskbarAllAppsCallbacks callbacks, TaskbarUiState taskbarUiState) {
+-- 
+2.53.0
+

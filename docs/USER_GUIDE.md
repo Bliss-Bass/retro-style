@@ -32,7 +32,9 @@ include.
 **ROM and community classics**
 
 - **Pitch Black**: pure black backgrounds, good for OLED screens (LineageOS builds).
-- **Glass**: see-through Notifications and Quick Settings panels and system bar.
+- **Glass**: see-through Notifications and Quick Settings panels and system bar. That look is a
+  **default** of the Glass pack; you can turn the same transparency and blur on for any style
+  under **Transparency & blur** (below).
 - **Mono**: greys only.
 - **Nord**, **Dracula**, **Solarized Dark**, **Gruvbox** and **Catppuccin Mocha**: popular color
   schemes from code editors and desktops.
@@ -83,6 +85,22 @@ The tablet system bar works with every style.
 - **From the top right**: under the status bar, as on Chromebooks.
 - **From the tray, bottom right**: above the bar, like the old tablets. Swipe down on a panel to
   close it. This is the default with the tablet system bar.
+
+## Transparency & blur
+
+Optional. Needs a build with blur support (Bass `--blurui`). When blur is off (battery saver,
+or the device does not support it), panels and dialogs fall back to a solid tint.
+
+- **Panel color**: shade / notification and Quick Settings fill, including alpha (see-through).
+  Unset follows the style (Glass uses a dark translucent panel).
+- **Panel blur**: blur what is behind those panels (and the All Apps / start menu where the
+  launcher supports it), not the whole screen.
+- **Panel blur radius**: how strong that blur is.
+- **Dialog transparency / blur** (when available): system dialogs.
+- **Window transparency / blur** (when available): freeform window backgrounds.
+
+Clearing a choice restores the style's default. More detail for builders:
+[BLUR_AND_TRANSPARENCY.md](BLUR_AND_TRANSPARENCY.md).
 
 ## Hide the top status bar
 

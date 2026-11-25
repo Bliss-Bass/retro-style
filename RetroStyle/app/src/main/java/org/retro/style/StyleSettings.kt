@@ -32,10 +32,34 @@ object StyleSettings {
     const val KEY_CLOCK_SECONDS = "retro_ui_bar_clock_seconds"
     const val KEY_BAR_BACKGROUND = "retro_ui_bar_background"
     const val KEY_BLACK = "retro_ui_black"
+    /** Shade panel fill `#AARRGGBB`; unset follows the pack (`shell.panel`). */
+    const val KEY_PANEL_COLOR = "retro_ui_panel_color"
+    /** `1`/`0` localized panel blur; unset follows the pack (`shell.blur_enabled`). */
+    const val KEY_PANEL_BLUR = "retro_ui_panel_blur"
+    /** Blur radius in dp; unset follows the pack (`shell.blur_radius`). */
+    const val KEY_PANEL_BLUR_RADIUS = "retro_ui_panel_blur_radius"
+    const val KEY_DIALOG_ALPHA = "retro_ui_dialog_alpha"
+    const val KEY_DIALOG_BLUR_RADIUS = "retro_ui_dialog_blur_radius"
+    const val KEY_WINDOW_ALPHA = "retro_ui_window_alpha"
+    const val KEY_WINDOW_BLUR_RADIUS = "retro_ui_window_blur_radius"
+
+    const val DEFAULT_BLUR_RADIUS = 25
 
     /** System bar background on the home screen; stock leaves it to the launcher. */
     const val BAR_BG_STOCK = "stock"
     val BAR_BACKGROUNDS = listOf(BAR_BG_STOCK, "solid", "gradient", "translucent", "transparent")
+
+    /** Preset panel fills offered in UI Style (ARGB). */
+    val PANEL_COLOR_PRESETS =
+        listOf(
+            "pack",
+            "#FF000000",
+            "#F0000000",
+            "#CC1A1F2E",
+            "#8C000000",
+            "#66000000",
+            "#4DFFFFFF",
+        )
 
     /** The pack used when the chosen and build default packs aren't installed. */
     const val STYLE_MATERIAL = "material"
@@ -164,4 +188,49 @@ object StyleSettings {
             ?: SystemProperties.get("ro.retro.ui_bar_background.default", "").takeIf { it in BAR_BACKGROUNDS }
             ?: pack(cr).barHome?.takeIf { it in BAR_BACKGROUNDS }
             ?: BAR_BG_STOCK
+
+    /** Resolved panel fill color, or null for the skin's own. */
+    fun panelColor(cr: ContentResolver): Int? =
+        parseColor(get(cr, KEY_PANEL_COLOR)) ?: pack(cr).panel
+
+    /** Raw panel color setting for the draft UI (`pack` means follow the style). */
+    fun panelColorChoice(cr: ContentResolver): String =
+        get(cr, KEY_PANEL_COLOR)?.takeIf { it.startsWith("#") } ?: "pack"
+
+    fun panelBlur(cr: ContentResolver): Boolean =
+        when (get(cr, KEY_PANEL_BLUR)) {
+            "1" -> true
+            "0" -> false
+            else -> pack(cr).blurEnabled == true
+        }
+
+    fun panelBlurRadius(cr: ContentResolver): Int =
+        get(cr, KEY_PANEL_BLUR_RADIUS)?.toIntOrNull()?.takeIf { it >= 0 }
+            ?: pack(cr).blurRadius
+            ?: DEFAULT_BLUR_RADIUS
+
+    fun dialogAlpha(cr: ContentResolver): Int? =
+        parseAlphaOrColor(get(cr, KEY_DIALOG_ALPHA)) ?: pack(cr).dialogAlpha
+
+    fun dialogBlurRadius(cr: ContentResolver): Int? =
+        get(cr, KEY_DIALOG_BLUR_RADIUS)?.toIntOrNull()?.takeIf { it >= 0 }
+            ?: pack(cr).dialogBlurRadius
+
+    fun windowAlpha(cr: ContentResolver): Int? =
+        parseAlphaOrColor(get(cr, KEY_WINDOW_ALPHA)) ?: pack(cr).windowAlpha
+
+    fun windowBlurRadius(cr: ContentResolver): Int? =
+        get(cr, KEY_WINDOW_BLUR_RADIUS)?.toIntOrNull()?.takeIf { it >= 0 }
+            ?: pack(cr).windowBlurRadius
+
+    private fun parseColor(value: String?): Int? =
+        value?.takeIf { it.startsWith("#") }?.let {
+            runCatching { android.graphics.Color.parseColor(it) }.getOrNull()
+        }
+
+    private fun parseAlphaOrColor(value: String?): Int? {
+        if (value.isNullOrEmpty()) return null
+        if (value.startsWith("#")) return parseColor(value)
+        return value.toIntOrNull()?.coerceIn(0, 255)
+    }
 }

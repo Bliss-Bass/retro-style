@@ -79,7 +79,25 @@
       "description": "SystemUI and Launcher3 behavior from the retro-style patches.",
       "properties": {
         "skin": { "enum": ["stock", "kitkat"], "description": "Shade skin: stock Android 16 or the KitKat tablet panels." },
-        "panel": { "$ref": "#/$defs/argb", "description": "Shade panel background." },
+        "panel": { "$ref": "#/$defs/argb", "description": "Shade panel background (pack default; UI Style may override)." },
+        "blur_enabled": { "type": "boolean", "description": "Default for localized panel blur (pack default; UI Style may override)." },
+        "blur_radius": { "type": "integer", "minimum": 0, "maximum": 100, "description": "Default panel blur radius in dp." },
+        "dialog_alpha": {
+          "oneOf": [
+            { "type": "integer", "minimum": 0, "maximum": 255 },
+            { "$ref": "#/$defs/argb" }
+          ],
+          "description": "Default system-dialog surface alpha or #AARRGGBB fill."
+        },
+        "dialog_blur_radius": { "type": "integer", "minimum": 0, "maximum": 100, "description": "Default dialog window blur radius in dp." },
+        "window_alpha": {
+          "oneOf": [
+            { "type": "integer", "minimum": 0, "maximum": 255 },
+            { "$ref": "#/$defs/argb" }
+          ],
+          "description": "Default freeform / DeviceDefault window alpha or #AARRGGBB."
+        },
+        "window_blur_radius": { "type": "integer", "minimum": 0, "maximum": 100, "description": "Default freeform window blur radius in dp." },
         "accent": { "$ref": "#/$defs/argb", "description": "Clock and tile highlight of the kitkat skin." },
         "bar": { "$ref": "#/$defs/argb", "description": "Taskbar and system bar background." },
         "layout": { "enum": ["stock", "system_bar"], "description": "Bottom bar the pack suggests as a build default." },

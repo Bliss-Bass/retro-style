@@ -213,7 +213,20 @@ pack chooses from what they offer:
 - `skin`: `stock` (Android 16's shade) or `kitkat` (the KitKat tablet panels: a list-style Quick
   Settings with a big clock header, and the top status bar hidden on the tablet system bar).
 - `panel`: the shade panels' background, `#AARRGGBB`. Alpha below `FF` lets the wallpaper (and
-  blur, where the build has it) show through. Leave it out for the skin's own color.
+  blur, where the build has it) show through. Leave it out for the skin's own color. This is a
+  **pack default** only: UI Style may override it with `retro_ui_panel_color` (see
+  [BLUR_AND_TRANSPARENCY.md](BLUR_AND_TRANSPARENCY.md)).
+- `blur_enabled`: default for localized panel blur (`true`/`false`). Overridden by
+  `retro_ui_panel_blur`.
+- `blur_radius`: default blur radius in dp (number). Overridden by `retro_ui_panel_blur_radius`.
+- `dialog_alpha`: default system-dialog surface alpha (`0`–`255` or `#AARRGGBB`). Overridden by
+  `retro_ui_dialog_alpha`.
+- `dialog_blur_radius`: default dialog window blur radius in dp. Overridden by
+  `retro_ui_dialog_blur_radius`.
+- `window_alpha`: default freeform / DeviceDefault window alpha. Overridden by
+  `retro_ui_window_alpha`.
+- `window_blur_radius`: default freeform task / window blur radius in dp. Overridden by
+  `retro_ui_window_blur_radius`.
 - `accent`: the `kitkat` skin's clock and switch color (default Holo blue).
 - `bar`: the taskbar and tablet system bar background.
 - `layout`: the bottom bar the pack suggests, `stock` or `system_bar`. Builds use it as the
@@ -224,6 +237,9 @@ pack chooses from what they offer:
   buttons), `translucent` (the `bar` color at half opacity) or `transparent` (none). Leave it out
   for the launcher's own. Apps always keep the launcher's own background. A build can override
   every pack's choice with `RETRO_STYLE_BAR_BACKGROUND`.
+
+Blur and transparency are not Glass-pack-only: any pack may set these `shell` defaults, and the
+UI Style page can change them for every pack. Details: [BLUR_AND_TRANSPARENCY.md](BLUR_AND_TRANSPARENCY.md).
 
 A new skin (a Gingerbread-style shade, say) is code, not a theme: it needs a patch. Packs can
 only pick skins that exist.

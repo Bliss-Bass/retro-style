@@ -13,6 +13,12 @@
   "shell": {
     "panel": "#8C000000",
     "bar": "#66000000",
-    "bar_home": "translucent"
+    "bar_home": "translucent",
+    "blur_enabled": true,
+    "blur_radius": 25,
+    "dialog_alpha": 200,
+    "dialog_blur_radius": 25,
+    "window_alpha": 230,
+    "window_blur_radius": 20
   }
 }

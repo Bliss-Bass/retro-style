@@ -29,6 +29,16 @@ From quickest to most thorough.
 5. Lock the screen (with a lockscreen set) and unlock: no SystemUI crash.
 6. Post a notification (`adb shell cmd notification post -S bigtext -t title tag text`): it shows
    as a heads-up and goes away after a few seconds, and taps elsewhere keep working meanwhile.
+7. **Transparency & blur** (needs `--blurui` / `ro.surface_flinger.supports_background_blur=1`):
+   - Pick **Glass**: Dual Shade panels are translucent with localized blur; All Apps blur
+     follows `panel_blur_radius`.
+   - On a non-Glass pack (e.g. Material You), open **⋯ > Shade panel color / Blur behind shade
+     panels** and match Glass; Apply; confirm the same look without switching packs.
+   - Clear those prefs (Style default) and confirm the pack's defaults return.
+   - **System dialog transparency & blur** and **Freeform window transparency & blur** menus:
+     open a SystemUI bottom sheet and a freeform app; blur/alpha follow the choice when the
+     device still allows cross-window blur (not battery saver).
+   - SmartDock: enable **Panel Blur** and confirm the notification panel blurs like Apps / QS.
 
 Useful commands:
 
