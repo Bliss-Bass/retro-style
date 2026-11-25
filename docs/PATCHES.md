@@ -33,6 +33,7 @@ library, so it won't compile without the SystemUI series.
 | 0004 | Read the applied retro style from Settings.Secure | Switches `RetroUiStyle` and `ShadePanelAnchor` from system properties to the `retro_ui_applied` secure setting RetroStyle writes ([why](HOW_IT_WORKS.md#why-a-secure-setting-and-not-system-properties)). |
 | 0005 | Use the theme pack's shade panel and accent colors | Reads `panel_color` (the shade panels' background, both skins) and `accent` (the KitKat skin's clock and switches) from `retro_ui_applied`, so theme packs can color the shell ([THEME_SPEC.md](THEME_SPEC.md#shell)). |
 | 0006 | Localized panel blur and Glass dialog/window chrome | `panel_blur` / radii drive Dual Shade `BackgroundBlurDrawable` and skip fullscreen overlay blur; SystemUI dialogs and focused freeform tasks honor `dialog_*` / `window_*` ([BLUR_AND_TRANSPARENCY.md](BLUR_AND_TRANSPARENCY.md)). |
+| 0007 | Use fillMaxSize for Dual Shade panel local blur | Replaces `matchParentSize` (unavailable here) so SystemUI-core kotlinc succeeds. |
 
 The Dual Shade fixes (stuck heads-up notifications, the shade swallowing taps, the lockscreen
 crash, the Quick Settings volume slider) live in [dual-shade](https://github.com/Bliss-Bass/dual-shade), which

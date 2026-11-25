@@ -1,0 +1,34 @@
+From 92bf439415c4e53591c66d99862551c8cc455fd1 Mon Sep 17 00:00:00 2001
+From: electrikjesus <electrikjesus@gmail.com>
+Date: Wed, 25 Nov 2026 17:05:42 +0100
+Subject: [PATCH] SystemUI: Use fillMaxSize for Dual Shade panel local blur.
+
+matchParentSize is not available in this Compose foundation; fillMaxSize covers the panel Box the same way.
+---
+ .../com/android/systemui/shade/ui/composable/OverlayShade.kt   | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)
+
+diff --git a/packages/SystemUI/compose/features/src/com/android/systemui/shade/ui/composable/OverlayShade.kt b/packages/SystemUI/compose/features/src/com/android/systemui/shade/ui/composable/OverlayShade.kt
+index f7b196935c90..4ea4ce47efa1 100644
+--- a/packages/SystemUI/compose/features/src/com/android/systemui/shade/ui/composable/OverlayShade.kt
++++ b/packages/SystemUI/compose/features/src/com/android/systemui/shade/ui/composable/OverlayShade.kt
+@@ -25,7 +25,6 @@ import androidx.compose.foundation.layout.Column
+ import androidx.compose.foundation.layout.PaddingValues
+ import androidx.compose.foundation.layout.WindowInsets
+ import androidx.compose.foundation.layout.fillMaxSize
+-import androidx.compose.foundation.layout.matchParentSize
+ import androidx.compose.foundation.layout.safeDrawing
+ import androidx.compose.foundation.layout.union
+ import androidx.compose.foundation.layout.width
+@@ -222,7 +221,7 @@ private fun PanelLocalBackgroundBlur(blurRadiusDp: Int, cornerRadius: Dp) {
+                 )
+             }
+         },
+-        modifier = Modifier.matchParentSize(),
++        modifier = Modifier.fillMaxSize(),
+     )
+ }
+ 
+-- 
+2.53.0
+
