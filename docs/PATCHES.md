@@ -35,6 +35,7 @@ library, so it won't compile without the SystemUI series.
 | 0006 | Localized panel blur and Glass dialog/window chrome | `panel_blur` / radii drive Dual Shade `BackgroundBlurDrawable` and skip fullscreen overlay blur; SystemUI dialogs and focused freeform tasks honor `dialog_*` / `window_*` ([BLUR_AND_TRANSPARENCY.md](BLUR_AND_TRANSPARENCY.md)). |
 | 0007 | Use fillMaxSize for Dual Shade panel local blur | Replaces `matchParentSize` (unavailable here) so SystemUI-core kotlinc succeeds. |
 | 0008 | Tint Dual Shade panel blur and re-read freeform window style | `BackgroundBlurDrawable.setColor` keeps `panel_color` over blur; freeform `window_*` re-reads `retro_ui_applied` each apply. |
+| 0009 | Size Dual Shade panel blur to content height | Use `BoxScope.matchParentSize` for the blur layer so Glass panels wrap content instead of filling the shade container. |
 
 The Dual Shade fixes (stuck heads-up notifications, the shade swallowing taps, the lockscreen
 crash, the Quick Settings volume slider) live in [dual-shade](https://github.com/Bliss-Bass/dual-shade), which

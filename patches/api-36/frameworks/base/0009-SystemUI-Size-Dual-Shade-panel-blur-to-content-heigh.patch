@@ -1,0 +1,54 @@
+From ad934f78a8ccd8d33566236903951413a84403e5 Mon Sep 17 00:00:00 2001
+From: electrikjesus <electrikjesus@gmail.com>
+Date: Wed, 25 Nov 2026 23:31:09 +0100
+Subject: [PATCH] SystemUI: Size Dual Shade panel blur to content height.
+
+BoxScope.matchParentSize keeps the blur layer tied to the content Column; fillMaxSize was stretching Glass panels to the full shade container.
+---
+ .../systemui/shade/ui/composable/OverlayShade.kt     | 12 ++++++++++--
+ 1 file changed, 10 insertions(+), 2 deletions(-)
+
+diff --git a/packages/SystemUI/compose/features/src/com/android/systemui/shade/ui/composable/OverlayShade.kt b/packages/SystemUI/compose/features/src/com/android/systemui/shade/ui/composable/OverlayShade.kt
+index 51d989e83435..8b8df7b40580 100644
+--- a/packages/SystemUI/compose/features/src/com/android/systemui/shade/ui/composable/OverlayShade.kt
++++ b/packages/SystemUI/compose/features/src/com/android/systemui/shade/ui/composable/OverlayShade.kt
+@@ -190,10 +190,13 @@ private fun ContentScope.Panel(
+                 .verticalExpandContainerBackground(fillColor, spec)
+     ) {
+         if (RetroUiStyle.panelBlur) {
++            // matchParentSize (BoxScope) follows the content Column; fillMaxSize would
++            // expand the panel to the full shade container height.
+             PanelLocalBackgroundBlur(
+                 blurRadiusDp = RetroUiStyle.panelBlurRadiusDp,
+                 cornerRadius = spec.radius,
+                 tintArgb = panelColor.toArgb(),
++                modifier = Modifier.matchParentSize(),
+             )
+         }
+         Column {
+@@ -205,7 +208,12 @@ private fun ContentScope.Panel(
+ 
+ /** View-local BackgroundBlurDrawable clipped to the Dual Shade panel bounds. */
+ @Composable
+-private fun PanelLocalBackgroundBlur(blurRadiusDp: Int, cornerRadius: Dp, tintArgb: Int) {
++private fun PanelLocalBackgroundBlur(
++    blurRadiusDp: Int,
++    cornerRadius: Dp,
++    tintArgb: Int,
++    modifier: Modifier = Modifier,
++) {
+     val density = LocalDensity.current
+     val blurRadiusPx = with(density) { blurRadiusDp.dp.roundToPx() }
+     val cornerRadiusPx = with(density) { cornerRadius.toPx() }
+@@ -230,7 +238,7 @@ private fun PanelLocalBackgroundBlur(blurRadiusDp: Int, cornerRadius: Dp, tintAr
+                 applyPanelBackgroundBlur(view, blurRadiusPx, cornerRadiusPx, tintArgb)
+             }
+         },
+-        modifier = Modifier.fillMaxSize(),
++        modifier = modifier,
+     )
+ }
+ 
+-- 
+2.53.0
+
