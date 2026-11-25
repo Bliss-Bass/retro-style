@@ -1,0 +1,172 @@
+From 777232c8b3118ed27b49e3fcb66b4624428794da Mon Sep 17 00:00:00 2001
+From: Jon West <electrikjesus@gmail.com>
+Date: Wed, 25 Nov 2026 10:31:30 +0100
+Subject: [PATCH] Taskbar: Tint KitKat tray ethernet and status icons with the
+ pack accent.
+
+Wifi/battery keep pre-colored overlays; white Material tray glyphs (ethernet,
+SystemUI slots, bell/volume) follow retro_ui_applied accent so eth is not left white.
+
+Change-Id: I6c1636216fbbfbf43ec12dfab6fa35c2c0349e4c
+---
+ .../taskbar/TaskbarSystemTrayView.kt          | 55 +++++++++++++------
+ 1 file changed, 39 insertions(+), 16 deletions(-)
+
+diff --git a/quickstep/src/com/android/launcher3/taskbar/TaskbarSystemTrayView.kt b/quickstep/src/com/android/launcher3/taskbar/TaskbarSystemTrayView.kt
+index 0b2f7814c6..e2c2c51b9a 100644
+--- a/quickstep/src/com/android/launcher3/taskbar/TaskbarSystemTrayView.kt
++++ b/quickstep/src/com/android/launcher3/taskbar/TaskbarSystemTrayView.kt
+@@ -15,6 +15,7 @@ import android.content.Context
+ import android.content.Intent
+ import android.content.IntentFilter
+ import android.content.res.Configuration
++import android.graphics.Color
+ import android.graphics.Typeface
+ import android.graphics.drawable.Drawable
+ import android.graphics.drawable.GradientDrawable
+@@ -46,8 +47,8 @@ import java.util.function.Consumer
+  *
+  * Tapping the notifications (a bell when there are none) opens the notification panel and tapping
+  * the status icons or the clock opens Quick Settings, both on this taskbar's display. Material
+- * style draws Googlebook-like capsules in the dynamic colors; KitKat style draws flat white icons
+- * and a thin Holo-blue clock.
++ * style draws Googlebook-like capsules in the dynamic colors; KitKat style draws tray chrome in
++ * the pack accent (Holo blue by default), matching the clock.
+  */
+ class TaskbarSystemTrayView(
+     context: Context,
+@@ -57,6 +58,11 @@ class TaskbarSystemTrayView(
+     private val kitKat = RetroSystemBar.isKitKat
+     private val iconSize = dp(if (kitKat) 20f else 18f)
+     private val contentColor: Int
++    /**
++     * Color for monochrome tray glyphs under the KitKat skin (bell, volume, ethernet, SystemUI
++     * status slots). Wifi/battery keep null tint: their KitKat overlays are already Holo-colored.
++     */
++    private val themeIconColor: Int
+     private val notificationBell = ImageView(context)
+     private val notificationIcons = LinearLayout(context)
+     private val notificationCount = TextView(context)
+@@ -120,16 +126,18 @@ class TaskbarSystemTrayView(
+                 night -> context.getColor(android.R.color.system_neutral1_50)
+                 else -> context.getColor(android.R.color.system_neutral1_900)
+             }
++        themeIconColor =
++            if (kitKat) parseAccent(RetroUiApplied["accent"]) ?: HOLO_BLUE else contentColor
+ 
+         notificationIcons.orientation = HORIZONTAL
+         notificationIcons.gravity = Gravity.CENTER_VERTICAL
+-        notificationCount.setTextColor(contentColor)
++        notificationCount.setTextColor(if (kitKat) themeIconColor else contentColor)
+         notificationCount.setTextSize(TypedValue.COMPLEX_UNIT_SP, 12f)
+         notificationCount.gravity = Gravity.CENTER
+         notificationBell.setImageResource(R.drawable.ic_retro_tray_notifications)
+-        // KitKat wifi/battery overlays are pre-colored Holo blue; the bell and volume glyphs are
+-        // still the white Material vectors, so tint them to match the clock and battery text.
+-        styleIcon(notificationBell, if (kitKat) HOLO_BLUE else contentColor)
++        // KitKat wifi/battery overlays are pre-colored; other tray glyphs are white Material
++        // vectors, so tint them with the pack accent to match the clock.
++        styleIcon(notificationBell, themeIconColor)
+         // Always shown (a bell when empty) so the notification panel has its own target.
+         val notifications = group(notificationBell, notificationIcons, notificationCount)
+         notifications.contentDescription = context.getString(R.string.taskbar_button_notifications)
+@@ -140,13 +148,13 @@ class TaskbarSystemTrayView(
+ 
+         networkIcon.visibility = GONE
+         batteryIcon.setImageResource(R.drawable.ic_retro_tray_battery)
+-        batteryText.setTextColor(if (kitKat) HOLO_BLUE else contentColor)
++        batteryText.setTextColor(themeIconColor)
+         batteryText.setTextSize(TypedValue.COMPLEX_UNIT_SP, if (kitKat) 18f else 12f)
+         if (kitKat) batteryText.typeface = Typeface.create("sans-serif-light", Typeface.NORMAL)
+-        // The KitKat style pack swaps in AOSP Holo status icons that carry their own colors.
+-        listOf(networkIcon, batteryIcon).forEach {
+-            styleIcon(it, if (kitKat) null else contentColor)
+-        }
++        // KitKat pack swaps wifi/battery for pre-colored Holo bitmaps; leave those untinted.
++        // Ethernet and other monochrome tray icons use [themeIconColor] in [showNetwork].
++        styleIcon(batteryIcon, if (kitKat) null else contentColor)
++        styleIcon(networkIcon, if (kitKat) null else contentColor)
+         systemIcons.orientation = HORIZONTAL
+         systemIcons.gravity = Gravity.CENTER_VERTICAL
+         val status = group(systemIcons, networkIcon, batteryIcon, batteryText)
+@@ -156,7 +164,7 @@ class TaskbarSystemTrayView(
+         if (kitKat) {
+             clock.format12Hour = if (RetroSystemBar.clockSeconds) "h:mm:ss a" else "h:mm a"
+             clock.format24Hour = if (RetroSystemBar.clockSeconds) "H:mm:ss" else "H:mm"
+-            clock.setTextColor(HOLO_BLUE)
++            clock.setTextColor(themeIconColor)
+             clock.setTextSize(TypedValue.COMPLEX_UNIT_SP, 26f)
+             clock.typeface = Typeface.create("sans-serif-thin", Typeface.NORMAL)
+         } else {
+@@ -172,7 +180,7 @@ class TaskbarSystemTrayView(
+         if (kitKat) {
+             // KitKat groups have no capsule, so a rule keeps notifications and status apart.
+             val divider = View(context)
+-            divider.setBackgroundColor(contentColor and 0x60FFFFFF)
++            divider.setBackgroundColor(themeIconColor and 0x60FFFFFF)
+             val params = LayoutParams(dp(1f), dp(24f))
+             params.marginStart = dp(4f)
+             divider.layoutParams = params
+@@ -184,7 +192,7 @@ class TaskbarSystemTrayView(
+             val volume = ImageView(context)
+             volume.setImageResource(R.drawable.ic_retro_tray_volume)
+             volume.contentDescription = context.getString(R.string.retro_system_bar_volume)
+-            styleIcon(volume, if (kitKat) HOLO_BLUE else contentColor)
++            styleIcon(volume, themeIconColor)
+             volume.setOnClickListener {
+                 context
+                     .getSystemService(AudioManager::class.java)
+@@ -242,7 +250,7 @@ class TaskbarSystemTrayView(
+             icons.forEach { icon ->
+                 val view = ImageView(context)
+                 view.setImageDrawable(icon)
+-                styleIcon(view)
++                styleIcon(view, themeIconColor)
+                 notificationIcons.addView(view)
+             }
+             notificationCount.visibility = GONE
+@@ -276,7 +284,8 @@ class TaskbarSystemTrayView(
+             val view = ImageView(context)
+             view.setImageDrawable(drawable)
+             view.contentDescription = descriptions.getOrNull(i)
+-            styleIcon(view)
++            // SystemUI forwards white status glyphs; tint them to the UI Style accent on KitKat.
++            styleIcon(view, themeIconColor)
+             systemIcons.addView(view)
+         }
+     }
+@@ -293,10 +302,14 @@ class TaskbarSystemTrayView(
+                             .getSystemService(WifiManager::class.java)
+                             ?.calculateSignalLevel(rssi) ?: (WIFI_LEVELS - 1)
+                 networkIcon.setImageLevel(level)
++                // Pre-colored KitKat/Jelly Bean wifi overlays; Material wifi is white.
++                styleIcon(networkIcon, if (kitKat) null else contentColor)
+                 networkIcon.visibility = VISIBLE
+             }
+             caps.hasTransport(NetworkCapabilities.TRANSPORT_ETHERNET) -> {
+                 networkIcon.setImageResource(R.drawable.ic_retro_tray_ethernet)
++                // No era overlay for ethernet — tint the white vector like bell/volume.
++                styleIcon(networkIcon, themeIconColor)
+                 networkIcon.visibility = VISIBLE
+             }
+             else -> networkIcon.visibility = GONE
+@@ -342,6 +355,16 @@ class TaskbarSystemTrayView(
+         private const val HOLO_BLUE = 0xFF33B5E5.toInt()
+         private val TRAY_DRAWN_SLOTS = setOf("wifi", "mobile", "ethernet", "battery")
+ 
++        /** Pack `accent` from `retro_ui_applied`, or null when missing/invalid. */
++        private fun parseAccent(raw: String?): Int? {
++            if (raw.isNullOrBlank()) return null
++            return try {
++                Color.parseColor(raw.trim())
++            } catch (_: IllegalArgumentException) {
++                null
++            }
++        }
++
+         // Main thread only.
+         private val trays = mutableSetOf<TaskbarSystemTrayView>()
+         private var lastStatusBarIcons: Bundle? = null
+-- 
+2.53.0
+
