@@ -1,0 +1,62 @@
+From 397d7b45a8481cd97191f5c5915f90c0f6bdb485 Mon Sep 17 00:00:00 2001
+From: electrikjesus <electrikjesus@gmail.com>
+Date: Thu, 26 Nov 2026 14:52:34 +0100
+Subject: [PATCH] Taskbar: Disable All Apps overlay window blur when panel_blur
+ is on.
+
+Local BackgroundBlurDrawable on the sheet already provides Glass blur; keep the Taskbar Overlay surface radius at 0 so the whole overlay window is not blurred.
+
+Change-Id: I4924aa554219f9e81b6ed668879894f3e8ce199a
+---
+ .../allapps/TaskbarAllAppsSlideInView.java    | 24 +++++++++----------
+ 1 file changed, 11 insertions(+), 13 deletions(-)
+
+diff --git a/quickstep/src/com/android/launcher3/taskbar/allapps/TaskbarAllAppsSlideInView.java b/quickstep/src/com/android/launcher3/taskbar/allapps/TaskbarAllAppsSlideInView.java
+index 04efec13a9..73cfe9481d 100644
+--- a/quickstep/src/com/android/launcher3/taskbar/allapps/TaskbarAllAppsSlideInView.java
++++ b/quickstep/src/com/android/launcher3/taskbar/allapps/TaskbarAllAppsSlideInView.java
+@@ -79,22 +79,17 @@ public class TaskbarAllAppsSlideInView extends AbstractSlideInView<TaskbarOverla
+             int defStyleAttr) {
+         super(context, attrs, defStyleAttr);
+         mHandler = new Handler(Looper.myLooper());
+-        // UI Style / Glass panel_blur_radius scales All Apps overlay blur when panel_blur=1.
++        // Window-wide overlay blur. When panel_blur=1, TaskbarAllAppsContainerView applies a
++        // view-local BackgroundBlurDrawable instead — keep the overlay radius at 0 so we do not
++        // double-blur the whole Taskbar Overlay window.
+         final int stockMax = getResources().getDimensionPixelSize(
+                 R.dimen.max_depth_blur_radius_enhanced);
+         final boolean panelBlur = "1".equals(RetroUiApplied.INSTANCE.get("panel_blur"));
+-        final String radiusDp = RetroUiApplied.INSTANCE.get("panel_blur_radius");
+-        int retroMax = stockMax;
+-        if (panelBlur && radiusDp != null) {
+-            try {
+-                retroMax = Math.round(
+-                        Float.parseFloat(radiusDp) * getResources().getDisplayMetrics().density);
+-            } catch (NumberFormatException ignored) {
+-                retroMax = stockMax;
+-            }
++        if (panelBlur) {
++            mMaxBlurRadius = 0;
++        } else {
++            mMaxBlurRadius = shouldReduceWorkspaceBlurUsage(context) ? 0 : stockMax;
+         }
+-        // panel_blur opts into All Apps blur even when reduce_workspace_blur_usage is on.
+-        mMaxBlurRadius = (!panelBlur && shouldReduceWorkspaceBlurUsage(context)) ? 0 : retroMax;
+     }
+ 
+     void init(TaskbarAllAppsCallbacks callbacks, TaskbarUiState taskbarUiState) {
+@@ -255,7 +250,10 @@ public class TaskbarAllAppsSlideInView extends AbstractSlideInView<TaskbarOverla
+         // to pass extra bottom offset to background scrim to fill the bottom gap during predictive
+         // back swipe.
+         mAppsView.drawOnScrimWithBottomOffset(canvas, getBottomOffsetPx());
+-        mActivityContext.getOverlayController().setBackgroundBlurRadius(mBlurRadius);
++        // Skip fullscreen overlay blur when panel_blur uses a localized drawable on the sheet.
++        if (mMaxBlurRadius > 0 || mBlurRadius == 0) {
++            mActivityContext.getOverlayController().setBackgroundBlurRadius(mBlurRadius);
++        }
+         super.dispatchDraw(canvas);
+     }
+ 
+-- 
+2.53.0
+

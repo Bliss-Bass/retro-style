@@ -1,0 +1,171 @@
+From 71dc2de4c81eb724e097d19ce34ce32851e1e804 Mon Sep 17 00:00:00 2001
+From: electrikjesus <electrikjesus@gmail.com>
+Date: Thu, 26 Nov 2026 14:52:34 +0100
+Subject: [PATCH] SystemUI: Keep Dual Shade blur local when panel_blur is on.
+
+Zero NotificationShade window blur and Dual Shade scene-transition blur so Glass panels only show view-local BackgroundBlurDrawable, not fullscreen shade-window blur.
+---
+ .../viewmodel/SceneTransitionBlurViewModel.kt | 85 ++++++++++---------
+ .../NotificationShadeDepthController.kt       |  7 ++
+ 2 files changed, 50 insertions(+), 42 deletions(-)
+
+diff --git a/packages/SystemUI/src/com/android/systemui/scene/ui/viewmodel/SceneTransitionBlurViewModel.kt b/packages/SystemUI/src/com/android/systemui/scene/ui/viewmodel/SceneTransitionBlurViewModel.kt
+index 42230f4154dd..13ce465a0a0f 100644
+--- a/packages/SystemUI/src/com/android/systemui/scene/ui/viewmodel/SceneTransitionBlurViewModel.kt
++++ b/packages/SystemUI/src/com/android/systemui/scene/ui/viewmodel/SceneTransitionBlurViewModel.kt
+@@ -172,9 +172,9 @@ constructor(
+ 
+             is OverlayKey -> {
+                 // Dual Shade panels use view-local BackgroundBlurDrawable when panel_blur is on;
+-                // skip expensive fullscreen shade-window blur for those overlays.
++                // skip expensive fullscreen shade-window blur for those overlays (0, not min).
+                 if (RetroUiStyle.panelBlur) {
+-                    blurConfig.minBlurRadiusPx
++                    0f
+                 } else {
+                     blurConfig.maxBlurRadiusPx
+                 }
+@@ -237,74 +237,75 @@ constructor(
+         transitionProgress: Float
+     ): Float? {
+         val transitionState = this
+-        return if (
++        val involvesDualShadePanel =
+             ignoredOverlayChanges.contains(transitionState.overlay) ||
+                 ignoredOverlayChanges.contains(transitionState.toContent) ||
+                 ignoredOverlayChanges.contains(transitionState.fromContent)
+-        ) {
+-            null
+-        } else {
+-            val startBlurRadius =
+-                max(
+-                    transitionState.currentScene.blurRadius(),
+-                    transitionState.fromContent.blurRadius(),
+-                )
+-            val endBlurRadius =
+-                max(
+-                    transitionState.currentScene.blurRadius(),
+-                    transitionState.toContent.blurRadius(),
+-                )
+-
+-            transitionProgressToBlurRadius(startBlurRadius, endBlurRadius, transitionProgress)
++        // panel_blur: actively clear window blur (0) so DepthController leftovers do not stick.
++        // Without panel_blur: leave null so shade depth / other owners drive blur.
++        if (involvesDualShadePanel) {
++            return if (RetroUiStyle.panelBlur) 0f else null
+         }
++        val startBlurRadius =
++            max(
++                transitionState.currentScene.blurRadius(),
++                transitionState.fromContent.blurRadius(),
++            )
++        val endBlurRadius =
++            max(
++                transitionState.currentScene.blurRadius(),
++                transitionState.toContent.blurRadius(),
++            )
++
++        return transitionProgressToBlurRadius(startBlurRadius, endBlurRadius, transitionProgress)
+     }
+ 
+     private fun TransitionState.Transition.ReplaceOverlay.toBlurRadius(
+         transitionProgress: Float
+     ): Float? {
+         val transitionState = this
+-        return if (
++        if (
+             ignoredOverlayChanges.contains(transitionState.fromOverlay) &&
+                 ignoredOverlayChanges.contains(transitionState.toOverlay)
+         ) {
+-            null
+-        } else {
+-            transitionProgressToBlurRadius(
+-                transitionState.fromOverlay.blurRadius(),
+-                transitionState.toOverlay.blurRadius(),
+-                transitionProgress,
+-            )
++            return if (RetroUiStyle.panelBlur) 0f else null
+         }
++        return transitionProgressToBlurRadius(
++            transitionState.fromOverlay.blurRadius(),
++            transitionState.toOverlay.blurRadius(),
++            transitionProgress,
++        )
+     }
+ 
+     private fun TransitionState.Transition.ChangeScene.toBlurRadius(
+         transitionProgress: Float
+     ): Float? {
+         val transitionState = this
+-        return if (
+-            !ignoredSceneChanges.contains(transitionState.toScene) &&
+-                !ignoredSceneChanges.contains(transitionState.fromScene)
++        if (
++            ignoredSceneChanges.contains(transitionState.toScene) ||
++                ignoredSceneChanges.contains(transitionState.fromScene)
+         ) {
+-            transitionProgressToBlurRadius(
+-                transitionState.fromScene.blurRadius(),
+-                transitionState.toScene.blurRadius(),
+-                transitionProgress,
+-            )
+-        } else null
++            return if (RetroUiStyle.panelBlur) 0f else null
++        }
++        return transitionProgressToBlurRadius(
++            transitionState.fromScene.blurRadius(),
++            transitionState.toScene.blurRadius(),
++            transitionProgress,
++        )
+     }
+ 
+     private fun TransitionState.Idle.toBlurRadius(): Float? {
+         val transitionState = this
+-        return if (
++        if (
+             transitionState.currentOverlays.any { ignoredOverlayChanges.contains(it) } ||
+                 ignoredSceneChanges.contains(transitionState.currentScene)
+         ) {
+-            null
+-        } else
+-            max(
+-                transitionState.currentScene.blurRadius(),
+-                transitionState.currentOverlays.maxOfOrNull { it.blurRadius() } ?: 0f,
+-            )
++            return if (RetroUiStyle.panelBlur) 0f else null
++        }
++        return max(
++            transitionState.currentScene.blurRadius(),
++            transitionState.currentOverlays.maxOfOrNull { it.blurRadius() } ?: 0f,
++        )
+     }
+ 
+     private fun v(message: String, blurRadius: Float, blurScale: Float) {
+diff --git a/packages/SystemUI/src/com/android/systemui/statusbar/NotificationShadeDepthController.kt b/packages/SystemUI/src/com/android/systemui/statusbar/NotificationShadeDepthController.kt
+index 65c933463bfc..d4d3ec894913 100644
+--- a/packages/SystemUI/src/com/android/systemui/statusbar/NotificationShadeDepthController.kt
++++ b/packages/SystemUI/src/com/android/systemui/statusbar/NotificationShadeDepthController.kt
+@@ -51,6 +51,7 @@ import com.android.systemui.shade.ShadeExpansionChangeEvent
+ import com.android.systemui.shade.ShadeExpansionListener
+ import com.android.systemui.shade.data.repository.ShadeDisplaysRepository
+ import com.android.systemui.shade.domain.interactor.ShadeModeInteractor
++import com.android.systemui.shade.shared.model.RetroUiStyle
+ import com.android.systemui.statusbar.phone.BiometricUnlockController
+ import com.android.systemui.statusbar.phone.BiometricUnlockController.MODE_WAKE_AND_DISMISS
+ import com.android.systemui.statusbar.phone.DozeParameters
+@@ -281,6 +282,12 @@ constructor(
+             shadeRadius = 0f
+         }
+ 
++        // Dual Shade / Glass panel_blur uses view-local BackgroundBlurDrawable on the panel;
++        // do not also blur the whole NotificationShade window.
++        if (RetroUiStyle.panelBlur) {
++            shadeRadius = 0f
++        }
++
+         // Brightness slider removes blur
+         shadeRadius *= (1 - brightnessMirrorSpring.ratio)
+ 
+-- 
+2.53.0
+
