@@ -1,0 +1,27 @@
+From f9606b8974864a19d222760fefe5f53e2d05eea8 Mon Sep 17 00:00:00 2001
+From: electrikjesus <electrikjesus@gmail.com>
+Date: Thu, 26 Nov 2026 21:55:22 +0100
+Subject: [PATCH] Shell: Use updateRelayoutParams context for Glass black-fill
+ skip.
+
+mContext is an instance field and cannot be referenced from that static method.
+---
+ .../wm/shell/windowdecor/DesktopModeWindowDecoration.java       | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/libs/WindowManager/Shell/src/com/android/wm/shell/windowdecor/DesktopModeWindowDecoration.java b/libs/WindowManager/Shell/src/com/android/wm/shell/windowdecor/DesktopModeWindowDecoration.java
+index ef5a577ea30d..f15bc5f17bd6 100644
+--- a/libs/WindowManager/Shell/src/com/android/wm/shell/windowdecor/DesktopModeWindowDecoration.java
++++ b/libs/WindowManager/Shell/src/com/android/wm/shell/windowdecor/DesktopModeWindowDecoration.java
+@@ -1312,7 +1312,7 @@ public class DesktopModeWindowDecoration extends WindowDecoration<WindowDecorLin
+         // Set opaque background for freeform tasks unless Glass leash translucency is on —
+         // a solid black fill would veil wallpaper behind window_alpha / window_blur_radius.
+         relayoutParams.mShouldSetBackground = desktopConfig.shouldSetBackground(taskInfo)
+-                && !RetroUiWindowStyle.shouldSkipBlackTaskFill(mContext);
++                && !RetroUiWindowStyle.shouldSkipBlackTaskFill(context);
+     }
+ 
+     private static int getCornerRadiusId(int layoutResId) {
+-- 
+2.53.0
+
