@@ -1,0 +1,229 @@
+From 8f96368d9098ea61848ccb204e2fd7d1180ad692 Mon Sep 17 00:00:00 2001
+From: electrikjesus <electrikjesus@gmail.com>
+Date: Thu, 26 Nov 2026 11:45:37 +0100
+Subject: [PATCH] Taskbar: Use Dual Shade-style local blur for All Apps Glass
+ panels.
+
+Painting panel_color into the scrim while window blur was off made Glass dark look solid; keep the fill transparent and tint BackgroundBlurDrawable instead.
+
+Change-Id: Ic88ebafacd43721c24ca47408e582442c089c0f2
+---
+ .../allapps/TaskbarAllAppsContainerView.java  | 109 +++++++++++++++++-
+ .../allapps/TaskbarAllAppsSlideInView.java    |  16 +++
+ .../overlay/TaskbarOverlayContext.java        |  11 +-
+ 3 files changed, 128 insertions(+), 8 deletions(-)
+
+diff --git a/quickstep/src/com/android/launcher3/taskbar/allapps/TaskbarAllAppsContainerView.java b/quickstep/src/com/android/launcher3/taskbar/allapps/TaskbarAllAppsContainerView.java
+index 1f38f93a96..cdb1b1acc5 100644
+--- a/quickstep/src/com/android/launcher3/taskbar/allapps/TaskbarAllAppsContainerView.java
++++ b/quickstep/src/com/android/launcher3/taskbar/allapps/TaskbarAllAppsContainerView.java
+@@ -17,13 +17,19 @@ package com.android.launcher3.taskbar.allapps;
+ 
+ import android.content.Context;
+ import android.graphics.Color;
++import android.graphics.drawable.Drawable;
+ import android.util.AttributeSet;
++import android.util.Log;
++import android.view.View;
++import android.view.ViewRootImpl;
+ 
+ import androidx.annotation.Nullable;
+ 
++import com.android.internal.graphics.drawable.BackgroundBlurDrawable;
+ import com.android.launcher3.allapps.ActivityAllAppsContainerView;
+ import com.android.launcher3.taskbar.RetroUiApplied;
+ import com.android.launcher3.taskbar.overlay.TaskbarOverlayContext;
++import com.android.launcher3.util.Themes;
+ 
+ import java.util.Optional;
+ 
+@@ -31,10 +37,13 @@ import java.util.Optional;
+ public class TaskbarAllAppsContainerView extends
+         ActivityAllAppsContainerView<TaskbarOverlayContext> {
+ 
++    private static final String TAG = "TaskbarAllAppsContainer";
++
+     /** Glass-like default when panel_blur is on but no panel_color is set. */
+     private static final int GLASS_PANEL_COLOR = 0x8C000000;
+ 
+     private @Nullable OnInvalidateHeaderListener mOnInvalidateHeaderListener;
++    private boolean mPanelBlurAttached;
+ 
+     public TaskbarAllAppsContainerView(Context context, AttributeSet attrs) {
+         this(context, attrs, 0);
+@@ -61,8 +70,17 @@ public class TaskbarAllAppsContainerView extends
+         return true;
+     }
+ 
++    /**
++     * Same contract as Dual Shade: when {@code panel_blur=1} the drawn fill stays transparent so
++     * {@link BackgroundBlurDrawable} (tint via {@code setColor}) is what you see. Painting
++     * {@code panel_color} into the scrim on top of a dead window-blur path made Glass dark look
++     * like a solid slab.
++     */
+     @Override
+     protected int getBackgroundColor() {
++        if (isRetroPanelBlur()) {
++            return Color.TRANSPARENT;
++        }
+         final String panelColor = RetroUiApplied.INSTANCE.get("panel_color");
+         if (panelColor != null && !panelColor.isEmpty()) {
+             try {
+@@ -71,12 +89,97 @@ public class TaskbarAllAppsContainerView extends
+                 // fall through
+             }
+         }
+-        if ("1".equals(RetroUiApplied.INSTANCE.get("panel_blur"))) {
+-            return GLASS_PANEL_COLOR;
+-        }
+         return super.getBackgroundColor();
+     }
+ 
++    @Override
++    protected void onAttachedToWindow() {
++        super.onAttachedToWindow();
++        applyPanelLocalBlurIfNeeded();
++    }
++
++    @Override
++    protected void onDetachedFromWindow() {
++        clearPanelLocalBlur();
++        super.onDetachedFromWindow();
++    }
++
++    private static boolean isRetroPanelBlur() {
++        return "1".equals(RetroUiApplied.INSTANCE.get("panel_blur"));
++    }
++
++    private int resolvePanelTint() {
++        final String panelColor = RetroUiApplied.INSTANCE.get("panel_color");
++        if (panelColor != null && !panelColor.isEmpty()) {
++            try {
++                return Color.parseColor(panelColor);
++            } catch (IllegalArgumentException ignored) {
++                // fall through
++            }
++        }
++        return GLASS_PANEL_COLOR;
++    }
++
++    private int resolveBlurRadiusPx() {
++        final String radiusDp = RetroUiApplied.INSTANCE.get("panel_blur_radius");
++        float dp = 25f;
++        if (radiusDp != null) {
++            try {
++                dp = Float.parseFloat(radiusDp);
++            } catch (NumberFormatException ignored) {
++                dp = 25f;
++            }
++        }
++        return Math.round(dp * getResources().getDisplayMetrics().density);
++    }
++
++    private void applyPanelLocalBlurIfNeeded() {
++        if (!isRetroPanelBlur()) {
++            clearPanelLocalBlur();
++            return;
++        }
++        final View panel = getVisibleContainerView();
++        if (panel == null) {
++            return;
++        }
++        final ViewRootImpl vri = getViewRootImpl();
++        if (vri == null) {
++            // Overlay may not have a VRI yet; retry once the tree is attached.
++            post(this::applyPanelLocalBlurIfNeeded);
++            return;
++        }
++        try {
++            final BackgroundBlurDrawable drawable = vri.createBackgroundBlurDrawable();
++            if (drawable == null) {
++                Log.w(TAG, "createBackgroundBlurDrawable returned null");
++                return;
++            }
++            final float corner = Themes.getDialogCornerRadius(getContext());
++            // Match ActivityAllAppsContainerView sheet: rounded top, square bottom.
++            drawable.setCornerRadius(corner, corner, 0f, 0f);
++            drawable.setBlurRadius(resolveBlurRadiusPx());
++            drawable.setColor(resolvePanelTint());
++            panel.setBackground(drawable);
++            mPanelBlurAttached = true;
++        } catch (Throwable t) {
++            Log.w(TAG, "panel local blur unavailable", t);
++        }
++    }
++
++    private void clearPanelLocalBlur() {
++        if (!mPanelBlurAttached) {
++            return;
++        }
++        final View panel = getVisibleContainerView();
++        if (panel != null) {
++            final Drawable bg = panel.getBackground();
++            if (bg instanceof BackgroundBlurDrawable) {
++                panel.setBackground(null);
++            }
++        }
++        mPanelBlurAttached = false;
++    }
++
+     interface OnInvalidateHeaderListener {
+         void onInvalidateHeader();
+     }
+diff --git a/quickstep/src/com/android/launcher3/taskbar/allapps/TaskbarAllAppsSlideInView.java b/quickstep/src/com/android/launcher3/taskbar/allapps/TaskbarAllAppsSlideInView.java
+index 3f588e20ca..04efec13a9 100644
+--- a/quickstep/src/com/android/launcher3/taskbar/allapps/TaskbarAllAppsSlideInView.java
++++ b/quickstep/src/com/android/launcher3/taskbar/allapps/TaskbarAllAppsSlideInView.java
+@@ -278,6 +278,22 @@ public class TaskbarAllAppsSlideInView extends AbstractSlideInView<TaskbarOverla
+ 
+     @Override
+     protected int getScrimColor(Context context) {
++        // Opaque Material scrim behind a translucent Glass panel hides wallpaper / local blur.
++        // Dual Shade has no full-window scrim either when panel_blur is on.
++        if ("1".equals(RetroUiApplied.INSTANCE.get("panel_blur"))) {
++            return -1;
++        }
++        final String panelColor = RetroUiApplied.INSTANCE.get("panel_color");
++        if (panelColor != null && !panelColor.isEmpty()) {
++            try {
++                if (android.graphics.Color.alpha(android.graphics.Color.parseColor(panelColor))
++                        < 255) {
++                    return -1;
++                }
++            } catch (IllegalArgumentException ignored) {
++                // fall through to stock scrim
++            }
++        }
+         return Themes.getAttrColor(context, R.attr.allAppsScrimColor);
+     }
+ 
+diff --git a/quickstep/src/com/android/launcher3/taskbar/overlay/TaskbarOverlayContext.java b/quickstep/src/com/android/launcher3/taskbar/overlay/TaskbarOverlayContext.java
+index eda5c891a7..191f8dc668 100644
+--- a/quickstep/src/com/android/launcher3/taskbar/overlay/TaskbarOverlayContext.java
++++ b/quickstep/src/com/android/launcher3/taskbar/overlay/TaskbarOverlayContext.java
+@@ -150,16 +150,17 @@ public class TaskbarOverlayContext extends BaseTaskbarContext {
+ 
+     @Override
+     public boolean isAllAppsBackgroundBlurEnabled() {
+-        if (!BlurUtils.supportsBlursOnWindows()
+-                || !WindowBlurState.getInstance(this).getValue()) {
++        if (!BlurUtils.supportsBlursOnWindows()) {
+             return false;
+         }
+-        // UI Style / Glass panel_blur opts into All Apps blur even when the reduce-workspace
+-        // blur flag would otherwise turn it off.
++        // UI Style / Glass panel_blur uses a view-local BackgroundBlurDrawable (like Dual Shade).
++        // Do not require WindowBlurState: system_server may keep cross-window blur off while
++        // createBackgroundBlurDrawable still works in this process.
+         if ("1".equals(RetroUiApplied.INSTANCE.get("panel_blur"))) {
+             return true;
+         }
+-        return !shouldReduceWorkspaceBlurUsage(this);
++        return !shouldReduceWorkspaceBlurUsage(this)
++                && WindowBlurState.getInstance(this).getValue();
+     }
+ 
+     @Override
+-- 
+2.53.0
+
