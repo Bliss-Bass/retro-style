@@ -1,0 +1,58 @@
+From 73045280d7b7a2893030cf82e23b86f56a7dd898 Mon Sep 17 00:00:00 2001
+From: electrikjesus <electrikjesus@gmail.com>
+Date: Thu, 26 Nov 2026 18:43:12 +0100
+Subject: [PATCH] Taskbar: Skip All Apps workspace depth blur when panel_blur
+ is on.
+
+In-launcher All Apps was still applying BaseDepthController blur to the whole Launcher surface; keep that at 0 so Glass can use sheet-local blur only.
+
+Change-Id: I3769537d36b4563677888835e96b96f0cc7e8e37
+---
+ .../launcher3/uioverrides/states/AllAppsState.java  | 13 +++++++++++++
+ 1 file changed, 13 insertions(+)
+
+diff --git a/quickstep/src/com/android/launcher3/uioverrides/states/AllAppsState.java b/quickstep/src/com/android/launcher3/uioverrides/states/AllAppsState.java
+index d19ab83d4f..702e1d1052 100644
+--- a/quickstep/src/com/android/launcher3/uioverrides/states/AllAppsState.java
++++ b/quickstep/src/com/android/launcher3/uioverrides/states/AllAppsState.java
+@@ -27,6 +27,7 @@ import com.android.launcher3.Launcher;
+ import com.android.launcher3.LauncherState;
+ import com.android.launcher3.LauncherUiState;
+ import com.android.launcher3.R;
++import com.android.launcher3.taskbar.RetroUiApplied;
+ import com.android.launcher3.util.Themes;
+ import com.android.launcher3.views.ActivityContext;
+ import com.android.launcher3.views.ScrimColors;
+@@ -124,6 +125,11 @@ public class AllAppsState extends LauncherState {
+ 
+     @Override
+     protected float getDepthUnchecked(ActivityContext context) {
++        // Glass panel_blur uses a view-local BackgroundBlurDrawable on the All Apps sheet;
++        // do not also blur the whole Launcher window (fullscreen workspace depth blur).
++        if (isRetroPanelBlur()) {
++            return 0f;
++        }
+         return shouldReduceWorkspaceBlurUsage(context.asContext())
+                 ? 0f
+                 : context.getDeviceProfile().getBottomSheetProfile().getBottomSheetDepth();
+@@ -131,10 +137,17 @@ public class AllAppsState extends LauncherState {
+ 
+     @Override
+     public boolean shouldBlurWorkspace(Launcher launcher, LauncherState targetState) {
++        if (isRetroPanelBlur()) {
++            return false;
++        }
+         return !shouldReduceWorkspaceBlurUsage(launcher) && (targetState == ALL_APPS
+                 || targetState == NORMAL);
+     }
+ 
++    private static boolean isRetroPanelBlur() {
++        return "1".equals(RetroUiApplied.INSTANCE.get("panel_blur"));
++    }
++
+     @Override
+     public int getVisibleElements(LauncherUiState launcherUiState) {
+         return Flags.allAppsSurface() ? HOTSEAT_ICONS
+-- 
+2.53.0
+
