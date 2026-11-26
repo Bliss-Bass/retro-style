@@ -1,0 +1,81 @@
+From ea5b57b7b602ae87d779dc5e2fb3001aa8046303 Mon Sep 17 00:00:00 2001
+From: electrikjesus <electrikjesus@gmail.com>
+Date: Thu, 26 Nov 2026 11:55:11 +0100
+Subject: [PATCH] Shell: Apply freeform window_alpha in its own SurfaceControl
+ transaction.
+
+Freeform relayout only merges startT into the caption draw sync and was clearing leash alpha when hasGlobalFocus flipped; Glass windows stayed opaque.
+---
+ .../DesktopModeWindowDecoration.java          | 43 ++++++++++---------
+ 1 file changed, 23 insertions(+), 20 deletions(-)
+
+diff --git a/libs/WindowManager/Shell/src/com/android/wm/shell/windowdecor/DesktopModeWindowDecoration.java b/libs/WindowManager/Shell/src/com/android/wm/shell/windowdecor/DesktopModeWindowDecoration.java
+index e3eced52e81d..53cc09ad6ba5 100644
+--- a/libs/WindowManager/Shell/src/com/android/wm/shell/windowdecor/DesktopModeWindowDecoration.java
++++ b/libs/WindowManager/Shell/src/com/android/wm/shell/windowdecor/DesktopModeWindowDecoration.java
+@@ -565,8 +565,9 @@ public class DesktopModeWindowDecoration extends WindowDecoration<WindowDecorLin
+         relayout(mRelayoutParams, startT, finishT, wct, oldRootView, taskSurface, mResult);
+         // After this line, mTaskInfo is up-to-date and should be used instead of taskInfo
+ 
+-        // Glass / UI Style freeform window blur+alpha: focused tasks only (cost cap).
+-        applyRetroUiWindowEffects(finishT, taskSurface, hasGlobalFocus);
++        // Glass / UI Style freeform window blur+alpha. Apply in its own transaction so it is
++        // not dropped when freeform relayout only merges startT into the caption ViewRoot draw.
++        applyRetroUiWindowEffects(taskSurface, hasGlobalFocus);
+ 
+         if (!wct.isEmpty()) {
+             if (mRelayoutParams.mShouldSetAppBounds) {
+@@ -662,30 +663,32 @@ public class DesktopModeWindowDecoration extends WindowDecoration<WindowDecorLin
+     }
+ 
+     /**
+-     * Applies RetroStyle window_blur_radius / window_alpha to the focused freeform task leash.
+-     * Unfocused tasks clear blur/alpha so only one (or a small set of focused) surfaces pay the
+-     * cost. Background blur is only visible when the leash is translucent, so blur alone also
+-     * applies a mild default alpha when window_alpha is unset.
++     * Applies RetroStyle {@code window_blur_radius} / {@code window_alpha} to the freeform task
++     * leash.
++     *
++     * <p>Translucency ({@code window_alpha}) is applied to every visible freeform task when set —
++     * gating it on {@code hasGlobalFocus} was resetting leash alpha to 1 on focus transitions and
++     * left Glass windows looking fully opaque. Background blur stays focused-only (GPU cost).
++     * Blur alone also applies a mild default alpha when {@code window_alpha} is unset, because
++     * opaque app buffers otherwise cover the blurred backdrop.
+      */
+-    private void applyRetroUiWindowEffects(SurfaceControl.Transaction t,
+-            SurfaceControl taskSurface, boolean hasGlobalFocus) {
+-        if (t == null || taskSurface == null || !taskSurface.isValid()) {
++    private void applyRetroUiWindowEffects(SurfaceControl taskSurface, boolean hasGlobalFocus) {
++        if (taskSurface == null || !taskSurface.isValid()) {
+             return;
+         }
++        final SurfaceControl.Transaction t = mSurfaceControlTransactionSupplier.get();
+         final int blurPx = hasGlobalFocus ? RetroUiWindowStyle.blurRadiusPx(mContext) : 0;
+         t.setBackgroundBlurRadius(taskSurface, blurPx);
+-        if (hasGlobalFocus) {
+-            float alpha = RetroUiWindowStyle.windowAlpha(mContext);
+-            // Opaque app buffers cover background blur; need leash translucency to see it.
+-            if (alpha < 0f && blurPx > 0) {
+-                alpha = 230f / 255f;
+-            }
+-            if (alpha >= 0f) {
+-                t.setAlpha(taskSurface, Math.min(1f, Math.max(0f, alpha)));
+-            }
+-        } else {
+-            t.setAlpha(taskSurface, 1f);
++
++        float alpha = RetroUiWindowStyle.windowAlpha(mContext);
++        // Opaque app buffers cover background blur; need leash translucency to see it.
++        if (alpha < 0f && blurPx > 0) {
++            alpha = 230f / 255f;
++        }
++        if (alpha >= 0f) {
++            t.setAlpha(taskSurface, Math.min(1f, Math.max(0f, alpha)));
+         }
++        t.apply();
+     }
+ 
+     private boolean isCaptionVisible() {
+-- 
+2.53.0
+
