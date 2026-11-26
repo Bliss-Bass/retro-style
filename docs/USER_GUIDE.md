@@ -86,21 +86,28 @@ The tablet system bar works with every style.
 - **From the tray, bottom right**: above the bar, like the old tablets. Swipe down on a panel to
   close it. This is the default with the tablet system bar.
 
+## Advanced
+
+Open the **Advanced** card at the bottom of UI style for bar extras (background, buttons,
+notification anchor, hide status bar) and **Transparency & blur**.
+
 ## Transparency & blur
 
 Optional. Needs a build with blur support (Bass `--blurui`). When blur is off (battery saver,
 or the device does not support it), panels and dialogs fall back to a solid tint.
 
-- **Panel color**: shade / notification and Quick Settings fill, including alpha (see-through).
-  Unset follows the style (Glass uses a dark translucent panel).
-- **Panel blur**: blur what is behind those panels (and the All Apps / start menu where the
-  launcher supports it), not the whole screen.
-- **Panel blur radius**: how strong that blur is.
-- **Dialog transparency / blur** (when available): system dialogs.
-- **Window transparency / blur** (when available): freeform window backgrounds.
+Use the Material sliders under Advanced (values marked **style** still follow the pack until
+you move them):
 
-Clearing a choice restores the style's default. More detail for builders:
-[BLUR_AND_TRANSPARENCY.md](BLUR_AND_TRANSPARENCY.md).
+- **Shade panel color**: preset fills (opaque, glass, frost, …). Unset follows the style
+  (Glass uses a dark translucent panel).
+- **Shade opacity**: how solid that panel is (0–100%).
+- **Blur behind shade panels** + **Shade blur strength**: blur what is behind those panels
+  (and All Apps / start menu where the launcher supports it), not the whole screen.
+- **System dialogs**: dialog opacity and blur; **Use style default** clears the override.
+- **Freeform windows**: window opacity and blur for freeform task glass; same reset button.
+
+More detail for builders: [BLUR_AND_TRANSPARENCY.md](BLUR_AND_TRANSPARENCY.md).
 
 ## Hide the top status bar
 

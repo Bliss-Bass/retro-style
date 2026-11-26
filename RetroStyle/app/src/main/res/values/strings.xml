@@ -4,9 +4,11 @@
     <string name="app_summary">Themes from every Android era, taskbar or tablet system bar</string>
     <string name="navigate_up">Navigate up</string>
     <string name="menu_advanced">Advanced</string>
+    <string name="section_advanced">Advanced</string>
+    <string name="section_advanced_summary">Bar extras, shade transparency, dialog and freeform glass</string>
     <string name="apply">Apply</string>
     <string name="reset">Reset</string>
-    <string name="preview_hint">Drag Nav or Apps onto left, center, or right to place them (tray stays put). Tap a section to cycle how its icons are aligned, or turn Apps off.</string>
+    <string name="preview_hint">Drag the handle on Nav or Apps onto left, center, or right to place them (tray stays put). Tap a section to cycle how its icons are aligned, or turn Apps off.</string>
     <string name="section_preview">System bar layout</string>
     <string name="preview_nav_label">Nav</string>
     <string name="preview_apps_label">Apps</string>
@@ -50,6 +52,8 @@
     <string name="anchor_top_end">From the top right</string>
     <string name="anchor_bottom_end">From the tray, bottom right</string>
 
+    <string name="section_transparency_blur">Transparency &amp; blur</string>
+    <string name="transparency_blur_hint">Needs a build with blur support (Bass --blurui). Opacity is how solid the surface is; blur softens what shows through.</string>
     <string name="section_panel_color">Shade panel color</string>
     <string name="panel_color_pack">Style default</string>
     <string name="panel_color_opaque_black">Opaque black</string>
@@ -64,8 +68,18 @@
     <string name="blur_radius_medium">Medium (25)</string>
     <string name="blur_radius_strong">Strong (40)</string>
     <string name="blur_radius_pack">Style default</string>
-    <string name="section_dialog_transparency">System dialog transparency &amp; blur</string>
-    <string name="section_window_transparency">Freeform window transparency &amp; blur</string>
+    <string name="section_dialog_transparency">System dialogs</string>
+    <string name="section_window_transparency">Freeform windows</string>
+    <string name="use_style_default">Use style default</string>
+    <string name="slider_shade_opacity">Shade opacity</string>
+    <string name="slider_panel_blur">Shade blur strength</string>
+    <string name="slider_dialog_opacity">Dialog opacity</string>
+    <string name="slider_dialog_blur">Dialog blur</string>
+    <string name="slider_window_opacity">Window opacity</string>
+    <string name="slider_window_blur">Window blur</string>
+    <string name="slider_percent">%1$d%%</string>
+    <string name="slider_dp">%1$d</string>
+    <string name="slider_pack_marker">%1$s · style</string>
     <string name="transparency_pack">Style default (off unless the style sets it)</string>
     <string name="transparency_off">Off</string>
     <string name="transparency_glass">Glass-like</string>

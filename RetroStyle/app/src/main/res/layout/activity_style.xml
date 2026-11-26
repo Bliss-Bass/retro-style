@@ -14,83 +14,529 @@
         app:navigationIcon="@drawable/ic_arrow_back"
         app:title="@string/app_name" />
 
-    <TextView
-        style="@style/RetroStyle.Section"
-        android:layout_marginHorizontal="24dp"
-        android:layout_marginTop="8dp"
-        android:text="@string/section_preview" />
-
-    <org.retro.style.SystemBarPreviewView
-        android:id="@+id/system_bar_preview"
-        android:layout_width="match_parent"
-        android:layout_height="88dp"
-        android:layout_marginHorizontal="16dp"
-        android:contentDescription="@string/section_preview" />
-
-    <TextView
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginHorizontal="24dp"
-        android:layout_marginTop="4dp"
-        android:text="@string/preview_hint"
-        android:textAppearance="?attr/textAppearanceBodySmall" />
-
-    <com.google.android.material.materialswitch.MaterialSwitch
-        android:id="@+id/bar_apps"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginHorizontal="24dp"
-        android:layout_marginTop="8dp"
-        android:minHeight="48dp"
-        android:text="@string/bar_apps" />
-
     <androidx.core.widget.NestedScrollView
         android:layout_width="match_parent"
         android:layout_height="0dp"
-        android:layout_weight="1">
+        android:layout_weight="1"
+        android:clipToPadding="false"
+        android:fillViewport="true">
 
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="vertical"
-            android:paddingHorizontal="24dp"
+            android:paddingHorizontal="16dp"
+            android:paddingTop="8dp"
             android:paddingBottom="24dp">
 
-            <TextView
-                style="@style/RetroStyle.Section"
-                android:text="@string/section_style" />
-
-            <RadioGroup
-                android:id="@+id/style_group"
+            <com.google.android.material.card.MaterialCardView
                 android:layout_width="match_parent"
-                android:layout_height="wrap_content" />
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="12dp"
+                app:cardBackgroundColor="?attr/colorSurfaceContainerLow"
+                app:cardElevation="0dp"
+                app:shapeAppearance="?attr/shapeAppearanceCornerLarge">
 
-            <TextView
-                style="@style/RetroStyle.Section"
-                android:text="@string/section_layout" />
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:padding="16dp">
 
-            <RadioGroup
-                android:id="@+id/layout_group"
+                    <TextView
+                        style="@style/RetroStyle.Section"
+                        android:layout_marginTop="0dp"
+                        android:text="@string/section_preview" />
+
+                    <org.retro.style.SystemBarPreviewView
+                        android:id="@+id/system_bar_preview"
+                        android:layout_width="match_parent"
+                        android:layout_height="96dp"
+                        android:contentDescription="@string/section_preview" />
+
+                    <TextView
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="8dp"
+                        android:text="@string/preview_hint"
+                        android:textAppearance="?attr/textAppearanceBodySmall"
+                        android:textColor="?android:attr/textColorSecondary" />
+
+                    <com.google.android.material.materialswitch.MaterialSwitch
+                        android:id="@+id/bar_apps"
+                        style="@style/RetroStyle.Switch"
+                        android:layout_marginTop="8dp"
+                        android:text="@string/bar_apps" />
+                </LinearLayout>
+            </com.google.android.material.card.MaterialCardView>
+
+            <com.google.android.material.card.MaterialCardView
                 android:layout_width="match_parent"
-                android:layout_height="wrap_content">
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="12dp"
+                app:cardBackgroundColor="?attr/colorSurfaceContainerLow"
+                app:cardElevation="0dp"
+                app:shapeAppearance="?attr/shapeAppearanceCornerLarge">
 
-                <com.google.android.material.radiobutton.MaterialRadioButton
-                    android:id="@+id/layout_stock"
-                    style="@style/RetroStyle.Choice"
-                    android:text="@string/layout_stock" />
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:padding="16dp">
 
-                <com.google.android.material.radiobutton.MaterialRadioButton
-                    android:id="@+id/layout_system_bar"
-                    style="@style/RetroStyle.Choice"
-                    android:text="@string/layout_system_bar" />
-            </RadioGroup>
+                    <TextView
+                        style="@style/RetroStyle.Section"
+                        android:layout_marginTop="0dp"
+                        android:text="@string/section_style" />
+
+                    <RadioGroup
+                        android:id="@+id/style_group"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content" />
+
+                    <TextView
+                        style="@style/RetroStyle.Section"
+                        android:text="@string/section_layout" />
+
+                    <RadioGroup
+                        android:id="@+id/layout_group"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content">
+
+                        <com.google.android.material.radiobutton.MaterialRadioButton
+                            android:id="@+id/layout_stock"
+                            style="@style/RetroStyle.Choice"
+                            android:text="@string/layout_stock" />
+
+                        <com.google.android.material.radiobutton.MaterialRadioButton
+                            android:id="@+id/layout_system_bar"
+                            style="@style/RetroStyle.Choice"
+                            android:text="@string/layout_system_bar" />
+                    </RadioGroup>
+                </LinearLayout>
+            </com.google.android.material.card.MaterialCardView>
+
+            <!-- Expanding Advanced (Material You): transparency / blur sliders live here. -->
+            <com.google.android.material.card.MaterialCardView
+                android:id="@+id/advanced_card"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="12dp"
+                app:cardBackgroundColor="?attr/colorSurfaceContainerLow"
+                app:cardElevation="0dp"
+                app:shapeAppearance="?attr/shapeAppearanceCornerLarge">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical">
+
+                    <LinearLayout
+                        android:id="@+id/advanced_header"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:background="?attr/selectableItemBackground"
+                        android:gravity="center_vertical"
+                        android:minHeight="56dp"
+                        android:orientation="horizontal"
+                        android:paddingHorizontal="16dp"
+                        android:paddingVertical="12dp">
+
+                        <LinearLayout
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:orientation="vertical">
+
+                            <TextView
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:text="@string/section_advanced"
+                                android:textAppearance="?attr/textAppearanceTitleMedium" />
+
+                            <TextView
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:text="@string/section_advanced_summary"
+                                android:textAppearance="?attr/textAppearanceBodySmall"
+                                android:textColor="?android:attr/textColorSecondary" />
+                        </LinearLayout>
+
+                        <ImageView
+                            android:id="@+id/advanced_expand_icon"
+                            android:layout_width="24dp"
+                            android:layout_height="24dp"
+                            android:contentDescription="@string/section_advanced"
+                            android:src="@drawable/ic_expand_more"
+                            app:tint="?attr/colorOnSurfaceVariant" />
+                    </LinearLayout>
+
+                    <LinearLayout
+                        android:id="@+id/advanced_body"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical"
+                        android:paddingHorizontal="16dp"
+                        android:paddingBottom="16dp"
+                        android:visibility="gone">
+
+                        <com.google.android.material.materialswitch.MaterialSwitch
+                            android:id="@+id/advanced_black"
+                            style="@style/RetroStyle.Switch"
+                            android:text="@string/black_theme_short"
+                            android:visibility="gone" />
+
+                        <TextView
+                            android:id="@+id/advanced_variant_label"
+                            style="@style/RetroStyle.Section"
+                            android:layout_marginTop="8dp"
+                            android:text="@string/section_variant"
+                            android:visibility="gone" />
+
+                        <RadioGroup
+                            android:id="@+id/advanced_variant_group"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:visibility="gone">
+
+                            <com.google.android.material.radiobutton.MaterialRadioButton
+                                android:id="@+id/variant_kitkat_stock"
+                                style="@style/RetroStyle.Choice"
+                                android:text="@string/variant_kitkat_stock" />
+
+                            <com.google.android.material.radiobutton.MaterialRadioButton
+                                android:id="@+id/variant_holo_unified"
+                                style="@style/RetroStyle.Choice"
+                                android:text="@string/variant_holo_unified" />
+                        </RadioGroup>
+
+                        <TextView
+                            style="@style/RetroStyle.Section"
+                            android:layout_marginTop="8dp"
+                            android:text="@string/section_bar_background" />
+
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/advanced_bar_background"
+                            style="@style/Widget.Material3.Button.OutlinedButton"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:gravity="start|center_vertical" />
+
+                        <TextView
+                            style="@style/RetroStyle.Section"
+                            android:text="@string/section_bar_buttons" />
+
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/advanced_bar_buttons"
+                            style="@style/Widget.Material3.Button.OutlinedButton"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:gravity="start|center_vertical" />
+
+                        <TextView
+                            style="@style/RetroStyle.Section"
+                            android:text="@string/section_anchor" />
+
+                        <RadioGroup
+                            android:id="@+id/advanced_anchor_group"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content">
+
+                            <com.google.android.material.radiobutton.MaterialRadioButton
+                                android:id="@+id/anchor_top_end"
+                                style="@style/RetroStyle.Choice"
+                                android:text="@string/anchor_top_end" />
+
+                            <com.google.android.material.radiobutton.MaterialRadioButton
+                                android:id="@+id/anchor_bottom_end"
+                                style="@style/RetroStyle.Choice"
+                                android:text="@string/anchor_bottom_end" />
+                        </RadioGroup>
+
+                        <com.google.android.material.materialswitch.MaterialSwitch
+                            android:id="@+id/advanced_hide_status_bar"
+                            style="@style/RetroStyle.Switch"
+                            android:layout_marginTop="8dp"
+                            android:text="@string/hide_status_bar" />
+
+                        <com.google.android.material.divider.MaterialDivider
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginVertical="12dp" />
+
+                        <TextView
+                            style="@style/RetroStyle.Section"
+                            android:layout_marginTop="0dp"
+                            android:text="@string/section_transparency_blur" />
+
+                        <TextView
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginBottom="8dp"
+                            android:text="@string/transparency_blur_hint"
+                            android:textAppearance="?attr/textAppearanceBodySmall"
+                            android:textColor="?android:attr/textColorSecondary" />
+
+                        <TextView
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:text="@string/section_panel_color"
+                            android:textAppearance="?attr/textAppearanceLabelLarge" />
+
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/advanced_panel_color"
+                            style="@style/Widget.Material3.Button.OutlinedButton"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="4dp"
+                            android:gravity="start|center_vertical" />
+
+                        <LinearLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="12dp"
+                            android:gravity="center_vertical"
+                            android:orientation="horizontal">
+
+                            <TextView
+                                android:layout_width="0dp"
+                                android:layout_height="wrap_content"
+                                android:layout_weight="1"
+                                android:text="@string/slider_shade_opacity"
+                                android:textAppearance="?attr/textAppearanceBodyMedium" />
+
+                            <TextView
+                                android:id="@+id/shade_opacity_value"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:minWidth="48dp"
+                                android:gravity="end"
+                                android:textAppearance="?attr/textAppearanceLabelLarge"
+                                android:textColor="?attr/colorPrimary" />
+                        </LinearLayout>
+
+                        <com.google.android.material.slider.Slider
+                            android:id="@+id/shade_opacity_slider"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:contentDescription="@string/slider_shade_opacity"
+                            android:valueFrom="0"
+                            android:valueTo="100"
+                            android:stepSize="1"
+                            app:labelBehavior="gone" />
+
+                        <com.google.android.material.materialswitch.MaterialSwitch
+                            android:id="@+id/panel_blur_switch"
+                            style="@style/RetroStyle.Switch"
+                            android:layout_marginTop="4dp"
+                            android:text="@string/section_panel_blur" />
+
+                        <LinearLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="4dp"
+                            android:gravity="center_vertical"
+                            android:orientation="horizontal">
+
+                            <TextView
+                                android:layout_width="0dp"
+                                android:layout_height="wrap_content"
+                                android:layout_weight="1"
+                                android:text="@string/slider_panel_blur"
+                                android:textAppearance="?attr/textAppearanceBodyMedium" />
+
+                            <TextView
+                                android:id="@+id/panel_blur_value"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:minWidth="48dp"
+                                android:gravity="end"
+                                android:textAppearance="?attr/textAppearanceLabelLarge"
+                                android:textColor="?attr/colorPrimary" />
+                        </LinearLayout>
+
+                        <com.google.android.material.slider.Slider
+                            android:id="@+id/panel_blur_slider"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:contentDescription="@string/slider_panel_blur"
+                            android:valueFrom="0"
+                            android:valueTo="40"
+                            android:stepSize="1"
+                            app:labelBehavior="gone" />
+
+                        <TextView
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="16dp"
+                            android:text="@string/section_dialog_transparency"
+                            android:textAppearance="?attr/textAppearanceLabelLarge" />
+
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/dialog_use_pack"
+                            style="@style/Widget.Material3.Button.TextButton"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="@string/use_style_default" />
+
+                        <LinearLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:gravity="center_vertical"
+                            android:orientation="horizontal">
+
+                            <TextView
+                                android:layout_width="0dp"
+                                android:layout_height="wrap_content"
+                                android:layout_weight="1"
+                                android:text="@string/slider_dialog_opacity"
+                                android:textAppearance="?attr/textAppearanceBodyMedium" />
+
+                            <TextView
+                                android:id="@+id/dialog_opacity_value"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:minWidth="48dp"
+                                android:gravity="end"
+                                android:textAppearance="?attr/textAppearanceLabelLarge"
+                                android:textColor="?attr/colorPrimary" />
+                        </LinearLayout>
+
+                        <com.google.android.material.slider.Slider
+                            android:id="@+id/dialog_opacity_slider"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:contentDescription="@string/slider_dialog_opacity"
+                            android:valueFrom="0"
+                            android:valueTo="100"
+                            android:stepSize="1"
+                            app:labelBehavior="gone" />
+
+                        <LinearLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="4dp"
+                            android:gravity="center_vertical"
+                            android:orientation="horizontal">
+
+                            <TextView
+                                android:layout_width="0dp"
+                                android:layout_height="wrap_content"
+                                android:layout_weight="1"
+                                android:text="@string/slider_dialog_blur"
+                                android:textAppearance="?attr/textAppearanceBodyMedium" />
+
+                            <TextView
+                                android:id="@+id/dialog_blur_value"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:minWidth="48dp"
+                                android:gravity="end"
+                                android:textAppearance="?attr/textAppearanceLabelLarge"
+                                android:textColor="?attr/colorPrimary" />
+                        </LinearLayout>
+
+                        <com.google.android.material.slider.Slider
+                            android:id="@+id/dialog_blur_slider"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:contentDescription="@string/slider_dialog_blur"
+                            android:valueFrom="0"
+                            android:valueTo="40"
+                            android:stepSize="1"
+                            app:labelBehavior="gone" />
+
+                        <TextView
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="16dp"
+                            android:text="@string/section_window_transparency"
+                            android:textAppearance="?attr/textAppearanceLabelLarge" />
+
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/window_use_pack"
+                            style="@style/Widget.Material3.Button.TextButton"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="@string/use_style_default" />
+
+                        <LinearLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:gravity="center_vertical"
+                            android:orientation="horizontal">
+
+                            <TextView
+                                android:layout_width="0dp"
+                                android:layout_height="wrap_content"
+                                android:layout_weight="1"
+                                android:text="@string/slider_window_opacity"
+                                android:textAppearance="?attr/textAppearanceBodyMedium" />
+
+                            <TextView
+                                android:id="@+id/window_opacity_value"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:minWidth="48dp"
+                                android:gravity="end"
+                                android:textAppearance="?attr/textAppearanceLabelLarge"
+                                android:textColor="?attr/colorPrimary" />
+                        </LinearLayout>
+
+                        <com.google.android.material.slider.Slider
+                            android:id="@+id/window_opacity_slider"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:contentDescription="@string/slider_window_opacity"
+                            android:valueFrom="0"
+                            android:valueTo="100"
+                            android:stepSize="1"
+                            app:labelBehavior="gone" />
+
+                        <LinearLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="4dp"
+                            android:gravity="center_vertical"
+                            android:orientation="horizontal">
+
+                            <TextView
+                                android:layout_width="0dp"
+                                android:layout_height="wrap_content"
+                                android:layout_weight="1"
+                                android:text="@string/slider_window_blur"
+                                android:textAppearance="?attr/textAppearanceBodyMedium" />
+
+                            <TextView
+                                android:id="@+id/window_blur_value"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:minWidth="48dp"
+                                android:gravity="end"
+                                android:textAppearance="?attr/textAppearanceLabelLarge"
+                                android:textColor="?attr/colorPrimary" />
+                        </LinearLayout>
+
+                        <com.google.android.material.slider.Slider
+                            android:id="@+id/window_blur_slider"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:contentDescription="@string/slider_window_blur"
+                            android:valueFrom="0"
+                            android:valueTo="40"
+                            android:stepSize="1"
+                            app:labelBehavior="gone" />
+                    </LinearLayout>
+                </LinearLayout>
+            </com.google.android.material.card.MaterialCardView>
 
             <TextView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="16dp"
+                android:layout_marginHorizontal="8dp"
                 android:text="@string/footer"
-                android:textAppearance="?attr/textAppearanceBodySmall" />
+                android:textAppearance="?attr/textAppearanceBodySmall"
+                android:textColor="?android:attr/textColorSecondary" />
         </LinearLayout>
     </androidx.core.widget.NestedScrollView>
 

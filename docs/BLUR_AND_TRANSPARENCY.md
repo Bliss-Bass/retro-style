@@ -17,11 +17,13 @@ resolved values from `retro_ui_applied`.
 
 ### Shipped touchpoints (phases 1–3)
 
-- RetroStyle: `StyleSettings` / `StyleDraft` / UI Style advanced menu; Glass `themes/transparent/theme.json` defaults; `StyleApplier` → `retro_ui_applied`.
+- RetroStyle: `StyleSettings` / `StyleDraft` / expanding Advanced with Material opacity/blur
+  sliders; Glass `themes/transparent/theme.json` defaults; `StyleApplier` → `retro_ui_applied`.
 - SystemUI: `RetroUiStyle` blur/dialog/window keys; Dual Shade `OverlayShade` panel-local `BackgroundBlurDrawable`; overlay window blur skipped when `panel_blur=1`; SystemUI dialog bottom sheets honor dialog blur/alpha.
 - Launcher3: All Apps max blur radius from `panel_blur_radius` when `panel_blur=1`.
 - SmartDock: notification panel uses `BlurUtils` when `enable_background_blur` is on.
-- WM Shell: focused freeform task leash blur/alpha from `window_*` keys (`RetroUiWindowStyle`, max 40dp blur).
+- WM Shell: focused freeform task leash blur/alpha from `window_*` keys (`RetroUiWindowStyle`,
+  max 40dp blur); finishT / transition finish re-applies alpha; media/camera denylist.
 
 ## Gates (do not use the old RRO bool)
 

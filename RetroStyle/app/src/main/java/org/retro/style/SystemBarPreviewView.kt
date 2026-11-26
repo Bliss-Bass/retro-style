@@ -108,7 +108,7 @@ constructor(context: Context, attrs: AttributeSet? = null, defStyleAttr: Int = 0
 
     override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
         val w = MeasureSpec.getSize(widthMeasureSpec)
-        val h = resolveSize(dp(88f).toInt(), heightMeasureSpec)
+        val h = resolveSize(dp(96f).toInt(), heightMeasureSpec)
         setMeasuredDimension(w, h)
     }
 
@@ -162,7 +162,7 @@ constructor(context: Context, attrs: AttributeSet? = null, defStyleAttr: Int = 0
 
     override fun onDraw(canvas: Canvas) {
         updateOccupantRects()
-        val radius = if (kitKat) dp(2f) else dp(12f)
+        val radius = if (kitKat) dp(2f) else dp(20f)
         barPaint.color = barColor
         canvas.drawRoundRect(barRect, radius, radius, barPaint)
 
@@ -173,7 +173,8 @@ constructor(context: Context, attrs: AttributeSet? = null, defStyleAttr: Int = 0
                 strokePaint.color =
                     if (zone == highlight) accentColor else contentColor and 0x28FFFFFF.toInt()
                 strokePaint.strokeWidth = if (zone == highlight) dp(2f) else dp(1f)
-                canvas.drawRoundRect(slotRects[i], if (kitKat) dp(2f) else dp(8f), if (kitKat) dp(2f) else dp(8f), strokePaint)
+                val slotR = if (kitKat) dp(2f) else dp(12f)
+                canvas.drawRoundRect(slotRects[i], slotR, slotR, strokePaint)
             }
             strokePaint.strokeWidth = dp(1.5f)
         }
@@ -213,13 +214,13 @@ constructor(context: Context, attrs: AttributeSet? = null, defStyleAttr: Int = 0
         enabled: Boolean,
         dragging: Boolean = false,
     ) {
-        val r = if (kitKat) dp(2f) else dp(8f)
+        val r = if (kitKat) dp(2f) else dp(14f)
         strokePaint.color =
             if (dragging) accentColor
             else if (enabled) accentColor and 0xCCFFFFFF.toInt()
             else contentColor and 0x44FFFFFF.toInt()
         if (enabled || dragging) {
-            fillPaint.color = accentColor and 0x33FFFFFF.toInt()
+            fillPaint.color = accentColor and 0x28FFFFFF.toInt()
             canvas.drawRoundRect(rect, r, r, fillPaint)
         }
         canvas.drawRoundRect(rect, r, r, strokePaint)
@@ -234,8 +235,25 @@ constructor(context: Context, attrs: AttributeSet? = null, defStyleAttr: Int = 0
             BarOccupant.NAV -> drawNav(canvas, rect, justify)
             BarOccupant.APPS -> drawApps(canvas, rect, justify, enabled)
         }
+        if (enabled || dragging) {
+            drawDragHandle(canvas, rect)
+        }
         contentColor = savedContent
         accentColor = savedAccent
+    }
+
+    /** Material-style grabber at the top of a movable card. */
+    private fun drawDragHandle(canvas: Canvas, rect: RectF) {
+        fillPaint.color = contentColor and 0x66FFFFFF.toInt()
+        val handleW = dp(18f)
+        val handleH = dp(3f)
+        tmpRect.set(
+            rect.centerX() - handleW / 2f,
+            rect.top + dp(4f),
+            rect.centerX() + handleW / 2f,
+            rect.top + dp(4f) + handleH,
+        )
+        canvas.drawRoundRect(tmpRect, handleH / 2f, handleH / 2f, fillPaint)
     }
 
     private fun contentStartX(rect: RectF, contentWidth: Float, justify: BarJustify): Float {
@@ -261,7 +279,7 @@ constructor(context: Context, attrs: AttributeSet? = null, defStyleAttr: Int = 0
     private fun drawNav(canvas: Canvas, rect: RectF, justify: BarJustify) {
         val labelH = dp(18f)
         val iconsBottom = rect.bottom - labelH - dp(2f)
-        val iconsTop = rect.top + dp(6f)
+        val iconsTop = rect.top + dp(10f)
         val cy = (iconsTop + iconsBottom) / 2f
         val color = if (kitKat) accentColor else contentColor
         fillPaint.color = color
@@ -272,11 +290,11 @@ constructor(context: Context, attrs: AttributeSet? = null, defStyleAttr: Int = 0
         for (extra in extraButtons) {
             if (extra in StyleSettings.BAR_BUTTONS) buttons.add(extra)
         }
-        val slot = minOf(dp(22f), (rect.width() - dp(16f)) / buttons.size.coerceAtLeast(1))
+        val slot = minOf(dp(24f), (rect.width() - dp(16f)) / buttons.size.coerceAtLeast(1))
         val total = slot * buttons.size
         var cx = contentStartX(rect, total, justify) + slot / 2f
         for (button in buttons) {
-            drawNavGlyph(canvas, button, cx, cy, slot * 0.38f)
+            drawNavGlyph(canvas, button, cx, cy, slot * 0.36f)
             cx += slot
         }
 
@@ -294,32 +312,61 @@ constructor(context: Context, attrs: AttributeSet? = null, defStyleAttr: Int = 0
     private fun drawNavGlyph(canvas: Canvas, type: String, cx: Float, cy: Float, size: Float) {
         when (type) {
             "back" -> {
-                path.reset()
-                path.moveTo(cx + size * 0.45f, cy - size)
-                path.lineTo(cx - size * 0.55f, cy)
-                path.lineTo(cx + size * 0.45f, cy + size)
-                path.close()
-                canvas.drawPath(path, fillPaint)
+                if (kitKat) {
+                    path.reset()
+                    path.moveTo(cx + size * 0.45f, cy - size)
+                    path.lineTo(cx - size * 0.55f, cy)
+                    path.lineTo(cx + size * 0.45f, cy + size)
+                    path.close()
+                    canvas.drawPath(path, fillPaint)
+                } else {
+                    // Material 3 gesture/back: rounded chevron.
+                    strokePaint.strokeWidth = dp(2.25f)
+                    strokePaint.strokeCap = Paint.Cap.ROUND
+                    strokePaint.strokeJoin = Paint.Join.ROUND
+                    path.reset()
+                    path.moveTo(cx + size * 0.35f, cy - size * 0.85f)
+                    path.lineTo(cx - size * 0.45f, cy)
+                    path.lineTo(cx + size * 0.35f, cy + size * 0.85f)
+                    canvas.drawPath(path, strokePaint)
+                    strokePaint.strokeCap = Paint.Cap.BUTT
+                    strokePaint.strokeJoin = Paint.Join.MITER
+                    strokePaint.strokeWidth = dp(1.5f)
+                }
             }
             "home" -> {
                 if (kitKat) {
                     canvas.drawCircle(cx, cy, size * 0.85f, strokePaint)
                 } else {
-                    path.reset()
-                    path.moveTo(cx, cy - size)
-                    path.lineTo(cx + size, cy)
-                    path.lineTo(cx + size * 0.55f, cy)
-                    path.lineTo(cx + size * 0.55f, cy + size)
-                    path.lineTo(cx - size * 0.55f, cy + size)
-                    path.lineTo(cx - size * 0.55f, cy)
-                    path.lineTo(cx - size, cy)
-                    path.close()
-                    canvas.drawPath(path, fillPaint)
+                    // Material 3 home: rounded rectangle pill.
+                    tmpRect.set(
+                        cx - size * 0.85f,
+                        cy - size * 0.55f,
+                        cx + size * 0.85f,
+                        cy + size * 0.55f,
+                    )
+                    canvas.drawRoundRect(tmpRect, size * 0.45f, size * 0.45f, strokePaint)
                 }
             }
             "recents" -> {
-                tmpRect.set(cx - size * 0.7f, cy - size * 0.7f, cx + size * 0.7f, cy + size * 0.7f)
-                canvas.drawRoundRect(tmpRect, dp(1.5f), dp(1.5f), strokePaint)
+                if (kitKat) {
+                    tmpRect.set(
+                        cx - size * 0.7f,
+                        cy - size * 0.7f,
+                        cx + size * 0.7f,
+                        cy + size * 0.7f,
+                    )
+                    canvas.drawRoundRect(tmpRect, dp(1.5f), dp(1.5f), strokePaint)
+                } else {
+                    // Material 3 recents: tall rounded square.
+                    tmpRect.set(
+                        cx - size * 0.55f,
+                        cy - size * 0.85f,
+                        cx + size * 0.55f,
+                        cy + size * 0.85f,
+                    )
+                    canvas.drawRoundRect(tmpRect, size * 0.28f, size * 0.28f, strokePaint)
+                }
             }
             "vol_down",
             "vol_up" -> {
@@ -348,7 +395,7 @@ constructor(context: Context, attrs: AttributeSet? = null, defStyleAttr: Int = 0
     private fun drawApps(canvas: Canvas, rect: RectF, justify: BarJustify, enabled: Boolean) {
         val labelH = dp(18f)
         val iconsBottom = rect.bottom - labelH - dp(2f)
-        val iconsTop = rect.top + dp(6f)
+        val iconsTop = rect.top + dp(10f)
         val cy = (iconsTop + iconsBottom) / 2f
         fillPaint.color = contentColor
         strokePaint.color = contentColor
@@ -357,31 +404,33 @@ constructor(context: Context, attrs: AttributeSet? = null, defStyleAttr: Int = 0
         val cell = dp(3.5f)
         val gap = dp(2.5f)
         val gridW = cell * 3 + gap * 2
-        val icon = dp(11f)
+        val icon = dp(12f)
         val iconGap = dp(5f)
         val hotseat = 4
         val contentW = gridW + dp(10f) + hotseat * icon + (hotseat - 1) * iconGap
         val start = contentStartX(rect, contentW, justify)
         val gridLeft = start
         val gridTop = cy - gridW / 2f
+        val cellR = if (kitKat) dp(0.8f) else dp(1.6f)
         for (row in 0 until 3) {
             for (col in 0 until 3) {
                 val x = gridLeft + col * (cell + gap)
                 val y = gridTop + row * (cell + gap)
                 tmpRect.set(x, y, x + cell, y + cell)
-                canvas.drawRoundRect(tmpRect, dp(0.8f), dp(0.8f), fillPaint)
+                canvas.drawRoundRect(tmpRect, cellR, cellR, fillPaint)
             }
         }
 
         var x = gridLeft + gridW + dp(10f)
         val maxRight = rect.right - dp(6f)
         var drawn = 0
+        val iconR = if (kitKat) dp(2.5f) else dp(4f)
         while (drawn < hotseat && x + icon <= maxRight) {
             tmpRect.set(x, cy - icon / 2f, x + icon, cy + icon / 2f)
-            canvas.drawRoundRect(tmpRect, dp(2.5f), dp(2.5f), fillPaint)
+            canvas.drawRoundRect(tmpRect, iconR, iconR, fillPaint)
             fillPaint.color = contentColor and 0x44FFFFFF.toInt()
             tmpRect.inset(dp(2f), dp(2f))
-            canvas.drawRoundRect(tmpRect, dp(1.5f), dp(1.5f), fillPaint)
+            canvas.drawRoundRect(tmpRect, iconR * 0.6f, iconR * 0.6f, fillPaint)
             fillPaint.color = contentColor
             x += icon + iconGap
             drawn++
@@ -399,7 +448,9 @@ constructor(context: Context, attrs: AttributeSet? = null, defStyleAttr: Int = 0
     }
 
     private fun drawTray(canvas: Canvas, rect: RectF) {
-        val r = if (kitKat) dp(2f) else dp(8f)
+        val r = if (kitKat) dp(2f) else dp(14f)
+        fillPaint.color = accentColor and 0x22FFFFFF.toInt()
+        canvas.drawRoundRect(rect, r, r, fillPaint)
         strokePaint.color = accentColor and 0x88FFFFFF.toInt()
         strokePaint.strokeWidth = dp(1.5f)
         canvas.drawRoundRect(rect, r, r, strokePaint)

@@ -32,13 +32,17 @@ From quickest to most thorough.
 7. **Transparency & blur** (needs `--blurui` / `ro.surface_flinger.supports_background_blur=1`):
    - Pick **Glass**: Dual Shade panels are translucent with localized blur; All Apps blur
      follows `panel_blur_radius`.
-   - On a non-Glass pack (e.g. Material You), open **⋯ > Shade panel color / Blur behind shade
-     panels** and match Glass; Apply; confirm the same look without switching packs.
-   - Clear those prefs (Style default) and confirm the pack's defaults return.
-   - **System dialog transparency & blur** and **Freeform window transparency & blur** menus:
-     open a SystemUI bottom sheet and a freeform app; blur/alpha follow the choice when the
-     device still allows cross-window blur (not battery saver).
+   - On a non-Glass pack (e.g. Material You), expand **Advanced** and use the shade color /
+     opacity / blur sliders to match Glass; Apply; confirm the same look without switching packs.
+   - Tap **Use style default** under dialogs / freeform (or set shade color back to Style
+     default) and confirm the pack's defaults return.
+   - Drag **System dialogs** and **Freeform windows** opacity/blur sliders; open a SystemUI
+     bottom sheet and a freeform app; blur/alpha follow the choice when cross-window blur is
+     still allowed (not battery saver). Freeform glass should stay translucent after focus /
+     drag (Shell re-applies leash alpha on transition finish).
    - SmartDock: enable **Panel Blur** and confirm the notification panel blurs like Apps / QS.
+8. **Preview**: system-bar card shows drag handles on Nav/Apps, Material 3-style back/home/
+   recents on non-KitKat packs, and rounded cards.
 
 Useful commands:
 
@@ -77,9 +81,9 @@ bootflags re-APPLY when `retro_ui_applied` is empty, zone placement, and (with S
 Desktop style cycling then UI Style pack switches while keeping the display awake.
 
 `vendor/ax86-lite/tests/test_bass_blur_transparency.sh` applies Glass and each blur /
-transparency override over adb, opens the UI Style Advanced dialogs, swipes Dual Shade open,
-and writes screenshots under `/data/local/tmp/bass_blur_proof/` (`adb pull` for visual review).
-Needs `--blurui`.
+transparency override over adb, expands the UI Style Advanced card (sliders), swipes Dual Shade
+open, and writes screenshots under `/data/local/tmp/bass_blur_proof/` (`adb pull` for visual
+review). Needs `--blurui`.
 
 ```sh
 adb root

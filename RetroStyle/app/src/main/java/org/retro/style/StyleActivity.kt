@@ -3,15 +3,15 @@
 
 package org.retro.style
 
+import android.graphics.Color
 import android.os.Bundle
 import android.text.SpannableStringBuilder
 import android.text.Spanned
 import android.text.style.ForegroundColorSpan
 import android.text.style.RelativeSizeSpan
 import android.util.TypedValue
-import android.view.Menu
-import android.view.MenuItem
 import android.view.View
+import android.widget.ImageView
 import android.widget.RadioGroup
 import android.widget.TextView
 import androidx.appcompat.app.AlertDialog
@@ -21,11 +21,14 @@ import com.google.android.material.appbar.MaterialToolbar
 import com.google.android.material.button.MaterialButton
 import com.google.android.material.materialswitch.MaterialSwitch
 import com.google.android.material.radiobutton.MaterialRadioButton
+import com.google.android.material.slider.Slider
 
 /**
  * Settings > System > UI style (also Settings > Display > Appearance). Edits a [StyleDraft]
- * with a live system-bar preview; Apply writes
- * secure settings and runs [ApplyWorker] once.
+ * with a live system-bar preview; Apply writes secure settings and runs [ApplyWorker] once.
+ *
+ * Advanced options (including Material sliders for shade / dialog / freeform transparency) live
+ * in an expanding panel on the main scroll, not a ⋮ overflow menu.
  */
 class StyleActivity : AppCompatActivity() {
 
@@ -34,8 +37,11 @@ class StyleActivity : AppCompatActivity() {
     private lateinit var preview: SystemBarPreviewView
     private lateinit var applyButton: MaterialButton
     private lateinit var resetButton: MaterialButton
+    private lateinit var advancedBody: View
+    private lateinit var advancedExpandIcon: ImageView
     private val styleIds = linkedMapOf<Int, String>()
     private var syncingUi = false
+    private var advancedExpanded = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         setTheme(R.style.Theme_RetroStyle)
@@ -45,13 +51,10 @@ class StyleActivity : AppCompatActivity() {
 
         applied = StyleDraft.load(contentResolver)
         draft = applied.copyOf()
+        advancedExpanded = savedInstanceState?.getBoolean(STATE_ADVANCED) == true
 
-        val toolbar = findViewById<MaterialToolbar>(R.id.toolbar)
-        toolbar.setNavigationOnClickListener { onBackPressedDispatcher.onBackPressed() }
-        toolbar.inflateMenu(R.menu.menu_style)
-        toolbar.setOnMenuItemClickListener {
-            prepareAdvancedMenu(toolbar.menu)
-            onAdvancedMenu(it)
+        findViewById<MaterialToolbar>(R.id.toolbar).setNavigationOnClickListener {
+            onBackPressedDispatcher.onBackPressed()
         }
 
         preview = findViewById(R.id.system_bar_preview)
@@ -66,23 +69,34 @@ class StyleActivity : AppCompatActivity() {
             bindAll()
         }
 
+        advancedBody = findViewById(R.id.advanced_body)
+        advancedExpandIcon = findViewById(R.id.advanced_expand_icon)
+        findViewById<View>(R.id.advanced_header).setOnClickListener {
+            advancedExpanded = !advancedExpanded
+            updateAdvancedExpanded()
+        }
+        updateAdvancedExpanded()
+
         findViewById<MaterialSwitch>(R.id.bar_apps).setOnCheckedChangeListener { _, checked ->
             if (syncingUi) return@setOnCheckedChangeListener
             draft.barApps = checked
-            if (checked && draft.zones.apps == null) {
-                draft.zones.enableApps()
-            }
+            if (checked && draft.zones.apps == null) draft.zones.enableApps()
             if (!checked) draft.zones.disableApps()
             refreshPreviewAndDirty()
         }
 
+        wireAdvancedControls()
         buildStyleList()
         bindAll()
     }
 
+    override fun onSaveInstanceState(outState: Bundle) {
+        super.onSaveInstanceState(outState)
+        outState.putBoolean(STATE_ADVANCED, advancedExpanded)
+    }
+
     override fun onResume() {
         super.onResume()
-        // Reload applied in case another process changed settings; keep draft if dirty.
         val latest = StyleDraft.load(contentResolver)
         if (!isDirty()) {
             applied = latest
@@ -92,6 +106,11 @@ class StyleActivity : AppCompatActivity() {
             applied = latest
             updateDirtyState()
         }
+    }
+
+    private fun updateAdvancedExpanded() {
+        advancedBody.visibility = if (advancedExpanded) View.VISIBLE else View.GONE
+        advancedExpandIcon.rotation = if (advancedExpanded) 180f else 0f
     }
 
     private fun isDirty(): Boolean = !draft.matches(applied)
@@ -113,7 +132,6 @@ class StyleActivity : AppCompatActivity() {
         updateDirtyState()
     }
 
-    /** Drag: place Nav/Apps on a bar slot (left / center / right). */
     private fun onOccupantDropped(occupant: BarOccupant, zone: BarZone) {
         if (!draft.isSystemBar()) return
         when (occupant) {
@@ -127,7 +145,6 @@ class StyleActivity : AppCompatActivity() {
         refreshPreviewAndDirty()
     }
 
-    /** Tap: cycle justification (left / center / right), or disable Apps. */
     private fun onOccupantTapped(occupant: BarOccupant) {
         if (!draft.isSystemBar()) return
         when (occupant) {
@@ -156,9 +173,243 @@ class StyleActivity : AppCompatActivity() {
         bindStyleGroup()
         bindLayout()
         findViewById<MaterialSwitch>(R.id.bar_apps).isChecked = draft.barApps
+        bindAdvanced()
         refreshPreviewAndDirty()
         syncingUi = false
-        prepareAdvancedMenu(findViewById<MaterialToolbar>(R.id.toolbar).menu)
+    }
+
+    private fun wireAdvancedControls() {
+        findViewById<MaterialSwitch>(R.id.advanced_black).setOnCheckedChangeListener { _, checked ->
+            if (syncingUi) return@setOnCheckedChangeListener
+            draft.black = checked
+            updateDirtyState()
+        }
+
+        findViewById<RadioGroup>(R.id.advanced_variant_group).setOnCheckedChangeListener {
+            _,
+            checkedId ->
+            if (syncingUi) return@setOnCheckedChangeListener
+            draft.variant =
+                if (checkedId == R.id.variant_holo_unified) StyleSettings.VARIANT_HOLO_UNIFIED
+                else StyleSettings.VARIANT_KITKAT_STOCK
+            updateDirtyState()
+        }
+
+        findViewById<MaterialButton>(R.id.advanced_bar_background).setOnClickListener {
+            showBarBackgroundDialog()
+        }
+        findViewById<MaterialButton>(R.id.advanced_bar_buttons).setOnClickListener {
+            showBarButtonsDialog()
+        }
+        findViewById<MaterialButton>(R.id.advanced_panel_color).setOnClickListener {
+            showPanelColorDialog()
+        }
+
+        findViewById<RadioGroup>(R.id.advanced_anchor_group).setOnCheckedChangeListener {
+            _,
+            checkedId ->
+            if (syncingUi) return@setOnCheckedChangeListener
+            draft.anchor =
+                if (checkedId == R.id.anchor_top_end) StyleSettings.ANCHOR_TOP_END
+                else StyleSettings.ANCHOR_BOTTOM_END
+            updateDirtyState()
+        }
+
+        findViewById<MaterialSwitch>(R.id.advanced_hide_status_bar).setOnCheckedChangeListener {
+            _,
+            checked ->
+            if (syncingUi) return@setOnCheckedChangeListener
+            draft.hideStatusBar = checked
+            updateDirtyState()
+        }
+
+        findViewById<MaterialSwitch>(R.id.panel_blur_switch).setOnCheckedChangeListener { _, checked ->
+            if (syncingUi) return@setOnCheckedChangeListener
+            draft.panelBlur = checked
+            updateDirtyState()
+            bindTransparencySliders()
+        }
+
+        findViewById<MaterialButton>(R.id.dialog_use_pack).setOnClickListener {
+            draft.dialogAlpha = null
+            draft.dialogBlurRadius = null
+            bindTransparencySliders()
+            updateDirtyState()
+        }
+        findViewById<MaterialButton>(R.id.window_use_pack).setOnClickListener {
+            draft.windowAlpha = null
+            draft.windowBlurRadius = null
+            bindTransparencySliders()
+            updateDirtyState()
+        }
+
+        wireSlider(R.id.shade_opacity_slider) { percent ->
+            val alpha = ((percent.coerceIn(0f, 100f) / 100f) * 255f).toInt()
+            draft.panelColorChoice = hexWithAlpha(currentPanelRgb(), alpha)
+            bindPanelColorButton()
+            updateDirtyState()
+        }
+        wireSlider(R.id.panel_blur_slider) { radius ->
+            draft.panelBlurRadius = radius.toInt()
+            if (draft.panelBlur == null) draft.panelBlur = true
+            findViewById<MaterialSwitch>(R.id.panel_blur_switch).let {
+                syncingUi = true
+                it.isChecked = true
+                syncingUi = false
+            }
+            updateDirtyState()
+        }
+        wireSlider(R.id.dialog_opacity_slider) { percent ->
+            draft.dialogAlpha = ((percent.coerceIn(0f, 100f) / 100f) * 255f).toInt()
+            updateDirtyState()
+        }
+        wireSlider(R.id.dialog_blur_slider) { radius ->
+            draft.dialogBlurRadius = radius.toInt()
+            if (draft.dialogAlpha == null) {
+                draft.dialogAlpha = effectiveDialogAlpha()
+            }
+            updateDirtyState()
+        }
+        wireSlider(R.id.window_opacity_slider) { percent ->
+            draft.windowAlpha = ((percent.coerceIn(0f, 100f) / 100f) * 255f).toInt()
+            updateDirtyState()
+        }
+        wireSlider(R.id.window_blur_slider) { radius ->
+            draft.windowBlurRadius = radius.toInt()
+            if (draft.windowAlpha == null) {
+                draft.windowAlpha = effectiveWindowAlpha()
+            }
+            updateDirtyState()
+        }
+    }
+
+    private fun wireSlider(id: Int, onChange: (Float) -> Unit) {
+        findViewById<Slider>(id).addOnChangeListener { _, value, fromUser ->
+            if (syncingUi || !fromUser) return@addOnChangeListener
+            onChange(value)
+            updateSliderLabels()
+        }
+    }
+
+    private fun bindAdvanced() {
+        val pack = draft.pack()
+        val hasBlack = StyleApplier.hasBlackTheme(contentResolver)
+        findViewById<MaterialSwitch>(R.id.advanced_black).apply {
+            visibility = if (hasBlack) View.VISIBLE else View.GONE
+            isChecked = draft.black ?: StyleSettings.defaultBlack(contentResolver)
+        }
+
+        val showVariant = pack.isKitKatSkin && pack.panel == null
+        findViewById<View>(R.id.advanced_variant_label).visibility =
+            if (showVariant) View.VISIBLE else View.GONE
+        findViewById<RadioGroup>(R.id.advanced_variant_group).apply {
+            visibility = if (showVariant) View.VISIBLE else View.GONE
+            check(
+                if (draft.variant == StyleSettings.VARIANT_HOLO_UNIFIED) R.id.variant_holo_unified
+                else R.id.variant_kitkat_stock
+            )
+        }
+
+        val systemBar = draft.isSystemBar()
+        findViewById<MaterialButton>(R.id.advanced_bar_background).isEnabled = systemBar
+        findViewById<MaterialButton>(R.id.advanced_bar_buttons).isEnabled = systemBar
+        findViewById<MaterialSwitch>(R.id.advanced_hide_status_bar).apply {
+            isEnabled = systemBar
+            isChecked = draft.hideStatusBar
+        }
+
+        findViewById<RadioGroup>(R.id.advanced_anchor_group).check(
+            if (draft.anchor == StyleSettings.ANCHOR_TOP_END) R.id.anchor_top_end
+            else R.id.anchor_bottom_end
+        )
+
+        findViewById<MaterialButton>(R.id.advanced_bar_background).text = barBackgroundLabel()
+        findViewById<MaterialButton>(R.id.advanced_bar_buttons).text = barButtonsLabel()
+        bindPanelColorButton()
+
+        findViewById<MaterialSwitch>(R.id.panel_blur_switch).isChecked =
+            draft.panelBlur ?: (pack.blurEnabled == true)
+
+        bindTransparencySliders()
+    }
+
+    private fun bindTransparencySliders() {
+        val wasSyncing = syncingUi
+        syncingUi = true
+
+        val shadePct = alphaToPercent(currentPanelAlpha())
+        findViewById<Slider>(R.id.shade_opacity_slider).value = shadePct
+
+        val blurOn = draft.panelBlur ?: (draft.pack().blurEnabled == true)
+        val panelBlur =
+            (draft.panelBlurRadius
+                    ?: draft.pack().blurRadius
+                    ?: StyleSettings.DEFAULT_BLUR_RADIUS)
+                .coerceIn(0, 40)
+                .toFloat()
+        findViewById<Slider>(R.id.panel_blur_slider).apply {
+            value = panelBlur
+            isEnabled = blurOn
+        }
+
+        findViewById<Slider>(R.id.dialog_opacity_slider).value =
+            alphaToPercent(effectiveDialogAlpha())
+        findViewById<Slider>(R.id.dialog_blur_slider).value =
+            (draft.dialogBlurRadius ?: draft.pack().dialogBlurRadius ?: 0)
+                .coerceIn(0, 40)
+                .toFloat()
+
+        findViewById<Slider>(R.id.window_opacity_slider).value =
+            alphaToPercent(effectiveWindowAlpha())
+        findViewById<Slider>(R.id.window_blur_slider).value =
+            (draft.windowBlurRadius ?: draft.pack().windowBlurRadius ?: 0)
+                .coerceIn(0, 40)
+                .toFloat()
+
+        updateSliderLabels()
+        syncingUi = wasSyncing
+    }
+
+    private fun updateSliderLabels() {
+        val shadePack = draft.panelColorChoice == "pack"
+        setPercentLabel(R.id.shade_opacity_value, R.id.shade_opacity_slider, shadePack)
+
+        val panelBlurPack = draft.panelBlurRadius == null
+        setDpLabel(R.id.panel_blur_value, R.id.panel_blur_slider, panelBlurPack)
+
+        val dialogPack = draft.dialogAlpha == null && draft.dialogBlurRadius == null
+        setPercentLabel(R.id.dialog_opacity_value, R.id.dialog_opacity_slider, dialogPack)
+        setDpLabel(
+            R.id.dialog_blur_value,
+            R.id.dialog_blur_slider,
+            draft.dialogBlurRadius == null,
+        )
+
+        val windowPack = draft.windowAlpha == null && draft.windowBlurRadius == null
+        setPercentLabel(R.id.window_opacity_value, R.id.window_opacity_slider, windowPack)
+        setDpLabel(
+            R.id.window_blur_value,
+            R.id.window_blur_slider,
+            draft.windowBlurRadius == null,
+        )
+    }
+
+    private fun setPercentLabel(labelId: Int, sliderId: Int, packDefault: Boolean) {
+        val pct = findViewById<Slider>(sliderId).value.toInt()
+        val text = getString(R.string.slider_percent, pct)
+        findViewById<TextView>(labelId).text =
+            if (packDefault) getString(R.string.slider_pack_marker, text) else text
+    }
+
+    private fun setDpLabel(labelId: Int, sliderId: Int, packDefault: Boolean) {
+        val dp = findViewById<Slider>(sliderId).value.toInt()
+        val text = getString(R.string.slider_dp, dp)
+        findViewById<TextView>(labelId).text =
+            if (packDefault) getString(R.string.slider_pack_marker, text) else text
+    }
+
+    private fun bindPanelColorButton() {
+        findViewById<MaterialButton>(R.id.advanced_panel_color).text = panelColorLabel()
     }
 
     private fun buildStyleList() {
@@ -201,8 +452,8 @@ class StyleActivity : AppCompatActivity() {
                 draft.layout = StyleSettings.LAYOUT_SYSTEM_BAR
             }
             bindLayout()
+            bindAdvanced()
             refreshPreviewAndDirty()
-            prepareAdvancedMenu(findViewById<MaterialToolbar>(R.id.toolbar).menu)
         }
     }
 
@@ -227,6 +478,7 @@ class StyleActivity : AppCompatActivity() {
             draft.layout =
                 if (checkedId == R.id.layout_system_bar) StyleSettings.LAYOUT_SYSTEM_BAR
                 else StyleSettings.LAYOUT_STOCK
+            bindAdvanced()
             refreshPreviewAndDirty()
         }
     }
@@ -258,71 +510,6 @@ class StyleActivity : AppCompatActivity() {
 
     private fun dp(value: Int): Int = (value * resources.displayMetrics.density).toInt()
 
-    private fun prepareAdvancedMenu(menu: Menu) {
-        val pack = draft.pack()
-        menu.findItem(R.id.menu_variant)?.isVisible = pack.isKitKatSkin && pack.panel == null
-        menu.findItem(R.id.menu_black)?.apply {
-            isVisible = StyleApplier.hasBlackTheme(contentResolver)
-            isChecked = draft.black ?: StyleSettings.defaultBlack(contentResolver)
-        }
-        menu.findItem(R.id.menu_bar_background)?.isEnabled = draft.isSystemBar()
-        menu.findItem(R.id.menu_bar_buttons)?.isEnabled = draft.isSystemBar()
-        menu.findItem(R.id.menu_panel_blur)?.isChecked =
-            draft.panelBlur ?: (draft.pack().blurEnabled == true)
-        menu.findItem(R.id.menu_hide_status_bar)?.apply {
-            isEnabled = draft.isSystemBar()
-            isChecked = draft.hideStatusBar
-        }
-    }
-
-    private fun onAdvancedMenu(item: MenuItem): Boolean {
-        when (item.itemId) {
-            R.id.menu_variant -> showVariantDialog()
-            R.id.menu_black -> {
-                val next = !(draft.black ?: StyleSettings.defaultBlack(contentResolver))
-                draft.black = next
-                item.isChecked = next
-                updateDirtyState()
-            }
-            R.id.menu_bar_background -> showBarBackgroundDialog()
-            R.id.menu_bar_buttons -> showBarButtonsDialog()
-            R.id.menu_panel_color -> showPanelColorDialog()
-            R.id.menu_panel_blur -> {
-                val current = draft.panelBlur ?: (draft.pack().blurEnabled == true)
-                draft.panelBlur = !current
-                item.isChecked = !current
-                updateDirtyState()
-            }
-            R.id.menu_panel_blur_radius -> showPanelBlurRadiusDialog()
-            R.id.menu_dialog_transparency -> showDialogTransparencyDialog()
-            R.id.menu_window_transparency -> showWindowTransparencyDialog()
-            R.id.menu_anchor -> showAnchorDialog()
-            R.id.menu_hide_status_bar -> {
-                draft.hideStatusBar = !draft.hideStatusBar
-                item.isChecked = draft.hideStatusBar
-                updateDirtyState()
-            }
-            else -> return false
-        }
-        return true
-    }
-
-    private fun showVariantDialog() {
-        val values =
-            arrayOf(StyleSettings.VARIANT_KITKAT_STOCK, StyleSettings.VARIANT_HOLO_UNIFIED)
-        val labels =
-            arrayOf(getString(R.string.variant_kitkat_stock), getString(R.string.variant_holo_unified))
-        val checked = values.indexOf(draft.variant).coerceAtLeast(0)
-        AlertDialog.Builder(this)
-            .setTitle(R.string.section_variant)
-            .setSingleChoiceItems(labels, checked) { dialog, which ->
-                draft.variant = values[which]
-                updateDirtyState()
-                dialog.dismiss()
-            }
-            .show()
-    }
-
     private fun showBarBackgroundDialog() {
         val values = StyleSettings.BAR_BACKGROUNDS.toTypedArray()
         val labels =
@@ -338,6 +525,8 @@ class StyleActivity : AppCompatActivity() {
             .setTitle(R.string.section_bar_background)
             .setSingleChoiceItems(labels, checked) { dialog, which ->
                 draft.barBackground = values[which]
+                findViewById<MaterialButton>(R.id.advanced_bar_background).text =
+                    barBackgroundLabel()
                 updateDirtyState()
                 dialog.dismiss()
             }
@@ -361,24 +550,10 @@ class StyleActivity : AppCompatActivity() {
             }
             .setPositiveButton(android.R.string.ok) { _, _ ->
                 draft.barButtons = keys.filterIndexed { i, _ -> checked[i] }
+                findViewById<MaterialButton>(R.id.advanced_bar_buttons).text = barButtonsLabel()
                 refreshPreviewAndDirty()
             }
             .setNegativeButton(android.R.string.cancel, null)
-            .show()
-    }
-
-    private fun showAnchorDialog() {
-        val values = arrayOf(StyleSettings.ANCHOR_TOP_END, StyleSettings.ANCHOR_BOTTOM_END)
-        val labels =
-            arrayOf(getString(R.string.anchor_top_end), getString(R.string.anchor_bottom_end))
-        val checked = values.indexOf(draft.anchor).coerceAtLeast(0)
-        AlertDialog.Builder(this)
-            .setTitle(R.string.section_anchor)
-            .setSingleChoiceItems(labels, checked) { dialog, which ->
-                draft.anchor = values[which]
-                updateDirtyState()
-                dialog.dismiss()
-            }
             .show()
     }
 
@@ -399,97 +574,82 @@ class StyleActivity : AppCompatActivity() {
             .setTitle(R.string.section_panel_color)
             .setSingleChoiceItems(labels, checked) { dialog, which ->
                 draft.panelColorChoice = values[which]
+                bindPanelColorButton()
+                bindTransparencySliders()
                 updateDirtyState()
                 dialog.dismiss()
             }
             .show()
     }
 
-    private fun showPanelBlurRadiusDialog() {
-        val values = arrayOf(null, 15, 25, 40)
-        val labels =
-            arrayOf(
-                getString(R.string.blur_radius_pack),
-                getString(R.string.blur_radius_soft),
-                getString(R.string.blur_radius_medium),
-                getString(R.string.blur_radius_strong),
-            )
-        val checked = values.indexOf(draft.panelBlurRadius).coerceAtLeast(0)
-        AlertDialog.Builder(this)
-            .setTitle(R.string.section_panel_blur_radius)
-            .setSingleChoiceItems(labels, checked) { dialog, which ->
-                draft.panelBlurRadius = values[which]
-                if (values[which] != null && draft.panelBlur == null) {
-                    draft.panelBlur = true
-                }
-                updateDirtyState()
-                dialog.dismiss()
-            }
-            .show()
+    private fun barBackgroundLabel(): String =
+        when (draft.barBackground) {
+            "solid" -> getString(R.string.bar_background_solid)
+            "gradient" -> getString(R.string.bar_background_gradient)
+            "translucent" -> getString(R.string.bar_background_translucent)
+            "transparent" -> getString(R.string.bar_background_transparent)
+            else -> getString(R.string.bar_background_stock)
+        }
+
+    private fun barButtonsLabel(): String {
+        if (draft.barButtons.isEmpty()) return getString(R.string.transparency_off)
+        return draft.barButtons.joinToString(", ")
     }
 
-    private fun showDialogTransparencyDialog() {
-        // pack default / off / glass / strong → (alpha, blurRadius)
-        val choices =
-            listOf(
-                null to null,
-                255 to 0,
-                200 to 25,
-                140 to 40,
-            )
-        val labels =
-            arrayOf(
-                getString(R.string.transparency_pack),
-                getString(R.string.transparency_off),
-                getString(R.string.transparency_glass),
-                getString(R.string.transparency_strong),
-            )
-        val checked =
-            choices
-                .indexOfFirst {
-                    it.first == draft.dialogAlpha && it.second == draft.dialogBlurRadius
-                }
-                .coerceAtLeast(0)
-        AlertDialog.Builder(this)
-            .setTitle(R.string.section_dialog_transparency)
-            .setSingleChoiceItems(labels, checked) { dialog, which ->
-                draft.dialogAlpha = choices[which].first
-                draft.dialogBlurRadius = choices[which].second
-                updateDirtyState()
-                dialog.dismiss()
+    private fun panelColorLabel(): String {
+        val idx = StyleSettings.PANEL_COLOR_PRESETS.indexOf(draft.panelColorChoice)
+        if (idx >= 0) {
+            return when (idx) {
+                0 -> getString(R.string.panel_color_pack)
+                1 -> getString(R.string.panel_color_opaque_black)
+                2 -> getString(R.string.panel_color_near_black)
+                3 -> getString(R.string.panel_color_holo_navy)
+                4 -> getString(R.string.panel_color_glass)
+                5 -> getString(R.string.panel_color_bar)
+                6 -> getString(R.string.panel_color_frost)
+                else -> draft.panelColorChoice
             }
-            .show()
+        }
+        return draft.panelColorChoice
     }
 
-    private fun showWindowTransparencyDialog() {
-        val choices =
-            listOf(
-                null to null,
-                255 to 0,
-                230 to 20,
-                180 to 30,
-            )
-        val labels =
-            arrayOf(
-                getString(R.string.transparency_pack),
-                getString(R.string.transparency_off),
-                getString(R.string.transparency_glass),
-                getString(R.string.transparency_strong),
-            )
-        val checked =
-            choices
-                .indexOfFirst {
-                    it.first == draft.windowAlpha && it.second == draft.windowBlurRadius
-                }
-                .coerceAtLeast(0)
-        AlertDialog.Builder(this)
-            .setTitle(R.string.section_window_transparency)
-            .setSingleChoiceItems(labels, checked) { dialog, which ->
-                draft.windowAlpha = choices[which].first
-                draft.windowBlurRadius = choices[which].second
-                updateDirtyState()
-                dialog.dismiss()
-            }
-            .show()
+    /** RGB without alpha for shade panel; pack/glass dark fallback when unset. */
+    private fun currentPanelRgb(): Int {
+        val choice = draft.panelColorChoice
+        if (choice.startsWith("#")) {
+            return runCatching { Color.parseColor(choice) }.getOrNull()?.and(0x00FFFFFF) ?: 0
+        }
+        val packPanel = draft.pack().panel
+        if (packPanel != null) return packPanel and 0x00FFFFFF
+        return 0x000000
+    }
+
+    private fun currentPanelAlpha(): Int {
+        val choice = draft.panelColorChoice
+        if (choice.startsWith("#")) {
+            return runCatching { Color.parseColor(choice) }.getOrNull()?.ushr(24) ?: 255
+        }
+        val packPanel = draft.pack().panel
+        if (packPanel != null) return packPanel ushr 24
+        return 255
+    }
+
+    private fun effectiveDialogAlpha(): Int =
+        draft.dialogAlpha ?: draft.pack().dialogAlpha ?: 255
+
+    private fun effectiveWindowAlpha(): Int =
+        draft.windowAlpha ?: draft.pack().windowAlpha ?: 255
+
+    private fun alphaToPercent(alpha: Int): Float =
+        ((alpha.coerceIn(0, 255) / 255f) * 100f).toInt().toFloat()
+
+    private fun hexWithAlpha(rgb: Int, alpha: Int): String {
+        val a = alpha.coerceIn(0, 255)
+        val color = (a shl 24) or (rgb and 0x00FFFFFF)
+        return String.format("#%08X", color)
+    }
+
+    companion object {
+        private const val STATE_ADVANCED = "advanced_expanded"
     }
 }
