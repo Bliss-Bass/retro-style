@@ -1,0 +1,431 @@
+From 49d02f6c013c96275f4ada004760e7d1bb34e4ed Mon Sep 17 00:00:00 2001
+From: electrikjesus <electrikjesus@gmail.com>
+Date: Thu, 26 Nov 2026 19:28:45 +0100
+Subject: [PATCH] Shell: Keep freeform Glass leash alpha after transition
+ finish.
+
+Re-apply RetroUi window_alpha/blur into finishT and after transitions, skip black task fill when glass is on, and denylist media/camera packages from force translucency.
+---
+ .../wm/shell/dagger/WMShellModule.java        |   3 +-
+ .../FreeformFallbackTransitionHandler.kt      |  21 ++-
+ .../FreeformTaskTransitionObserver.java       |   6 +
+ .../DesktopModeWindowDecorViewModel.java      |   5 +
+ .../DesktopModeWindowDecoration.java          |  61 ++++----
+ .../shell/windowdecor/RetroUiWindowStyle.java | 144 +++++++++++++++++-
+ .../windowdecor/WindowDecorViewModel.java     |   6 +
+ .../windowdecor/WindowDecorationWrapper.kt    |   5 +
+ 8 files changed, 215 insertions(+), 36 deletions(-)
+
+diff --git a/libs/WindowManager/Shell/src/com/android/wm/shell/dagger/WMShellModule.java b/libs/WindowManager/Shell/src/com/android/wm/shell/dagger/WMShellModule.java
+index 237f47124837..663d7d92e8a5 100644
+--- a/libs/WindowManager/Shell/src/com/android/wm/shell/dagger/WMShellModule.java
++++ b/libs/WindowManager/Shell/src/com/android/wm/shell/dagger/WMShellModule.java
+@@ -1518,13 +1518,14 @@ public abstract class WMShellModule {
+     @WMSingleton
+     @Provides
+     static Optional<FreeformFallbackTransitionHandler> provideFreeformFallbackTransitionHandler(
++            Context context,
+             @DynamicOverride DesktopUserRepositories desktopUserRepositories,
+             DesktopState desktopState) {
+         if (!desktopState.canEnterDesktopMode()) {
+             return Optional.empty();
+         }
+         return Optional.of(
+-                new FreeformFallbackTransitionHandler(desktopUserRepositories));
++                new FreeformFallbackTransitionHandler(context, desktopUserRepositories));
+     }
+ 
+     @WMSingleton
+diff --git a/libs/WindowManager/Shell/src/com/android/wm/shell/desktopmode/FreeformFallbackTransitionHandler.kt b/libs/WindowManager/Shell/src/com/android/wm/shell/desktopmode/FreeformFallbackTransitionHandler.kt
+index 3ce77f9a9814..a714b43cc6e1 100644
+--- a/libs/WindowManager/Shell/src/com/android/wm/shell/desktopmode/FreeformFallbackTransitionHandler.kt
++++ b/libs/WindowManager/Shell/src/com/android/wm/shell/desktopmode/FreeformFallbackTransitionHandler.kt
+@@ -16,16 +16,19 @@
+ 
+ package com.android.wm.shell.desktopmode
+ 
++import android.content.Context
+ import android.os.IBinder
+ import android.view.SurfaceControl
+ import android.window.TransitionInfo
+ import android.window.TransitionRequestInfo
+ import android.window.WindowContainerTransaction
+ import com.android.wm.shell.transition.Transitions
++import com.android.wm.shell.windowdecor.RetroUiWindowStyle
+ 
+ /** Handles transitions related to recovering freeform tasks launched outside of a desk. */
+ class FreeformFallbackTransitionHandler(
+-    private val desktopUserRepositories: DesktopUserRepositories
++    private val context: Context,
++    private val desktopUserRepositories: DesktopUserRepositories,
+ ) : Transitions.TransitionHandler {
+ 
+     override fun startAnimation(
+@@ -40,9 +43,19 @@ class FreeformFallbackTransitionHandler(
+             val repository = desktopUserRepositories.getProfile(taskInfo.userId)
+             if (!repository.isActiveTask(taskInfo.taskId)) continue
+             val leash = change.leash
+-            // Ensure leash remain visible throughout animation.
+-            startTransaction.setAlpha(leash, 1.0f)
+-            finishTransaction.setAlpha(leash, 1.0f)
++            // Keep leash visible; honor Glass leash alpha instead of hard 1f so finishT does
++            // not wipe freeform translucency.
++            val pkg = RetroUiWindowStyle.packageName(taskInfo)
++            val alpha = RetroUiWindowStyle.finishAlpha(context, pkg)
++            startTransaction.setAlpha(leash, alpha)
++            finishTransaction.setAlpha(leash, alpha)
++            RetroUiWindowStyle.applyToTaskLeash(
++                finishTransaction,
++                context,
++                leash,
++                pkg,
++                /* hasGlobalFocus= */ true,
++            )
+         }
+ 
+         startTransaction.apply()
+diff --git a/libs/WindowManager/Shell/src/com/android/wm/shell/freeform/FreeformTaskTransitionObserver.java b/libs/WindowManager/Shell/src/com/android/wm/shell/freeform/FreeformTaskTransitionObserver.java
+index 625edd6386a7..a0db1e3b6633 100644
+--- a/libs/WindowManager/Shell/src/com/android/wm/shell/freeform/FreeformTaskTransitionObserver.java
++++ b/libs/WindowManager/Shell/src/com/android/wm/shell/freeform/FreeformTaskTransitionObserver.java
+@@ -289,5 +289,11 @@ public class FreeformTaskTransitionObserver implements Transitions.TransitionObs
+             mPendingHiddenTasks.clear();
+             mTransientTransition = null;
+         }
++
++        // WM Transition.buildFinishTransaction sets leash alpha to 1; re-assert Glass after
++        // finish so freeform translucency/blur survive open/focus/drag transitions.
++        if (!aborted) {
++            mWindowDecorViewModel.reapplyRetroUiWindowEffects();
++        }
+     }
+ }
+diff --git a/libs/WindowManager/Shell/src/com/android/wm/shell/windowdecor/DesktopModeWindowDecorViewModel.java b/libs/WindowManager/Shell/src/com/android/wm/shell/windowdecor/DesktopModeWindowDecorViewModel.java
+index 3633fdebb0b0..30c680239e6e 100644
+--- a/libs/WindowManager/Shell/src/com/android/wm/shell/windowdecor/DesktopModeWindowDecorViewModel.java
++++ b/libs/WindowManager/Shell/src/com/android/wm/shell/windowdecor/DesktopModeWindowDecorViewModel.java
+@@ -716,6 +716,11 @@ public class DesktopModeWindowDecorViewModel implements WindowDecorViewModel,
+         });
+     }
+ 
++    @Override
++    public void reapplyRetroUiWindowEffects() {
++        forAllWindowDecorations(WindowDecorationWrapper::reapplyRetroUiWindowEffects);
++    }
++
+     private void forAllWindowDecorations(Consumer<WindowDecorationWrapper> callback) {
+         forAllWindowDecorations(callback, /* reverseOrder= */ false);
+     }
+diff --git a/libs/WindowManager/Shell/src/com/android/wm/shell/windowdecor/DesktopModeWindowDecoration.java b/libs/WindowManager/Shell/src/com/android/wm/shell/windowdecor/DesktopModeWindowDecoration.java
+index 53cc09ad6ba5..ef5a577ea30d 100644
+--- a/libs/WindowManager/Shell/src/com/android/wm/shell/windowdecor/DesktopModeWindowDecoration.java
++++ b/libs/WindowManager/Shell/src/com/android/wm/shell/windowdecor/DesktopModeWindowDecoration.java
+@@ -565,9 +565,9 @@ public class DesktopModeWindowDecoration extends WindowDecoration<WindowDecorLin
+         relayout(mRelayoutParams, startT, finishT, wct, oldRootView, taskSurface, mResult);
+         // After this line, mTaskInfo is up-to-date and should be used instead of taskInfo
+ 
+-        // Glass / UI Style freeform window blur+alpha. Apply in its own transaction so it is
+-        // not dropped when freeform relayout only merges startT into the caption ViewRoot draw.
+-        applyRetroUiWindowEffects(taskSurface, hasGlobalFocus);
++        // Glass / UI Style freeform window blur+alpha. Apply immediately and into finishT so
++        // Transition.buildFinishTransaction's setAlpha(1) does not leave windows opaque.
++        applyRetroUiWindowEffects(taskSurface, hasGlobalFocus, finishT);
+ 
+         if (!wct.isEmpty()) {
+             if (mRelayoutParams.mShouldSetAppBounds) {
+@@ -662,33 +662,40 @@ public class DesktopModeWindowDecoration extends WindowDecoration<WindowDecorLin
+         return isCaptionVisible() && !mIsRecentsTransitionRunning;
+     }
+ 
++    /** Re-applies Glass leash effects after a hostile transition finish reset alpha to 1. */
++    void reapplyRetroUiWindowEffects() {
++        applyRetroUiWindowEffects(getLeash(), mHasGlobalFocus, /* finishT= */ null);
++    }
++
+     /**
+      * Applies RetroStyle {@code window_blur_radius} / {@code window_alpha} to the freeform task
+-     * leash.
+-     *
+-     * <p>Translucency ({@code window_alpha}) is applied to every visible freeform task when set —
+-     * gating it on {@code hasGlobalFocus} was resetting leash alpha to 1 on focus transitions and
+-     * left Glass windows looking fully opaque. Background blur stays focused-only (GPU cost).
+-     * Blur alone also applies a mild default alpha when {@code window_alpha} is unset, because
+-     * opaque app buffers otherwise cover the blurred backdrop.
++     * leash (immediate + optional transition finishT).
+      */
+-    private void applyRetroUiWindowEffects(SurfaceControl taskSurface, boolean hasGlobalFocus) {
++    private void applyRetroUiWindowEffects(SurfaceControl taskSurface, boolean hasGlobalFocus,
++            @Nullable SurfaceControl.Transaction finishT) {
+         if (taskSurface == null || !taskSurface.isValid()) {
+             return;
+         }
+-        final SurfaceControl.Transaction t = mSurfaceControlTransactionSupplier.get();
+-        final int blurPx = hasGlobalFocus ? RetroUiWindowStyle.blurRadiusPx(mContext) : 0;
+-        t.setBackgroundBlurRadius(taskSurface, blurPx);
+-
+-        float alpha = RetroUiWindowStyle.windowAlpha(mContext);
+-        // Opaque app buffers cover background blur; need leash translucency to see it.
+-        if (alpha < 0f && blurPx > 0) {
+-            alpha = 230f / 255f;
+-        }
+-        if (alpha >= 0f) {
+-            t.setAlpha(taskSurface, Math.min(1f, Math.max(0f, alpha)));
++        final String pkg = RetroUiWindowStyle.packageName(mTaskInfo);
++        RetroUiWindowStyle.applyToTaskLeashNow(
++                mContext,
++                taskSurface,
++                pkg,
++                hasGlobalFocus,
++                mSurfaceControlTransactionSupplier.get());
++        if (finishT != null) {
++            RetroUiWindowStyle.applyToTaskLeash(
++                    finishT, mContext, taskSurface, pkg, hasGlobalFocus);
++        }
++        if (RetroUiWindowStyle.shouldSkipBlackTaskFill(mContext)
++                && !RetroUiWindowStyle.isAlphaDenied(pkg)) {
++            final SurfaceControl.Transaction clear = mSurfaceControlTransactionSupplier.get();
++            clear.unsetColor(taskSurface);
++            clear.apply();
++            if (finishT != null) {
++                finishT.unsetColor(taskSurface);
++            }
+         }
+-        t.apply();
+     }
+ 
+     private boolean isCaptionVisible() {
+@@ -1302,10 +1309,10 @@ public class DesktopModeWindowDecoration extends WindowDecoration<WindowDecorLin
+             relayoutParams.mCornerRadiusId = shouldIgnoreCornerRadius ? Resources.ID_NULL :
+                     getCornerRadiusId(relayoutParams.mLayoutResId);
+         }
+-        // Set opaque background for all freeform tasks to prevent freeform tasks below
+-        // from being visible if freeform task window above is translucent.
+-        // Otherwise if fluid resize is enabled, add a background to freeform tasks.
+-        relayoutParams.mShouldSetBackground = desktopConfig.shouldSetBackground(taskInfo);
++        // Set opaque background for freeform tasks unless Glass leash translucency is on —
++        // a solid black fill would veil wallpaper behind window_alpha / window_blur_radius.
++        relayoutParams.mShouldSetBackground = desktopConfig.shouldSetBackground(taskInfo)
++                && !RetroUiWindowStyle.shouldSkipBlackTaskFill(mContext);
+     }
+ 
+     private static int getCornerRadiusId(int layoutResId) {
+diff --git a/libs/WindowManager/Shell/src/com/android/wm/shell/windowdecor/RetroUiWindowStyle.java b/libs/WindowManager/Shell/src/com/android/wm/shell/windowdecor/RetroUiWindowStyle.java
+index 15753317b036..fa5886e39f37 100644
+--- a/libs/WindowManager/Shell/src/com/android/wm/shell/windowdecor/RetroUiWindowStyle.java
++++ b/libs/WindowManager/Shell/src/com/android/wm/shell/windowdecor/RetroUiWindowStyle.java
+@@ -7,25 +7,54 @@
+ 
+ package com.android.wm.shell.windowdecor;
+ 
++import android.app.ActivityManager;
++import android.app.TaskInfo;
++import android.content.ComponentName;
+ import android.content.Context;
+ import android.provider.Settings;
+ import android.util.DisplayMetrics;
++import android.view.SurfaceControl;
++
++import androidx.annotation.Nullable;
+ 
+ import java.util.Collections;
+ import java.util.HashMap;
+ import java.util.Map;
++import java.util.Set;
+ 
+ /**
+  * Reads freeform window transparency/blur defaults from RetroStyle's {@code retro_ui_applied}
+- * secure setting (pack defaults + UI Style overrides). Cap concurrent blurs by only applying
+- * when the decoration has global focus.
++ * secure setting (pack defaults + UI Style overrides) and applies them to task leashes.
+  *
+  * <p>Values are re-read each call: SystemUI may start before the first APPLY, and UI Style can
+  * change window keys without always restarting the Shell process that owns decorations.
++ *
++ * <p>Transition finish paths often hard-reset leash alpha to {@code 1f}; callers should apply
++ * into {@code finishT} and/or re-apply after finish so glass survives
++ * {@code Transition.buildFinishTransaction}.
+  */
+-final class RetroUiWindowStyle {
++public final class RetroUiWindowStyle {
+     private static final String SETTING = "retro_ui_applied";
+     private static final int MAX_BLUR_RADIUS_DP = 40;
++    /** Mild translucency so focused blur is visible when only blur radius is set. */
++    private static final float DEFAULT_ALPHA_WITH_BLUR = 230f / 255f;
++
++    /**
++     * Packages that keep stock opaque freeform leashes (games/camera/media). Settings and most
++     * system apps stay eligible so Glass can be validated.
++     */
++    private static final Set<String> ALPHA_DENYLIST = Set.of(
++            "com.android.camera2",
++            "com.android.camera",
++            "org.lineageos.aperture",
++            "com.android.gallery3d",
++            "com.google.android.apps.photos",
++            "org.lineageos.eleven",
++            "com.android.music",
++            "org.lineageos.recorder",
++            "com.android.systemui",
++            "com.android.launcher3",
++            "cu.axel.smartdock");
+ 
+     private RetroUiWindowStyle() {}
+ 
+@@ -54,7 +83,7 @@ final class RetroUiWindowStyle {
+     }
+ 
+     /**
+-     * Window alpha 0–1 for the focused freeform task leash, or -1 when unset (leave stock).
++     * Window alpha 0–1 for the freeform task leash, or -1 when unset (leave stock).
+      */
+     static float windowAlpha(Context context) {
+         String raw = values(context).get("window_alpha");
+@@ -76,6 +105,113 @@ final class RetroUiWindowStyle {
+         }
+     }
+ 
++    /** True when UI Style / Glass asked for freeform leash translucency or blur. */
++    static boolean isGlassEnabled(Context context) {
++        return windowAlpha(context) >= 0f || blurRadiusPx(context) > 0;
++    }
++
++    /**
++     * Skip the solid black freeform task fill when glass alpha/blur is on so translucency is
++     * not a black veil under the leash.
++     */
++    static boolean shouldSkipBlackTaskFill(Context context) {
++        return isGlassEnabled(context);
++    }
++
++    static boolean isAlphaDenied(@Nullable String packageName) {
++        return packageName != null && ALPHA_DENYLIST.contains(packageName);
++    }
++
++    @Nullable
++    static String packageName(@Nullable TaskInfo taskInfo) {
++        if (taskInfo == null) {
++            return null;
++        }
++        ComponentName top = taskInfo.topActivity;
++        if (top != null) {
++            return top.getPackageName();
++        }
++        ComponentName real = taskInfo.realActivity;
++        if (real != null) {
++            return real.getPackageName();
++        }
++        if (taskInfo instanceof ActivityManager.RunningTaskInfo running
++                && running.baseActivity != null) {
++            return running.baseActivity.getPackageName();
++        }
++        return null;
++    }
++
++    /**
++     * Alpha to write into transition finish transactions instead of hard {@code 1f}, or
++     * {@code 1f} when glass is off / package denied.
++     */
++    static float finishAlpha(Context context, @Nullable String packageName) {
++        if (isAlphaDenied(packageName)) {
++            return 1f;
++        }
++        float alpha = windowAlpha(context);
++        int blurPx = blurRadiusPx(context);
++        if (alpha < 0f && blurPx > 0) {
++            alpha = DEFAULT_ALPHA_WITH_BLUR;
++        }
++        if (alpha < 0f) {
++            return 1f;
++        }
++        return Math.min(1f, Math.max(0f, alpha));
++    }
++
++    /**
++     * Applies RetroStyle window blur/alpha to a freeform task leash.
++     *
++     * <p>Blur is focus-gated (GPU cost). Alpha applies whenever set (and package is not
++     * denylisted) so focus transitions do not snap windows opaque. When blur is on and alpha
++     * is unset, a mild default alpha is used so opaque app buffers do not cover the blur.
++     *
++     * @param t transaction to mutate (caller applies, or pass a finishT so glass survives
++     *     transition end)
++     * @return true if any property was written
++     */
++    static boolean applyToTaskLeash(
++            @Nullable SurfaceControl.Transaction t,
++            Context context,
++            @Nullable SurfaceControl taskSurface,
++            @Nullable String packageName,
++            boolean hasGlobalFocus) {
++        if (t == null || taskSurface == null || !taskSurface.isValid()) {
++            return false;
++        }
++        boolean wrote = false;
++        final int blurPx = hasGlobalFocus ? blurRadiusPx(context) : 0;
++        t.setBackgroundBlurRadius(taskSurface, blurPx);
++        wrote = true;
++
++        if (isAlphaDenied(packageName)) {
++            return wrote;
++        }
++        float alpha = windowAlpha(context);
++        if (alpha < 0f && blurPx > 0) {
++            alpha = DEFAULT_ALPHA_WITH_BLUR;
++        }
++        if (alpha >= 0f) {
++            t.setAlpha(taskSurface, Math.min(1f, Math.max(0f, alpha)));
++            wrote = true;
++        }
++        return wrote;
++    }
++
++    /** Convenience: apply into {@code t} and immediately {@link SurfaceControl.Transaction#apply}. */
++    static void applyToTaskLeashNow(
++            Context context,
++            @Nullable SurfaceControl taskSurface,
++            @Nullable String packageName,
++            boolean hasGlobalFocus,
++            SurfaceControl.Transaction t) {
++        if (applyToTaskLeash(t, context, taskSurface, packageName, hasGlobalFocus)) {
++            t.apply();
++        }
++    }
++
+     static Map<String, String> parse(String value) {
+         if (value == null || value.isEmpty()) {
+             return Collections.emptyMap();
+diff --git a/libs/WindowManager/Shell/src/com/android/wm/shell/windowdecor/WindowDecorViewModel.java b/libs/WindowManager/Shell/src/com/android/wm/shell/windowdecor/WindowDecorViewModel.java
+index 477b12671b3e..0044fbab1d58 100644
+--- a/libs/WindowManager/Shell/src/com/android/wm/shell/windowdecor/WindowDecorViewModel.java
++++ b/libs/WindowManager/Shell/src/com/android/wm/shell/windowdecor/WindowDecorViewModel.java
+@@ -108,4 +108,10 @@ public interface WindowDecorViewModel {
+      * @param taskInfo the info of the task
+      */
+     void destroyWindowDecoration(ActivityManager.RunningTaskInfo taskInfo);
++
++    /**
++     * Re-applies RetroStyle freeform leash glass after a transition finishes (WM finishT often
++     * resets alpha to 1). Default no-op for non-desktop implementations.
++     */
++    default void reapplyRetroUiWindowEffects() {}
+ }
+\ No newline at end of file
+diff --git a/libs/WindowManager/Shell/src/com/android/wm/shell/windowdecor/WindowDecorationWrapper.kt b/libs/WindowManager/Shell/src/com/android/wm/shell/windowdecor/WindowDecorationWrapper.kt
+index ed802273ef76..09b826ae0617 100644
+--- a/libs/WindowManager/Shell/src/com/android/wm/shell/windowdecor/WindowDecorationWrapper.kt
++++ b/libs/WindowManager/Shell/src/com/android/wm/shell/windowdecor/WindowDecorationWrapper.kt
+@@ -70,6 +70,11 @@ private constructor(
+                 else -> error("Expected Non-null window decoration")
+             }
+ 
++    /** Re-applies RetroStyle freeform leash glass after transition finish. */
++    fun reapplyRetroUiWindowEffects() {
++        desktopWindowDecor?.reapplyRetroUiWindowEffects()
++    }
++
+     /** Returns the [SurfaceControl] of the task associated with the window decor. */
+     val taskSurface: SurfaceControl
+         get() =
+-- 
+2.53.0
+
