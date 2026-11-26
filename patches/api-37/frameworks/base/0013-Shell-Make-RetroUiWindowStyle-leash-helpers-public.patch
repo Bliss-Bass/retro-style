@@ -1,0 +1,73 @@
+From 51a352cd16dc9590a0b5e974d64fcb8cf08c6b2f Mon Sep 17 00:00:00 2001
+From: electrikjesus <electrikjesus@gmail.com>
+Date: Thu, 26 Nov 2026 21:14:57 +0100
+Subject: [PATCH] Shell: Make RetroUiWindowStyle leash helpers public.
+
+FreeformFallbackTransitionHandler (desktopmode) could not call package-private APIs during kotlinc.
+---
+ .../wm/shell/windowdecor/RetroUiWindowStyle.java   | 14 +++++++-------
+ 1 file changed, 7 insertions(+), 7 deletions(-)
+
+diff --git a/libs/WindowManager/Shell/src/com/android/wm/shell/windowdecor/RetroUiWindowStyle.java b/libs/WindowManager/Shell/src/com/android/wm/shell/windowdecor/RetroUiWindowStyle.java
+index fa5886e39f37..e5714e90df3d 100644
+--- a/libs/WindowManager/Shell/src/com/android/wm/shell/windowdecor/RetroUiWindowStyle.java
++++ b/libs/WindowManager/Shell/src/com/android/wm/shell/windowdecor/RetroUiWindowStyle.java
+@@ -106,7 +106,7 @@ public final class RetroUiWindowStyle {
+     }
+ 
+     /** True when UI Style / Glass asked for freeform leash translucency or blur. */
+-    static boolean isGlassEnabled(Context context) {
++    public static boolean isGlassEnabled(Context context) {
+         return windowAlpha(context) >= 0f || blurRadiusPx(context) > 0;
+     }
+ 
+@@ -114,16 +114,16 @@ public final class RetroUiWindowStyle {
+      * Skip the solid black freeform task fill when glass alpha/blur is on so translucency is
+      * not a black veil under the leash.
+      */
+-    static boolean shouldSkipBlackTaskFill(Context context) {
++    public static boolean shouldSkipBlackTaskFill(Context context) {
+         return isGlassEnabled(context);
+     }
+ 
+-    static boolean isAlphaDenied(@Nullable String packageName) {
++    public static boolean isAlphaDenied(@Nullable String packageName) {
+         return packageName != null && ALPHA_DENYLIST.contains(packageName);
+     }
+ 
+     @Nullable
+-    static String packageName(@Nullable TaskInfo taskInfo) {
++    public static String packageName(@Nullable TaskInfo taskInfo) {
+         if (taskInfo == null) {
+             return null;
+         }
+@@ -146,7 +146,7 @@ public final class RetroUiWindowStyle {
+      * Alpha to write into transition finish transactions instead of hard {@code 1f}, or
+      * {@code 1f} when glass is off / package denied.
+      */
+-    static float finishAlpha(Context context, @Nullable String packageName) {
++    public static float finishAlpha(Context context, @Nullable String packageName) {
+         if (isAlphaDenied(packageName)) {
+             return 1f;
+         }
+@@ -172,7 +172,7 @@ public final class RetroUiWindowStyle {
+      *     transition end)
+      * @return true if any property was written
+      */
+-    static boolean applyToTaskLeash(
++    public static boolean applyToTaskLeash(
+             @Nullable SurfaceControl.Transaction t,
+             Context context,
+             @Nullable SurfaceControl taskSurface,
+@@ -201,7 +201,7 @@ public final class RetroUiWindowStyle {
+     }
+ 
+     /** Convenience: apply into {@code t} and immediately {@link SurfaceControl.Transaction#apply}. */
+-    static void applyToTaskLeashNow(
++    public static void applyToTaskLeashNow(
+             Context context,
+             @Nullable SurfaceControl taskSurface,
+             @Nullable String packageName,
+-- 
+2.53.0
+
