@@ -223,8 +223,10 @@ pack chooses from what they offer:
   `retro_ui_dialog_alpha`.
 - `dialog_blur_radius`: default dialog window blur radius in dp. Overridden by
   `retro_ui_dialog_blur_radius`.
-- `window_alpha`: default freeform / DeviceDefault window alpha. Overridden by
+- `window_alpha`: default focused freeform leash alpha. Overridden by
   `retro_ui_window_alpha`.
+- `window_alpha_unfocused`: default unfocused freeform leash alpha (omit to follow
+  `window_alpha`). Overridden by `retro_ui_window_alpha_unfocused`.
 - `window_blur_radius`: default freeform task / window blur radius in dp. Overridden by
   `retro_ui_window_blur_radius`.
 - `accent`: the `kitkat` skin's clock and switch color (default Holo blue).

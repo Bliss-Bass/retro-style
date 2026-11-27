@@ -27,7 +27,10 @@ data class StyleDraft(
     var dialogAlpha: Int? = null,
     var dialogBlurRadius: Int? = null,
     var windowAlpha: Int? = null,
+    var windowAlphaUnfocused: Int? = null,
     var windowBlurRadius: Int? = null,
+    /** Packages that stay opaque in freeform (user blocklist). */
+    var windowAlphaBlocklist: List<String> = emptyList(),
 ) {
     fun pack(): ThemePack =
         ThemeCatalog.find(styleId)
@@ -44,6 +47,7 @@ data class StyleDraft(
         copy(
             zones = zones.copy(),
             barButtons = barButtons.toList(),
+            windowAlphaBlocklist = windowAlphaBlocklist.toList(),
         )
 
     fun matches(other: StyleDraft): Boolean =
@@ -67,7 +71,9 @@ data class StyleDraft(
             dialogAlpha == other.dialogAlpha &&
             dialogBlurRadius == other.dialogBlurRadius &&
             windowAlpha == other.windowAlpha &&
-            windowBlurRadius == other.windowBlurRadius
+            windowAlphaUnfocused == other.windowAlphaUnfocused &&
+            windowBlurRadius == other.windowBlurRadius &&
+            windowAlphaBlocklist == other.windowAlphaBlocklist
 
     fun commit(cr: ContentResolver) {
         val pack = pack()
@@ -119,8 +125,18 @@ data class StyleDraft(
         StyleSettings.put(cr, StyleSettings.KEY_WINDOW_ALPHA, windowAlpha?.toString())
         StyleSettings.put(
             cr,
+            StyleSettings.KEY_WINDOW_ALPHA_UNFOCUSED,
+            windowAlphaUnfocused?.toString(),
+        )
+        StyleSettings.put(
+            cr,
             StyleSettings.KEY_WINDOW_BLUR_RADIUS,
             windowBlurRadius?.toString(),
+        )
+        StyleSettings.put(
+            cr,
+            StyleSettings.KEY_WINDOW_ALPHA_BLOCKLIST,
+            windowAlphaBlocklist.takeIf { it.isNotEmpty() }?.joinToString(",") ?: null,
         )
     }
 
@@ -177,12 +193,19 @@ data class StyleDraft(
                 windowAlpha =
                     android.provider.Settings.Secure.getString(cr, StyleSettings.KEY_WINDOW_ALPHA)
                         ?.toIntOrNull(),
+                windowAlphaUnfocused =
+                    android.provider.Settings.Secure.getString(
+                            cr,
+                            StyleSettings.KEY_WINDOW_ALPHA_UNFOCUSED,
+                        )
+                        ?.toIntOrNull(),
                 windowBlurRadius =
                     android.provider.Settings.Secure.getString(
                             cr,
                             StyleSettings.KEY_WINDOW_BLUR_RADIUS,
                         )
                         ?.toIntOrNull(),
+                windowAlphaBlocklist = StyleSettings.windowAlphaBlocklist(cr),
             )
         }
     }

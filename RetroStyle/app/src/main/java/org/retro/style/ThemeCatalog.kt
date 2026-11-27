@@ -39,6 +39,8 @@ data class ThemePack(
     val dialogAlpha: Int? = null,
     val dialogBlurRadius: Int? = null,
     val windowAlpha: Int? = null,
+    /** Pack default unfocused freeform alpha; null follows [windowAlpha]. */
+    val windowAlphaUnfocused: Int? = null,
     val windowBlurRadius: Int? = null,
 ) {
     /** Overlay package for one of [ThemeCatalog.TARGETS], whether or not the pack ships it. */
@@ -88,6 +90,7 @@ data class ThemePack(
                         shell.optInt("dialog_blur_radius").takeIf { it >= 0 }
                     else null,
                 windowAlpha = alphaOrColor(shell, "window_alpha"),
+                windowAlphaUnfocused = alphaOrColor(shell, "window_alpha_unfocused"),
                 windowBlurRadius =
                     if (shell.has("window_blur_radius"))
                         shell.optInt("window_blur_radius").takeIf { it >= 0 }

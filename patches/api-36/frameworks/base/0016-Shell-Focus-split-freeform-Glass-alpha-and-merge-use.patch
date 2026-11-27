@@ -1,0 +1,206 @@
+From 7347b35e0243f3a65ac42c2a5dec537a48f472cd Mon Sep 17 00:00:00 2001
+From: electrikjesus <electrikjesus@gmail.com>
+Date: Fri, 27 Nov 2026 10:45:06 +0100
+Subject: [PATCH] Shell: Focus-split freeform Glass alpha and merge user
+ blocklist.
+
+Read window_alpha vs window_alpha_unfocused for focused/background leashes, and keep
+packages in window_alpha_blocklist (plus builtins) opaque so browsers can stay solid.
+---
+ .../windowdecor/DefaultWindowDecoration.kt    |  2 +-
+ .../DesktopModeWindowDecoration.java          |  2 +-
+ .../shell/windowdecor/RetroUiWindowStyle.java | 92 +++++++++++++++----
+ 3 files changed, 76 insertions(+), 20 deletions(-)
+
+diff --git a/libs/WindowManager/Shell/src/com/android/wm/shell/windowdecor/DefaultWindowDecoration.kt b/libs/WindowManager/Shell/src/com/android/wm/shell/windowdecor/DefaultWindowDecoration.kt
+index 4ebbca0b70a5..11668d52dca3 100644
+--- a/libs/WindowManager/Shell/src/com/android/wm/shell/windowdecor/DefaultWindowDecoration.kt
++++ b/libs/WindowManager/Shell/src/com/android/wm/shell/windowdecor/DefaultWindowDecoration.kt
+@@ -492,7 +492,7 @@ constructor(
+         }
+         if (
+             RetroUiWindowStyle.shouldSkipBlackTaskFill(context) &&
+-                !RetroUiWindowStyle.isAlphaDenied(pkg)
++                !RetroUiWindowStyle.isAlphaDenied(context, pkg)
+         ) {
+             val clear = surfaceControlTransactionSupplier.invoke()
+             clear.unsetColor(taskSurface)
+diff --git a/libs/WindowManager/Shell/src/com/android/wm/shell/windowdecor/DesktopModeWindowDecoration.java b/libs/WindowManager/Shell/src/com/android/wm/shell/windowdecor/DesktopModeWindowDecoration.java
+index f15bc5f17bd6..e668843bf1d6 100644
+--- a/libs/WindowManager/Shell/src/com/android/wm/shell/windowdecor/DesktopModeWindowDecoration.java
++++ b/libs/WindowManager/Shell/src/com/android/wm/shell/windowdecor/DesktopModeWindowDecoration.java
+@@ -688,7 +688,7 @@ public class DesktopModeWindowDecoration extends WindowDecoration<WindowDecorLin
+                     finishT, mContext, taskSurface, pkg, hasGlobalFocus);
+         }
+         if (RetroUiWindowStyle.shouldSkipBlackTaskFill(mContext)
+-                && !RetroUiWindowStyle.isAlphaDenied(pkg)) {
++                && !RetroUiWindowStyle.isAlphaDenied(mContext, pkg)) {
+             final SurfaceControl.Transaction clear = mSurfaceControlTransactionSupplier.get();
+             clear.unsetColor(taskSurface);
+             clear.apply();
+diff --git a/libs/WindowManager/Shell/src/com/android/wm/shell/windowdecor/RetroUiWindowStyle.java b/libs/WindowManager/Shell/src/com/android/wm/shell/windowdecor/RetroUiWindowStyle.java
+index e5714e90df3d..ff2597bedb07 100644
+--- a/libs/WindowManager/Shell/src/com/android/wm/shell/windowdecor/RetroUiWindowStyle.java
++++ b/libs/WindowManager/Shell/src/com/android/wm/shell/windowdecor/RetroUiWindowStyle.java
+@@ -19,6 +19,7 @@ import androidx.annotation.Nullable;
+ 
+ import java.util.Collections;
+ import java.util.HashMap;
++import java.util.HashSet;
+ import java.util.Map;
+ import java.util.Set;
+ 
+@@ -40,10 +41,10 @@ public final class RetroUiWindowStyle {
+     private static final float DEFAULT_ALPHA_WITH_BLUR = 230f / 255f;
+ 
+     /**
+-     * Packages that keep stock opaque freeform leashes (games/camera/media). Settings and most
+-     * system apps stay eligible so Glass can be validated.
++     * Packages that always keep stock opaque freeform leashes (camera/media/launcher). User
++     * blocklist from UI Style is merged on top via {@code window_alpha_blocklist}.
+      */
+-    private static final Set<String> ALPHA_DENYLIST = Set.of(
++    private static final Set<String> BUILTIN_ALPHA_BLOCKLIST = Set.of(
+             "com.android.camera2",
+             "com.android.camera",
+             "org.lineageos.aperture",
+@@ -83,10 +84,29 @@ public final class RetroUiWindowStyle {
+     }
+ 
+     /**
+-     * Window alpha 0–1 for the freeform task leash, or -1 when unset (leave stock).
++     * Focused freeform leash alpha 0–1, or -1 when unset (leave stock / use blur default).
+      */
+-    static float windowAlpha(Context context) {
+-        String raw = values(context).get("window_alpha");
++    static float windowAlphaFocused(Context context) {
++        return parseAlphaToken(values(context).get("window_alpha"));
++    }
++
++    /**
++     * Unfocused freeform leash alpha 0–1. Falls back to focused alpha when unset so existing
++     * Glass packs keep one value for both until the user sets a background opacity.
++     */
++    static float windowAlphaUnfocused(Context context) {
++        float unfocused = parseAlphaToken(values(context).get("window_alpha_unfocused"));
++        if (unfocused >= 0f) {
++            return unfocused;
++        }
++        return windowAlphaFocused(context);
++    }
++
++    static float windowAlpha(Context context, boolean hasGlobalFocus) {
++        return hasGlobalFocus ? windowAlphaFocused(context) : windowAlphaUnfocused(context);
++    }
++
++    private static float parseAlphaToken(@Nullable String raw) {
+         if (raw == null || raw.isEmpty()) {
+             return -1f;
+         }
+@@ -107,7 +127,9 @@ public final class RetroUiWindowStyle {
+ 
+     /** True when UI Style / Glass asked for freeform leash translucency or blur. */
+     public static boolean isGlassEnabled(Context context) {
+-        return windowAlpha(context) >= 0f || blurRadiusPx(context) > 0;
++        return windowAlphaFocused(context) >= 0f
++                || windowAlphaUnfocused(context) >= 0f
++                || blurRadiusPx(context) > 0;
+     }
+ 
+     /**
+@@ -118,8 +140,35 @@ public final class RetroUiWindowStyle {
+         return isGlassEnabled(context);
+     }
+ 
++    /** Built-in + user {@code window_alpha_blocklist} packages that stay opaque. */
++    public static boolean isAlphaDenied(Context context, @Nullable String packageName) {
++        if (packageName == null) {
++            return false;
++        }
++        if (BUILTIN_ALPHA_BLOCKLIST.contains(packageName)) {
++            return true;
++        }
++        return userBlocklist(context).contains(packageName);
++    }
++
++    /** @deprecated use {@link #isAlphaDenied(Context, String)} */
+     public static boolean isAlphaDenied(@Nullable String packageName) {
+-        return packageName != null && ALPHA_DENYLIST.contains(packageName);
++        return packageName != null && BUILTIN_ALPHA_BLOCKLIST.contains(packageName);
++    }
++
++    private static Set<String> userBlocklist(Context context) {
++        String raw = values(context).get("window_alpha_blocklist");
++        if (raw == null || raw.isEmpty() || "none".equals(raw)) {
++            return Collections.emptySet();
++        }
++        Set<String> out = new HashSet<>();
++        for (String part : raw.split(",")) {
++            String pkg = part.trim();
++            if (!pkg.isEmpty()) {
++                out.add(pkg);
++            }
++        }
++        return out;
+     }
+ 
+     @Nullable
+@@ -144,14 +193,15 @@ public final class RetroUiWindowStyle {
+ 
+     /**
+      * Alpha to write into transition finish transactions instead of hard {@code 1f}, or
+-     * {@code 1f} when glass is off / package denied.
++     * {@code 1f} when glass is off / package blocked.
+      */
+-    public static float finishAlpha(Context context, @Nullable String packageName) {
+-        if (isAlphaDenied(packageName)) {
++    public static float finishAlpha(
++            Context context, @Nullable String packageName, boolean hasGlobalFocus) {
++        if (isAlphaDenied(context, packageName)) {
+             return 1f;
+         }
+-        float alpha = windowAlpha(context);
+-        int blurPx = blurRadiusPx(context);
++        float alpha = windowAlpha(context, hasGlobalFocus);
++        int blurPx = hasGlobalFocus ? blurRadiusPx(context) : 0;
+         if (alpha < 0f && blurPx > 0) {
+             alpha = DEFAULT_ALPHA_WITH_BLUR;
+         }
+@@ -161,12 +211,17 @@ public final class RetroUiWindowStyle {
+         return Math.min(1f, Math.max(0f, alpha));
+     }
+ 
++    /** Convenience: finish alpha assuming the task will be focused. */
++    public static float finishAlpha(Context context, @Nullable String packageName) {
++        return finishAlpha(context, packageName, /* hasGlobalFocus= */ true);
++    }
++
+     /**
+      * Applies RetroStyle window blur/alpha to a freeform task leash.
+      *
+-     * <p>Blur is focus-gated (GPU cost). Alpha applies whenever set (and package is not
+-     * denylisted) so focus transitions do not snap windows opaque. When blur is on and alpha
+-     * is unset, a mild default alpha is used so opaque app buffers do not cover the blur.
++     * <p>Blur is focus-gated (GPU cost). Alpha uses focused vs unfocused tokens; blocked
++     * packages stay opaque. When blur is on and focused alpha is unset, a mild default alpha
++     * is used so opaque app buffers do not cover the blur.
+      *
+      * @param t transaction to mutate (caller applies, or pass a finishT so glass survives
+      *     transition end)
+@@ -186,10 +241,11 @@ public final class RetroUiWindowStyle {
+         t.setBackgroundBlurRadius(taskSurface, blurPx);
+         wrote = true;
+ 
+-        if (isAlphaDenied(packageName)) {
++        if (isAlphaDenied(context, packageName)) {
++            t.setAlpha(taskSurface, 1f);
+             return wrote;
+         }
+-        float alpha = windowAlpha(context);
++        float alpha = windowAlpha(context, hasGlobalFocus);
+         if (alpha < 0f && blurPx > 0) {
+             alpha = DEFAULT_ALPHA_WITH_BLUR;
+         }
+-- 
+2.53.0
+

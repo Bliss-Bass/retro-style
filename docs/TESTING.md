@@ -36,10 +36,12 @@ From quickest to most thorough.
      opacity / blur sliders to match Glass; Apply; confirm the same look without switching packs.
    - Tap **Use style default** under dialogs / freeform (or set shade color back to Style
      default) and confirm the pack's defaults return.
-   - Drag **System dialogs** and **Freeform windows** opacity/blur sliders; open a SystemUI
-     bottom sheet and a freeform app; blur/alpha follow the choice when cross-window blur is
-     still allowed (not battery saver). Freeform glass should stay translucent after focus /
-     drag (Shell re-applies leash alpha on transition finish).
+   - Drag **System dialogs** and **Freeform windows** focused / background opacity and blur;
+     open a SystemUI bottom sheet and two freeform apps. Focused blur+alpha and background
+     opacity follow the sliders when cross-window blur is still allowed (not battery saver).
+     Freeform glass should stay translucent after focus / drag (Shell re-applies leash alpha
+     on transition finish). Add Chrome (or Jelly) to **Keep opaque** and confirm that app
+     stays solid while others stay glass.
    - SmartDock: enable **Panel Blur** and confirm the notification panel blurs like Apps / QS.
 8. **Preview**: system-bar card shows drag handles on Nav/Apps, Material 3-style back/home/
    recents on non-KitKat packs, and rounded cards.

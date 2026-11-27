@@ -95,7 +95,14 @@
             { "type": "integer", "minimum": 0, "maximum": 255 },
             { "$ref": "#/$defs/argb" }
           ],
-          "description": "Default freeform / DeviceDefault window alpha or #AARRGGBB."
+          "description": "Default focused freeform leash alpha or #AARRGGBB."
+        },
+        "window_alpha_unfocused": {
+          "oneOf": [
+            { "type": "integer", "minimum": 0, "maximum": 255 },
+            { "$ref": "#/$defs/argb" }
+          ],
+          "description": "Default unfocused freeform leash alpha; omit to follow window_alpha."
         },
         "window_blur_radius": { "type": "integer", "minimum": 0, "maximum": 100, "description": "Default freeform window blur radius in dp." },
         "accent": { "$ref": "#/$defs/argb", "description": "Clock and tile highlight of the kitkat skin." },

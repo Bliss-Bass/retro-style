@@ -113,8 +113,12 @@ object StyleApplier {
                 "dialog_blur_radius" to
                     StyleSettings.dialogBlurRadius(cr)?.toString().orEmpty(),
                 "window_alpha" to alphaOrColorToken(StyleSettings.windowAlpha(cr)),
+                "window_alpha_unfocused" to
+                    alphaOrColorToken(StyleSettings.windowAlphaUnfocused(cr)),
                 "window_blur_radius" to
                     StyleSettings.windowBlurRadius(cr)?.toString().orEmpty(),
+                "window_alpha_blocklist" to
+                    StyleSettings.windowAlphaBlocklist(cr).joinToString(",").ifEmpty { "none" },
                 "accent" to pack.accent?.let(::hex).orEmpty(),
             )
         val previous = parse(Settings.Secure.getString(cr, APPLIED_SETTING))

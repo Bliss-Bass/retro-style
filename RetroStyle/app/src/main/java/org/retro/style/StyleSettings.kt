@@ -41,9 +41,34 @@ object StyleSettings {
     const val KEY_DIALOG_ALPHA = "retro_ui_dialog_alpha"
     const val KEY_DIALOG_BLUR_RADIUS = "retro_ui_dialog_blur_radius"
     const val KEY_WINDOW_ALPHA = "retro_ui_window_alpha"
+    /** Unfocused freeform leash alpha; unset follows [KEY_WINDOW_ALPHA]. */
+    const val KEY_WINDOW_ALPHA_UNFOCUSED = "retro_ui_window_alpha_unfocused"
     const val KEY_WINDOW_BLUR_RADIUS = "retro_ui_window_blur_radius"
+    /**
+     * Comma-separated packages that stay opaque in freeform (user blocklist). Merged with the
+     * Shell built-in camera/media blocklist. Empty / `none` clears the user list.
+     */
+    const val KEY_WINDOW_ALPHA_BLOCKLIST = "retro_ui_window_alpha_blocklist"
 
     const val DEFAULT_BLUR_RADIUS = 25
+
+    /**
+     * Common packages offered in UI Style for the freeform glass blocklist (browsers stay solid
+     * when focused). Only checked entries are written; the Shell still hard-blocks camera/media.
+     */
+    val WINDOW_ALPHA_BLOCKLIST_PRESETS =
+        listOf(
+            "com.android.chrome",
+            "com.chrome.browser",
+            "org.lineageos.jelly",
+            "com.android.browser",
+            "org.mozilla.firefox",
+            "com.brave.browser",
+            "com.microsoft.emmx",
+            "com.opera.browser",
+            "com.android.documentsui",
+            "com.google.android.apps.docs",
+        )
 
     /** System bar background on the home screen; stock leaves it to the launcher. */
     const val BAR_BG_STOCK = "stock"
@@ -219,9 +244,22 @@ object StyleSettings {
     fun windowAlpha(cr: ContentResolver): Int? =
         parseAlphaOrColor(get(cr, KEY_WINDOW_ALPHA)) ?: pack(cr).windowAlpha
 
+    /** Unfocused freeform alpha: explicit override, else same as focused [windowAlpha]. */
+    fun windowAlphaUnfocused(cr: ContentResolver): Int? =
+        parseAlphaOrColor(get(cr, KEY_WINDOW_ALPHA_UNFOCUSED))
+            ?: pack(cr).windowAlphaUnfocused
+            ?: windowAlpha(cr)
+
     fun windowBlurRadius(cr: ContentResolver): Int? =
         get(cr, KEY_WINDOW_BLUR_RADIUS)?.toIntOrNull()?.takeIf { it >= 0 }
             ?: pack(cr).windowBlurRadius
+
+    /** User freeform glass blocklist packages (no built-ins). */
+    fun windowAlphaBlocklist(cr: ContentResolver): List<String> {
+        val raw = get(cr, KEY_WINDOW_ALPHA_BLOCKLIST) ?: return emptyList()
+        if (raw == "none") return emptyList()
+        return raw.split(',').map { it.trim() }.filter { it.isNotEmpty() }.distinct()
+    }
 
     private fun parseColor(value: String?): Int? =
         value?.takeIf { it.startsWith("#") }?.let {

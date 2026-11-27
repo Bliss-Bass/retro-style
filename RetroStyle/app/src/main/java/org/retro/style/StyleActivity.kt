@@ -238,9 +238,13 @@ class StyleActivity : AppCompatActivity() {
         }
         findViewById<MaterialButton>(R.id.window_use_pack).setOnClickListener {
             draft.windowAlpha = null
+            draft.windowAlphaUnfocused = null
             draft.windowBlurRadius = null
             bindTransparencySliders()
             updateDirtyState()
+        }
+        findViewById<MaterialButton>(R.id.window_blocklist).setOnClickListener {
+            showWindowBlocklistDialog()
         }
 
         wireSlider(R.id.shade_opacity_slider) { percent ->
@@ -272,6 +276,14 @@ class StyleActivity : AppCompatActivity() {
         }
         wireSlider(R.id.window_opacity_slider) { percent ->
             draft.windowAlpha = ((percent.coerceIn(0f, 100f) / 100f) * 255f).toInt()
+            updateDirtyState()
+        }
+        wireSlider(R.id.window_opacity_unfocused_slider) { percent ->
+            draft.windowAlphaUnfocused =
+                ((percent.coerceIn(0f, 100f) / 100f) * 255f).toInt()
+            if (draft.windowAlpha == null) {
+                draft.windowAlpha = effectiveWindowAlpha()
+            }
             updateDirtyState()
         }
         wireSlider(R.id.window_blur_slider) { radius ->
@@ -361,11 +373,14 @@ class StyleActivity : AppCompatActivity() {
 
         findViewById<Slider>(R.id.window_opacity_slider).value =
             alphaToPercent(effectiveWindowAlpha())
+        findViewById<Slider>(R.id.window_opacity_unfocused_slider).value =
+            alphaToPercent(effectiveWindowAlphaUnfocused())
         findViewById<Slider>(R.id.window_blur_slider).value =
             (draft.windowBlurRadius ?: draft.pack().windowBlurRadius ?: 0)
                 .coerceIn(0, 40)
                 .toFloat()
 
+        bindWindowBlocklistButton()
         updateSliderLabels()
         syncingUi = wasSyncing
     }
@@ -385,8 +400,16 @@ class StyleActivity : AppCompatActivity() {
             draft.dialogBlurRadius == null,
         )
 
-        val windowPack = draft.windowAlpha == null && draft.windowBlurRadius == null
+        val windowPack =
+            draft.windowAlpha == null &&
+                draft.windowAlphaUnfocused == null &&
+                draft.windowBlurRadius == null
         setPercentLabel(R.id.window_opacity_value, R.id.window_opacity_slider, windowPack)
+        setPercentLabel(
+            R.id.window_opacity_unfocused_value,
+            R.id.window_opacity_unfocused_slider,
+            draft.windowAlphaUnfocused == null,
+        )
         setDpLabel(
             R.id.window_blur_value,
             R.id.window_blur_slider,
@@ -582,6 +605,52 @@ class StyleActivity : AppCompatActivity() {
             .show()
     }
 
+    private fun showWindowBlocklistDialog() {
+        val keys = StyleSettings.WINDOW_ALPHA_BLOCKLIST_PRESETS.toTypedArray()
+        val labels = keys.map { windowBlocklistLabel(it) }.toTypedArray()
+        val checked = BooleanArray(keys.size) { keys[it] in draft.windowAlphaBlocklist }
+        AlertDialog.Builder(this)
+            .setTitle(R.string.section_window_blocklist)
+            .setMultiChoiceItems(labels, checked) { _, which, isChecked ->
+                checked[which] = isChecked
+            }
+            .setPositiveButton(android.R.string.ok) { _, _ ->
+                draft.windowAlphaBlocklist = keys.filterIndexed { i, _ -> checked[i] }
+                bindWindowBlocklistButton()
+                updateDirtyState()
+            }
+            .setNegativeButton(android.R.string.cancel, null)
+            .show()
+    }
+
+    private fun bindWindowBlocklistButton() {
+        findViewById<MaterialButton>(R.id.window_blocklist).text = windowBlocklistSummary()
+    }
+
+    private fun windowBlocklistSummary(): String {
+        val n = draft.windowAlphaBlocklist.size
+        return if (n == 0) getString(R.string.window_blocklist_none)
+        else getString(R.string.window_blocklist_count, n)
+    }
+
+    private fun windowBlocklistLabel(pkg: String): String {
+        val name =
+            when (pkg) {
+                "com.android.chrome" -> getString(R.string.blocklist_chrome)
+                "com.chrome.browser" -> getString(R.string.blocklist_chrome_browser)
+                "org.lineageos.jelly" -> getString(R.string.blocklist_jelly)
+                "com.android.browser" -> getString(R.string.blocklist_browser)
+                "org.mozilla.firefox" -> getString(R.string.blocklist_firefox)
+                "com.brave.browser" -> getString(R.string.blocklist_brave)
+                "com.microsoft.emmx" -> getString(R.string.blocklist_edge)
+                "com.opera.browser" -> getString(R.string.blocklist_opera)
+                "com.android.documentsui" -> getString(R.string.blocklist_files)
+                "com.google.android.apps.docs" -> getString(R.string.blocklist_drive)
+                else -> pkg
+            }
+        return "$name\n$pkg"
+    }
+
     private fun barBackgroundLabel(): String =
         when (draft.barBackground) {
             "solid" -> getString(R.string.bar_background_solid)
@@ -639,6 +708,11 @@ class StyleActivity : AppCompatActivity() {
 
     private fun effectiveWindowAlpha(): Int =
         draft.windowAlpha ?: draft.pack().windowAlpha ?: 255
+
+    private fun effectiveWindowAlphaUnfocused(): Int =
+        draft.windowAlphaUnfocused
+            ?: draft.pack().windowAlphaUnfocused
+            ?: effectiveWindowAlpha()
 
     private fun alphaToPercent(alpha: Int): Float =
         ((alpha.coerceIn(0, 255) / 255f) * 100f).toInt().toFloat()
