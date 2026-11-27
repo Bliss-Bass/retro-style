@@ -1,0 +1,29 @@
+From 0b1fc2e0aa01ea0e61afdae1eaccb375cb224e73 Mon Sep 17 00:00:00 2001
+From: electrikjesus <electrikjesus@gmail.com>
+Date: Fri, 27 Nov 2026 13:42:40 +0100
+Subject: [PATCH] Shell: Keep DefaultWindowDecoration context for Glass leash
+ helpers.
+
+Bare context is a Kotlin keyword and was not a property, so kotlinc failed
+on applyToTaskLeash / shouldSkipBlackTaskFill call sites from the Glass wire-up.
+---
+ .../android/wm/shell/windowdecor/DefaultWindowDecoration.kt    | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/libs/WindowManager/Shell/src/com/android/wm/shell/windowdecor/DefaultWindowDecoration.kt b/libs/WindowManager/Shell/src/com/android/wm/shell/windowdecor/DefaultWindowDecoration.kt
+index 11668d52dca3..6f14a8343f79 100644
+--- a/libs/WindowManager/Shell/src/com/android/wm/shell/windowdecor/DefaultWindowDecoration.kt
++++ b/libs/WindowManager/Shell/src/com/android/wm/shell/windowdecor/DefaultWindowDecoration.kt
+@@ -116,7 +116,8 @@ class DefaultWindowDecoration
+ constructor(
+     taskInfo: RunningTaskInfo,
+     taskSurface: SurfaceControl,
+-    context: Context,
++    // Stored: Glass leash helpers need a Context; bare `context` is a Kotlin keyword here.
++    private val context: Context,
+     private val userContext: Context,
+     private val displayController: DisplayController,
+     private val taskResourceLoader: WindowDecorTaskResourceLoader,
+-- 
+2.53.0
+
