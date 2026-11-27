@@ -1,0 +1,159 @@
+From 14f546a9856797a4dafc8b73d5035bbd77c1707c Mon Sep 17 00:00:00 2001
+From: electrikjesus <electrikjesus@gmail.com>
+Date: Fri, 27 Nov 2026 10:33:55 +0100
+Subject: [PATCH] Shell: Keep freeform Glass alpha across focus and refactored
+ decors.
+
+Re-apply leash glass after focus/finish (posted + delayed), wire DefaultWindowDecoration the same as DesktopMode, and fix wrapper reapply to hit the active decoration type.
+---
+ .../FreeformTaskTransitionObserver.java       |  7 ++-
+ .../windowdecor/DefaultWindowDecoration.kt    | 52 ++++++++++++++++++-
+ .../DesktopModeWindowDecorViewModel.java      | 10 ++++
+ .../windowdecor/WindowDecorationWrapper.kt    |  1 +
+ 4 files changed, 68 insertions(+), 2 deletions(-)
+
+diff --git a/libs/WindowManager/Shell/src/com/android/wm/shell/freeform/FreeformTaskTransitionObserver.java b/libs/WindowManager/Shell/src/com/android/wm/shell/freeform/FreeformTaskTransitionObserver.java
+index a0db1e3b6633..8f90c16c98a6 100644
+--- a/libs/WindowManager/Shell/src/com/android/wm/shell/freeform/FreeformTaskTransitionObserver.java
++++ b/libs/WindowManager/Shell/src/com/android/wm/shell/freeform/FreeformTaskTransitionObserver.java
+@@ -38,6 +38,7 @@ import com.android.wm.shell.desktopmode.multidesks.DesksOrganizer;
+ import com.android.wm.shell.shared.desktopmode.DesktopState;
+ import com.android.wm.shell.sysui.ShellInit;
+ import com.android.wm.shell.transition.Transitions;
++import com.android.wm.shell.windowdecor.DesktopModeWindowDecorViewModel;
+ import com.android.wm.shell.windowdecor.WindowDecorViewModel;
+ 
+ import java.util.ArrayList;
+@@ -293,7 +294,11 @@ public class FreeformTaskTransitionObserver implements Transitions.TransitionObs
+         // WM Transition.buildFinishTransaction sets leash alpha to 1; re-assert Glass after
+         // finish so freeform translucency/blur survive open/focus/drag transitions.
+         if (!aborted) {
+-            mWindowDecorViewModel.reapplyRetroUiWindowEffects();
++            if (mWindowDecorViewModel instanceof DesktopModeWindowDecorViewModel desktop) {
++                desktop.scheduleRetroUiWindowEffectsReapply();
++            } else {
++                mWindowDecorViewModel.reapplyRetroUiWindowEffects();
++            }
+         }
+     }
+ }
+diff --git a/libs/WindowManager/Shell/src/com/android/wm/shell/windowdecor/DefaultWindowDecoration.kt b/libs/WindowManager/Shell/src/com/android/wm/shell/windowdecor/DefaultWindowDecoration.kt
+index 2233fc581a63..4ebbca0b70a5 100644
+--- a/libs/WindowManager/Shell/src/com/android/wm/shell/windowdecor/DefaultWindowDecoration.kt
++++ b/libs/WindowManager/Shell/src/com/android/wm/shell/windowdecor/DefaultWindowDecoration.kt
+@@ -420,6 +420,14 @@ constructor(
+                 (diff and (CONFIG_UI_MODE or CONFIG_LOCALE or CONFIG_FONT_SCALE)) != 0
+             relayout(relayoutParams, startT, finishT, wct, taskSurface)
+ 
++            // Glass / UI Style freeform window blur+alpha. Apply now and into finishT so
++            // Transition.buildFinishTransaction's setAlpha(1) does not leave windows opaque.
++            applyRetroUiWindowEffects(
++                taskSurface ?: this.taskSurface,
++                hasGlobalFocus,
++                finishT,
++            )
++
+             // After this line, [WindowDecoration2.taskInfo] is up-to-date and should be
+             // used instead of the taskInfo passed to the relayout method.
+             if (!wct.isEmpty) {
+@@ -454,6 +462,45 @@ constructor(
+             updateOpenByDefaultFirstRunPromptIfNeeded(configChanged, taskInfo)
+         }
+ 
++    /** Re-applies Glass leash effects after a hostile transition finish reset alpha to 1. */
++    fun reapplyRetroUiWindowEffects() {
++        applyRetroUiWindowEffects(taskSurface, hasGlobalFocus, finishT = null)
++    }
++
++    private fun applyRetroUiWindowEffects(
++        taskSurface: SurfaceControl?,
++        hasGlobalFocus: Boolean,
++        finishT: SurfaceControl.Transaction?,
++    ) {
++        if (taskSurface == null || !taskSurface.isValid) return
++        val pkg = RetroUiWindowStyle.packageName(taskInfo)
++        RetroUiWindowStyle.applyToTaskLeashNow(
++            context,
++            taskSurface,
++            pkg,
++            hasGlobalFocus,
++            surfaceControlTransactionSupplier.invoke(),
++        )
++        if (finishT != null) {
++            RetroUiWindowStyle.applyToTaskLeash(
++                finishT,
++                context,
++                taskSurface,
++                pkg,
++                hasGlobalFocus,
++            )
++        }
++        if (
++            RetroUiWindowStyle.shouldSkipBlackTaskFill(context) &&
++                !RetroUiWindowStyle.isAlphaDenied(pkg)
++        ) {
++            val clear = surfaceControlTransactionSupplier.invoke()
++            clear.unsetColor(taskSurface)
++            clear.apply()
++            finishT?.unsetColor(taskSurface)
++        }
++    }
++
+     /**
+      * Returns `true` if the task is in desktop windowing mode and is currently in fullscreen.
+      *
+@@ -582,7 +629,10 @@ constructor(
+         // Set opaque background for all freeform tasks to prevent freeform tasks below
+         // from being visible if freeform task window above is translucent.
+         // Otherwise if fluid resize is enabled, add a background to freeform tasks.
+-        val shouldSetBackground = desktopConfig.shouldSetBackground(taskInfo)
++        // Skip solid black freeform fill when Glass leash translucency/blur is on.
++        val shouldSetBackground =
++            desktopConfig.shouldSetBackground(taskInfo) &&
++                !RetroUiWindowStyle.shouldSkipBlackTaskFill(context)
+ 
+         val isCaptionVisible =
+             if (DesktopExperienceFlags.ENABLE_ADD_WINDOW_DECORATION_TO_ALL_TASKS.isTrue) {
+diff --git a/libs/WindowManager/Shell/src/com/android/wm/shell/windowdecor/DesktopModeWindowDecorViewModel.java b/libs/WindowManager/Shell/src/com/android/wm/shell/windowdecor/DesktopModeWindowDecorViewModel.java
+index 30c680239e6e..5ff26dac9e00 100644
+--- a/libs/WindowManager/Shell/src/com/android/wm/shell/windowdecor/DesktopModeWindowDecorViewModel.java
++++ b/libs/WindowManager/Shell/src/com/android/wm/shell/windowdecor/DesktopModeWindowDecorViewModel.java
+@@ -622,6 +622,10 @@ public class DesktopModeWindowDecorViewModel implements WindowDecorViewModel,
+         if (decor != null) {
+             decor.relayout(decor.getTaskInfo(), isFocusedGlobally, decor.getExclusionRegion());
+         }
++        // Focus transitions finish with Transition.buildFinishTransaction setAlpha(1). Relayout
++        // may race that finishT; re-assert Glass after the current frame (and once more shortly
++        // after) so freeform translucency survives focus changes.
++        scheduleRetroUiWindowEffectsReapply();
+     }
+ 
+     @Override
+@@ -721,6 +725,12 @@ public class DesktopModeWindowDecorViewModel implements WindowDecorViewModel,
+         forAllWindowDecorations(WindowDecorationWrapper::reapplyRetroUiWindowEffects);
+     }
+ 
++    /** Post Glass re-apply so it wins over transition finishT setAlpha(1). */
++    public void scheduleRetroUiWindowEffectsReapply() {
++        mMainHandler.post(this::reapplyRetroUiWindowEffects);
++        mMainHandler.postDelayed(this::reapplyRetroUiWindowEffects, /* delayMillis= */ 48);
++    }
++
+     private void forAllWindowDecorations(Consumer<WindowDecorationWrapper> callback) {
+         forAllWindowDecorations(callback, /* reverseOrder= */ false);
+     }
+diff --git a/libs/WindowManager/Shell/src/com/android/wm/shell/windowdecor/WindowDecorationWrapper.kt b/libs/WindowManager/Shell/src/com/android/wm/shell/windowdecor/WindowDecorationWrapper.kt
+index 09b826ae0617..b5696c67c689 100644
+--- a/libs/WindowManager/Shell/src/com/android/wm/shell/windowdecor/WindowDecorationWrapper.kt
++++ b/libs/WindowManager/Shell/src/com/android/wm/shell/windowdecor/WindowDecorationWrapper.kt
+@@ -73,6 +73,7 @@ private constructor(
+     /** Re-applies RetroStyle freeform leash glass after transition finish. */
+     fun reapplyRetroUiWindowEffects() {
+         desktopWindowDecor?.reapplyRetroUiWindowEffects()
++        defaultWindowDecor?.reapplyRetroUiWindowEffects()
+     }
+ 
+     /** Returns the [SurfaceControl] of the task associated with the window decor. */
+-- 
+2.53.0
+
