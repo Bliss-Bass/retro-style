@@ -1,0 +1,27 @@
+From abd5dbca07147e5e62ec3a7c816cbe286966cc1e Mon Sep 17 00:00:00 2001
+From: electrikjesus <electrikjesus@gmail.com>
+Date: Fri, 27 Nov 2026 20:20:36 +0100
+Subject: [PATCH] Shell: Call RunningTaskInfo.isFreeform() for Glass blur
+ underlay.
+
+Java has no isFreeform field; javac failed on the underlay freeform guard.
+---
+ .../wm/shell/windowdecor/DesktopModeWindowDecoration.java       | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/libs/WindowManager/Shell/src/com/android/wm/shell/windowdecor/DesktopModeWindowDecoration.java b/libs/WindowManager/Shell/src/com/android/wm/shell/windowdecor/DesktopModeWindowDecoration.java
+index fee698ffab0c..ea73343d1663 100644
+--- a/libs/WindowManager/Shell/src/com/android/wm/shell/windowdecor/DesktopModeWindowDecoration.java
++++ b/libs/WindowManager/Shell/src/com/android/wm/shell/windowdecor/DesktopModeWindowDecoration.java
+@@ -702,7 +702,7 @@ public class DesktopModeWindowDecoration extends WindowDecoration<WindowDecorLin
+ 
+     private void applyGlassBlurUnderlay(
+             SurfaceControl taskSurface, boolean hasGlobalFocus, @Nullable String pkg) {
+-        if (!mTaskInfo.isFreeform
++        if (!mTaskInfo.isFreeform()
+                 || RetroUiWindowStyle.isAlphaDenied(mContext, pkg)
+                 || !RetroUiWindowStyle.isGlassEnabled(mContext)) {
+             if (mGlassBlurUnderlay != null) {
+-- 
+2.53.0
+
