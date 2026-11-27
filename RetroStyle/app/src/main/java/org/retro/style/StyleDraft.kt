@@ -29,6 +29,7 @@ data class StyleDraft(
     var windowAlpha: Int? = null,
     var windowAlphaUnfocused: Int? = null,
     var windowBlurRadius: Int? = null,
+    var windowBlurRadiusUnfocused: Int? = null,
     /** Packages that stay opaque in freeform (user blocklist). */
     var windowAlphaBlocklist: List<String> = emptyList(),
 ) {
@@ -73,6 +74,7 @@ data class StyleDraft(
             windowAlpha == other.windowAlpha &&
             windowAlphaUnfocused == other.windowAlphaUnfocused &&
             windowBlurRadius == other.windowBlurRadius &&
+            windowBlurRadiusUnfocused == other.windowBlurRadiusUnfocused &&
             windowAlphaBlocklist == other.windowAlphaBlocklist
 
     fun commit(cr: ContentResolver) {
@@ -132,6 +134,11 @@ data class StyleDraft(
             cr,
             StyleSettings.KEY_WINDOW_BLUR_RADIUS,
             windowBlurRadius?.toString(),
+        )
+        StyleSettings.put(
+            cr,
+            StyleSettings.KEY_WINDOW_BLUR_RADIUS_UNFOCUSED,
+            windowBlurRadiusUnfocused?.toString(),
         )
         StyleSettings.put(
             cr,
@@ -203,6 +210,12 @@ data class StyleDraft(
                     android.provider.Settings.Secure.getString(
                             cr,
                             StyleSettings.KEY_WINDOW_BLUR_RADIUS,
+                        )
+                        ?.toIntOrNull(),
+                windowBlurRadiusUnfocused =
+                    android.provider.Settings.Secure.getString(
+                            cr,
+                            StyleSettings.KEY_WINDOW_BLUR_RADIUS_UNFOCUSED,
                         )
                         ?.toIntOrNull(),
                 windowAlphaBlocklist = StyleSettings.windowAlphaBlocklist(cr),

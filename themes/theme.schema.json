@@ -104,7 +104,8 @@
           ],
           "description": "Default unfocused freeform leash alpha; omit to follow window_alpha."
         },
-        "window_blur_radius": { "type": "integer", "minimum": 0, "maximum": 100, "description": "Default freeform window blur radius in dp." },
+        "window_blur_radius": { "type": "integer", "minimum": 0, "maximum": 100, "description": "Default focused freeform blur radius in dp." },
+        "window_blur_radius_unfocused": { "type": "integer", "minimum": 0, "maximum": 100, "description": "Default unfocused freeform blur radius in dp; omit to follow window_blur_radius." },
         "accent": { "$ref": "#/$defs/argb", "description": "Clock and tile highlight of the kitkat skin." },
         "bar": { "$ref": "#/$defs/argb", "description": "Taskbar and system bar background." },
         "layout": { "enum": ["stock", "system_bar"], "description": "Bottom bar the pack suggests as a build default." },

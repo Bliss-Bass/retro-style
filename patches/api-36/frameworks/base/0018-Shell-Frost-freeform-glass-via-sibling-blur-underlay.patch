@@ -1,0 +1,343 @@
+From 869ae9c691d3eea8278f55a7a96261fdd45d87c5 Mon Sep 17 00:00:00 2001
+From: electrikjesus <electrikjesus@gmail.com>
+Date: Fri, 27 Nov 2026 17:27:23 +0100
+Subject: [PATCH] Shell: Frost freeform glass via sibling blur underlay and BG
+ blur.
+
+Opaque app buffers cover leash backgroundBlurRadius; park a color-layer
+underlay under the task instead, and honor window_blur_radius_unfocused.
+---
+ .../windowdecor/DefaultWindowDecoration.kt    |  34 ++++++
+ .../DesktopModeWindowDecoration.java          |  32 ++++++
+ .../windowdecor/RetroUiGlassBlurUnderlay.java | 103 ++++++++++++++++++
+ .../shell/windowdecor/RetroUiWindowStyle.java |  51 +++++++--
+ 4 files changed, 211 insertions(+), 9 deletions(-)
+ create mode 100644 libs/WindowManager/Shell/src/com/android/wm/shell/windowdecor/RetroUiGlassBlurUnderlay.java
+
+diff --git a/libs/WindowManager/Shell/src/com/android/wm/shell/windowdecor/DefaultWindowDecoration.kt b/libs/WindowManager/Shell/src/com/android/wm/shell/windowdecor/DefaultWindowDecoration.kt
+index 6f14a8343f79..781b96561c5c 100644
+--- a/libs/WindowManager/Shell/src/com/android/wm/shell/windowdecor/DefaultWindowDecoration.kt
++++ b/libs/WindowManager/Shell/src/com/android/wm/shell/windowdecor/DefaultWindowDecoration.kt
+@@ -189,6 +189,7 @@ constructor(
+     private val taskPositionInParent = Point()
+     private var dragResizeListener: DragResizeInputListener? = null
+     private var resizeVeil: ResizeVeil? = null
++    private var glassBlurUnderlay: RetroUiGlassBlurUnderlay? = null
+     private var openByDefaultFirstRunPrompt: OpenByDefaultFirstRunPrompt? = null
+     private val isOpenByDefaultFirstRunPromptActive
+         get() = openByDefaultFirstRunPrompt != null
+@@ -500,6 +501,37 @@ constructor(
+             clear.apply()
+             finishT?.unsetColor(taskSurface)
+         }
++        applyGlassBlurUnderlay(taskSurface, hasGlobalFocus, pkg)
++    }
++
++    private fun applyGlassBlurUnderlay(
++        taskSurface: SurfaceControl,
++        hasGlobalFocus: Boolean,
++        pkg: String?,
++    ) {
++        if (
++            !taskInfo.isFreeform ||
++                RetroUiWindowStyle.isAlphaDenied(context, pkg) ||
++                !RetroUiWindowStyle.isGlassEnabled(context)
++        ) {
++            glassBlurUnderlay?.hide()
++            return
++        }
++        val underlay =
++            glassBlurUnderlay
++                ?: RetroUiGlassBlurUnderlay(
++                        taskInfo.taskId,
++                        surfaceControlBuilderSupplier,
++                        surfaceControlTransactionSupplier,
++                    )
++                    .also { glassBlurUnderlay = it }
++        val bounds = Rect(taskInfo.configuration.windowConfiguration.bounds)
++        underlay.apply(
++            taskSurface,
++            bounds,
++            RetroUiWindowStyle.blurRadiusPx(context, hasGlobalFocus),
++            /* cornerRadius= */ 0f,
++        )
+     }
+ 
+     /**
+@@ -1104,6 +1136,8 @@ constructor(
+         taskResourceLoader.onWindowDecorClosed(taskInfo)
+         closeDragResizeListener()
+         disposeResizeVeil()
++        glassBlurUnderlay?.release()
++        glassBlurUnderlay = null
+         exclusionRegionListener.onExclusionRegionDismissed(taskInfo.taskId)
+         super.close()
+     }
+diff --git a/libs/WindowManager/Shell/src/com/android/wm/shell/windowdecor/DesktopModeWindowDecoration.java b/libs/WindowManager/Shell/src/com/android/wm/shell/windowdecor/DesktopModeWindowDecoration.java
+index e668843bf1d6..fee698ffab0c 100644
+--- a/libs/WindowManager/Shell/src/com/android/wm/shell/windowdecor/DesktopModeWindowDecoration.java
++++ b/libs/WindowManager/Shell/src/com/android/wm/shell/windowdecor/DesktopModeWindowDecoration.java
+@@ -198,6 +198,7 @@ public class DesktopModeWindowDecoration extends WindowDecoration<WindowDecorLin
+     private OpenByDefaultDialog mOpenByDefaultDialog;
+ 
+     private ResizeVeil mResizeVeil;
++    @Nullable private RetroUiGlassBlurUnderlay mGlassBlurUnderlay;
+ 
+     private CapturedLink mCapturedLink;
+     private long mAppToWebEducationRequestTimestamp;
+@@ -696,6 +697,33 @@ public class DesktopModeWindowDecoration extends WindowDecoration<WindowDecorLin
+                 finishT.unsetColor(taskSurface);
+             }
+         }
++        applyGlassBlurUnderlay(taskSurface, hasGlobalFocus, pkg);
++    }
++
++    private void applyGlassBlurUnderlay(
++            SurfaceControl taskSurface, boolean hasGlobalFocus, @Nullable String pkg) {
++        if (!mTaskInfo.isFreeform
++                || RetroUiWindowStyle.isAlphaDenied(mContext, pkg)
++                || !RetroUiWindowStyle.isGlassEnabled(mContext)) {
++            if (mGlassBlurUnderlay != null) {
++                mGlassBlurUnderlay.hide();
++            }
++            return;
++        }
++        if (mGlassBlurUnderlay == null) {
++            mGlassBlurUnderlay =
++                    new RetroUiGlassBlurUnderlay(
++                            mTaskInfo.taskId,
++                            mSurfaceControlBuilderSupplier,
++                            mSurfaceControlTransactionSupplier);
++        }
++        final Rect bounds = new Rect(mTaskInfo.configuration.windowConfiguration.getBounds());
++        final float cornerRadius = mResult != null ? mResult.mCornerRadius : 0f;
++        mGlassBlurUnderlay.apply(
++                taskSurface,
++                bounds,
++                RetroUiWindowStyle.blurRadiusPx(mContext, hasGlobalFocus),
++                cornerRadius);
+     }
+ 
+     private boolean isCaptionVisible() {
+@@ -1972,6 +2000,10 @@ public class DesktopModeWindowDecoration extends WindowDecoration<WindowDecorLin
+         mExclusionRegionListener.onExclusionRegionDismissed(mTaskInfo.taskId);
+         disposeResizeVeil();
+         disposeStatusBarInputLayer();
++        if (mGlassBlurUnderlay != null) {
++            mGlassBlurUnderlay.release();
++            mGlassBlurUnderlay = null;
++        }
+         if (mWindowDecorViewHolder != null) {
+             mWindowDecorViewHolder.close();
+             mWindowDecorViewHolder = null;
+diff --git a/libs/WindowManager/Shell/src/com/android/wm/shell/windowdecor/RetroUiGlassBlurUnderlay.java b/libs/WindowManager/Shell/src/com/android/wm/shell/windowdecor/RetroUiGlassBlurUnderlay.java
+new file mode 100644
+index 000000000000..f3f89254c481
+--- /dev/null
++++ b/libs/WindowManager/Shell/src/com/android/wm/shell/windowdecor/RetroUiGlassBlurUnderlay.java
+@@ -0,0 +1,103 @@
++/*
++ * Copyright (C) 2026 Navotpala Tech (Bliss Co-Labs Inc.)
++ *
++ * SPDX-License-Identifier: AGPL-3.0-only OR LicenseRef-Navotpala-Commercial
++ * Part of retro-style (vendor/retro-style).
++ */
++
++package com.android.wm.shell.windowdecor;
++
++import android.graphics.Rect;
++import android.view.SurfaceControl;
++
++import androidx.annotation.Nullable;
++
++import java.util.function.Supplier;
++
++/**
++ * Sibling color layer parked just under a freeform task leash so {@code setBackgroundBlurRadius}
++ * can frost the wallpaper/windows behind it. Task leash alpha then composites the opaque app
++ * buffers over this underlay — leash-only blur is covered by those buffers and never shows.
++ */
++final class RetroUiGlassBlurUnderlay {
++    private final Supplier<SurfaceControl.Builder> mBuilderSupplier;
++    private final Supplier<SurfaceControl.Transaction> mTransactionSupplier;
++    private final int mTaskId;
++
++    @Nullable private SurfaceControl mUnderlay;
++
++    RetroUiGlassBlurUnderlay(
++            int taskId,
++            Supplier<SurfaceControl.Builder> builderSupplier,
++            Supplier<SurfaceControl.Transaction> transactionSupplier) {
++        mTaskId = taskId;
++        mBuilderSupplier = builderSupplier;
++        mTransactionSupplier = transactionSupplier;
++    }
++
++    /**
++     * Creates/updates the underlay to match {@code taskBounds} and {@code blurRadiusPx}. Pass
++     * {@code blurRadiusPx <= 0} to hide. {@code relativeToTask} is the freeform task leash.
++     */
++    void apply(
++            @Nullable SurfaceControl relativeToTask,
++            Rect taskBounds,
++            int blurRadiusPx,
++            float cornerRadius) {
++        if (relativeToTask == null || !relativeToTask.isValid() || taskBounds.isEmpty()) {
++            hide();
++            return;
++        }
++        if (blurRadiusPx <= 0) {
++            hide();
++            return;
++        }
++        ensureSurface();
++        if (mUnderlay == null || !mUnderlay.isValid()) {
++            return;
++        }
++        final SurfaceControl.Transaction t = mTransactionSupplier.get();
++        t.setRelativeLayer(mUnderlay, relativeToTask, /* z= */ -1);
++        t.setPosition(mUnderlay, taskBounds.left, taskBounds.top);
++        t.setWindowCrop(mUnderlay, taskBounds.width(), taskBounds.height());
++        t.setCornerRadius(mUnderlay, cornerRadius);
++        t.setBackgroundBlurRadius(mUnderlay, blurRadiusPx);
++        // Fully transparent fill: SF still draws background blur for effect layers.
++        t.setAlpha(mUnderlay, 1f);
++        t.show(mUnderlay);
++        t.apply();
++    }
++
++    void hide() {
++        if (mUnderlay == null || !mUnderlay.isValid()) {
++            return;
++        }
++        final SurfaceControl.Transaction t = mTransactionSupplier.get();
++        t.setBackgroundBlurRadius(mUnderlay, 0);
++        t.hide(mUnderlay);
++        t.apply();
++    }
++
++    void release() {
++        if (mUnderlay == null) {
++            return;
++        }
++        hide();
++        mUnderlay.release();
++        mUnderlay = null;
++    }
++
++    private void ensureSurface() {
++        if (mUnderlay != null && mUnderlay.isValid()) {
++            return;
++        }
++        mUnderlay =
++                mBuilderSupplier
++                        .get()
++                        .setName("Glass blur underlay of Task=" + mTaskId)
++                        .setColorLayer()
++                        .setHidden(true)
++                        .setCallsite("RetroUiGlassBlurUnderlay")
++                        .build();
++    }
++}
+diff --git a/libs/WindowManager/Shell/src/com/android/wm/shell/windowdecor/RetroUiWindowStyle.java b/libs/WindowManager/Shell/src/com/android/wm/shell/windowdecor/RetroUiWindowStyle.java
+index ff2597bedb07..762fbdfbbdda 100644
+--- a/libs/WindowManager/Shell/src/com/android/wm/shell/windowdecor/RetroUiWindowStyle.java
++++ b/libs/WindowManager/Shell/src/com/android/wm/shell/windowdecor/RetroUiWindowStyle.java
+@@ -65,8 +65,38 @@ public final class RetroUiWindowStyle {
+     }
+ 
+     /** Blur radius in px for the focused freeform task, or 0 when unset/off. */
++    static int blurRadiusPxFocused(Context context) {
++        return parseBlurDpToPx(values(context).get("window_blur_radius"), context);
++    }
++
++    /**
++     * Blur radius in px for unfocused freeform tasks. Falls back to focused blur when unset so
++     * a single slider still covers both until the user sets a background blur.
++     */
++    static int blurRadiusPxUnfocused(Context context) {
++        int unfocused =
++                parseBlurDpToPx(values(context).get("window_blur_radius_unfocused"), context);
++        if (unfocused > 0) {
++            return unfocused;
++        }
++        // Explicit 0 in applied map means off; missing key falls back to focused.
++        String raw = values(context).get("window_blur_radius_unfocused");
++        if (raw != null && !raw.isEmpty()) {
++            return 0;
++        }
++        return blurRadiusPxFocused(context);
++    }
++
++    static int blurRadiusPx(Context context, boolean hasGlobalFocus) {
++        return hasGlobalFocus ? blurRadiusPxFocused(context) : blurRadiusPxUnfocused(context);
++    }
++
++    /** @deprecated use {@link #blurRadiusPx(Context, boolean)} */
+     static int blurRadiusPx(Context context) {
+-        String raw = values(context).get("window_blur_radius");
++        return blurRadiusPxFocused(context);
++    }
++
++    private static int parseBlurDpToPx(@Nullable String raw, Context context) {
+         if (raw == null || raw.isEmpty()) {
+             return 0;
+         }
+@@ -129,7 +159,8 @@ public final class RetroUiWindowStyle {
+     public static boolean isGlassEnabled(Context context) {
+         return windowAlphaFocused(context) >= 0f
+                 || windowAlphaUnfocused(context) >= 0f
+-                || blurRadiusPx(context) > 0;
++                || blurRadiusPxFocused(context) > 0
++                || blurRadiusPxUnfocused(context) > 0;
+     }
+ 
+     /**
+@@ -201,7 +232,7 @@ public final class RetroUiWindowStyle {
+             return 1f;
+         }
+         float alpha = windowAlpha(context, hasGlobalFocus);
+-        int blurPx = hasGlobalFocus ? blurRadiusPx(context) : 0;
++        int blurPx = blurRadiusPx(context, hasGlobalFocus);
+         if (alpha < 0f && blurPx > 0) {
+             alpha = DEFAULT_ALPHA_WITH_BLUR;
+         }
+@@ -217,11 +248,12 @@ public final class RetroUiWindowStyle {
+     }
+ 
+     /**
+-     * Applies RetroStyle window blur/alpha to a freeform task leash.
++     * Applies RetroStyle window alpha to a freeform task leash.
+      *
+-     * <p>Blur is focus-gated (GPU cost). Alpha uses focused vs unfocused tokens; blocked
+-     * packages stay opaque. When blur is on and focused alpha is unset, a mild default alpha
+-     * is used so opaque app buffers do not cover the blur.
++     * <p>Background blur is drawn on a sibling {@link RetroUiGlassBlurUnderlay} (opaque app
++     * buffers cover leash blur). Alpha uses focused vs unfocused tokens; blocked packages stay
++     * opaque. When blur is on and alpha is unset, a mild default alpha is used so the underlay
++     * frost can show through.
+      *
+      * @param t transaction to mutate (caller applies, or pass a finishT so glass survives
+      *     transition end)
+@@ -237,8 +269,8 @@ public final class RetroUiWindowStyle {
+             return false;
+         }
+         boolean wrote = false;
+-        final int blurPx = hasGlobalFocus ? blurRadiusPx(context) : 0;
+-        t.setBackgroundBlurRadius(taskSurface, blurPx);
++        // Leash blur is a no-op visually under opaque app children; underlay owns frost.
++        t.setBackgroundBlurRadius(taskSurface, 0);
+         wrote = true;
+ 
+         if (isAlphaDenied(context, packageName)) {
+@@ -246,6 +278,7 @@ public final class RetroUiWindowStyle {
+             return wrote;
+         }
+         float alpha = windowAlpha(context, hasGlobalFocus);
++        final int blurPx = blurRadiusPx(context, hasGlobalFocus);
+         if (alpha < 0f && blurPx > 0) {
+             alpha = DEFAULT_ALPHA_WITH_BLUR;
+         }
+-- 
+2.53.0
+

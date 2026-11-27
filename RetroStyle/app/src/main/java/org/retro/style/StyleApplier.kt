@@ -117,6 +117,8 @@ object StyleApplier {
                     alphaOrColorToken(StyleSettings.windowAlphaUnfocused(cr)),
                 "window_blur_radius" to
                     StyleSettings.windowBlurRadius(cr)?.toString().orEmpty(),
+                "window_blur_radius_unfocused" to
+                    StyleSettings.windowBlurRadiusUnfocused(cr)?.toString().orEmpty(),
                 "window_alpha_blocklist" to
                     StyleSettings.windowAlphaBlocklist(cr).joinToString(",").ifEmpty { "none" },
                 "accent" to pack.accent?.let(::hex).orEmpty(),
@@ -352,7 +354,10 @@ object StyleApplier {
             applied["dialog_alpha"].orEmpty(),
             applied["dialog_blur_radius"].orEmpty(),
             applied["window_alpha"].orEmpty(),
+            applied["window_alpha_unfocused"].orEmpty(),
             applied["window_blur_radius"].orEmpty(),
+            applied["window_blur_radius_unfocused"].orEmpty(),
+            applied["window_alpha_blocklist"].orEmpty(),
             if (kitKat) applied["accent"].orEmpty() else "",
         )
     }

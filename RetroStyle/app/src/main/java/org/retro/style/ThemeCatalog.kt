@@ -42,6 +42,8 @@ data class ThemePack(
     /** Pack default unfocused freeform alpha; null follows [windowAlpha]. */
     val windowAlphaUnfocused: Int? = null,
     val windowBlurRadius: Int? = null,
+    /** Pack default unfocused freeform blur dp; null follows [windowBlurRadius]. */
+    val windowBlurRadiusUnfocused: Int? = null,
 ) {
     /** Overlay package for one of [ThemeCatalog.TARGETS], whether or not the pack ships it. */
     fun overlay(target: String): String = "org.retro.theme.$id.${target.replace('_', '.')}"
@@ -94,6 +96,10 @@ data class ThemePack(
                 windowBlurRadius =
                     if (shell.has("window_blur_radius"))
                         shell.optInt("window_blur_radius").takeIf { it >= 0 }
+                    else null,
+                windowBlurRadiusUnfocused =
+                    if (shell.has("window_blur_radius_unfocused"))
+                        shell.optInt("window_blur_radius_unfocused").takeIf { it >= 0 }
                     else null,
             )
         }

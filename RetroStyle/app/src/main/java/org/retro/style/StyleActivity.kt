@@ -240,6 +240,7 @@ class StyleActivity : AppCompatActivity() {
             draft.windowAlpha = null
             draft.windowAlphaUnfocused = null
             draft.windowBlurRadius = null
+            draft.windowBlurRadiusUnfocused = null
             bindTransparencySliders()
             updateDirtyState()
         }
@@ -290,6 +291,13 @@ class StyleActivity : AppCompatActivity() {
             draft.windowBlurRadius = radius.toInt()
             if (draft.windowAlpha == null) {
                 draft.windowAlpha = effectiveWindowAlpha()
+            }
+            updateDirtyState()
+        }
+        wireSlider(R.id.window_blur_unfocused_slider) { radius ->
+            draft.windowBlurRadiusUnfocused = radius.toInt()
+            if (draft.windowAlphaUnfocused == null) {
+                draft.windowAlphaUnfocused = effectiveWindowAlphaUnfocused()
             }
             updateDirtyState()
         }
@@ -379,6 +387,8 @@ class StyleActivity : AppCompatActivity() {
             (draft.windowBlurRadius ?: draft.pack().windowBlurRadius ?: 0)
                 .coerceIn(0, 40)
                 .toFloat()
+        findViewById<Slider>(R.id.window_blur_unfocused_slider).value =
+            effectiveWindowBlurUnfocused().coerceIn(0, 40).toFloat()
 
         bindWindowBlocklistButton()
         updateSliderLabels()
@@ -403,7 +413,8 @@ class StyleActivity : AppCompatActivity() {
         val windowPack =
             draft.windowAlpha == null &&
                 draft.windowAlphaUnfocused == null &&
-                draft.windowBlurRadius == null
+                draft.windowBlurRadius == null &&
+                draft.windowBlurRadiusUnfocused == null
         setPercentLabel(R.id.window_opacity_value, R.id.window_opacity_slider, windowPack)
         setPercentLabel(
             R.id.window_opacity_unfocused_value,
@@ -414,6 +425,11 @@ class StyleActivity : AppCompatActivity() {
             R.id.window_blur_value,
             R.id.window_blur_slider,
             draft.windowBlurRadius == null,
+        )
+        setDpLabel(
+            R.id.window_blur_unfocused_value,
+            R.id.window_blur_unfocused_slider,
+            draft.windowBlurRadiusUnfocused == null,
         )
     }
 
@@ -713,6 +729,13 @@ class StyleActivity : AppCompatActivity() {
         draft.windowAlphaUnfocused
             ?: draft.pack().windowAlphaUnfocused
             ?: effectiveWindowAlpha()
+
+    private fun effectiveWindowBlurUnfocused(): Int =
+        draft.windowBlurRadiusUnfocused
+            ?: draft.pack().windowBlurRadiusUnfocused
+            ?: draft.windowBlurRadius
+            ?: draft.pack().windowBlurRadius
+            ?: 0
 
     private fun alphaToPercent(alpha: Int): Float =
         ((alpha.coerceIn(0, 255) / 255f) * 100f).toInt().toFloat()

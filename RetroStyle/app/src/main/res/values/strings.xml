@@ -77,7 +77,8 @@
     <string name="slider_dialog_blur">Dialog blur</string>
     <string name="slider_window_opacity">Focused opacity</string>
     <string name="slider_window_opacity_unfocused">Background opacity</string>
-    <string name="slider_window_blur">Window blur</string>
+    <string name="slider_window_blur">Focused blur</string>
+    <string name="slider_window_blur_unfocused">Background blur</string>
     <string name="section_window_blocklist">Keep opaque in freeform</string>
     <string name="window_blocklist_summary">Browsers and document apps can stay solid when glass is on. Camera and media apps are always opaque.</string>
     <string name="window_blocklist_none">None (all glass-eligible apps)</string>

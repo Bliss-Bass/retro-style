@@ -105,7 +105,7 @@ you move them):
 - **Blur behind shade panels** + **Shade blur strength**: blur what is behind those panels
   (and All Apps / start menu where the launcher supports it), not the whole screen.
 - **System dialogs**: dialog opacity and blur; **Use style default** clears the override.
-- **Freeform windows**: focused and background opacity, blur for the focused task, and a
+- **Freeform windows**: focused and background opacity, focused and background blur, and a
   **Keep opaque** blocklist (browsers, Files, …) so those apps stay solid. Camera and media
   stay opaque always. **Use style default** clears the opacity/blur overrides.
 

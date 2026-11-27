@@ -44,6 +44,8 @@ object StyleSettings {
     /** Unfocused freeform leash alpha; unset follows [KEY_WINDOW_ALPHA]. */
     const val KEY_WINDOW_ALPHA_UNFOCUSED = "retro_ui_window_alpha_unfocused"
     const val KEY_WINDOW_BLUR_RADIUS = "retro_ui_window_blur_radius"
+    /** Unfocused freeform blur radius dp; unset follows [KEY_WINDOW_BLUR_RADIUS]. */
+    const val KEY_WINDOW_BLUR_RADIUS_UNFOCUSED = "retro_ui_window_blur_radius_unfocused"
     /**
      * Comma-separated packages that stay opaque in freeform (user blocklist). Merged with the
      * Shell built-in camera/media blocklist. Empty / `none` clears the user list.
@@ -253,6 +255,12 @@ object StyleSettings {
     fun windowBlurRadius(cr: ContentResolver): Int? =
         get(cr, KEY_WINDOW_BLUR_RADIUS)?.toIntOrNull()?.takeIf { it >= 0 }
             ?: pack(cr).windowBlurRadius
+
+    /** Unfocused freeform blur: explicit override, else same as focused [windowBlurRadius]. */
+    fun windowBlurRadiusUnfocused(cr: ContentResolver): Int? =
+        get(cr, KEY_WINDOW_BLUR_RADIUS_UNFOCUSED)?.toIntOrNull()?.takeIf { it >= 0 }
+            ?: pack(cr).windowBlurRadiusUnfocused
+            ?: windowBlurRadius(cr)
 
     /** User freeform glass blocklist packages (no built-ins). */
     fun windowAlphaBlocklist(cr: ContentResolver): List<String> {

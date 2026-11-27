@@ -80,7 +80,8 @@ default.
 | 2 | `retro_ui_dialog_blur_radius` | `shell.dialog_blur_radius` | `dialog_blur_radius` | Dialog window blur radius dp |
 | 3 | `retro_ui_window_alpha` | `shell.window_alpha` | `window_alpha` | Focused freeform leash alpha |
 | 3 | `retro_ui_window_alpha_unfocused` | `shell.window_alpha_unfocused` | `window_alpha_unfocused` | Unfocused freeform leash alpha (falls back to focused) |
-| 3 | `retro_ui_window_blur_radius` | `shell.window_blur_radius` | `window_blur_radius` | Task / window blur radius dp (focused only) |
+| 3 | `retro_ui_window_blur_radius` | `shell.window_blur_radius` | `window_blur_radius` | Focused freeform blur radius dp (sibling underlay) |
+| 3 | `retro_ui_window_blur_radius_unfocused` | `shell.window_blur_radius_unfocused` | `window_blur_radius_unfocused` | Background freeform blur dp (falls back to focused) |
 | 3 | `retro_ui_window_alpha_blocklist` | — | `window_alpha_blocklist` | Comma-separated packages that stay opaque (merged with Shell camera/media builtins); `none` clears |
 
 Bar home translucency already uses `retro_ui_bar_background` (`translucent` / `transparent`).
